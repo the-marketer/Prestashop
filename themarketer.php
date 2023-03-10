@@ -97,7 +97,7 @@ class TheMarketer extends Module
 
     public function hookDisplayHeader($params)
     {
-        $this->context->controller->registerJavascript('modules-themarketer', 'modules/' . $this->name . '/views/js/cart.js', ['position' => 'bottom', 'priority' => 150]);
+        $this->context->controller->registerJavascript('modules-themarketer', 'modules/' . $this->name . '/views/js/cart.js', ['position' => 'bottom', 'priority' => 1000, 'attribute' => 'async']);
         if (Tools::getValue('id_product') > 0 && $this->context->controller->php_self == 'product') {
             $pid = Tools::getValue('id_product');
             $product = new Product(Tools::getValue('id_product'));

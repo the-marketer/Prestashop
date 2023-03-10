@@ -7,6 +7,7 @@
 * @copyright  2022-2023 theMarketer.com
 * @license    http:// opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 */
+
 $link = '';
 $sum_price = '';
 $normal_price = '';
@@ -72,9 +73,8 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
             $product_url = Context::getContext()->link->getProductLink($product_id);
             // main image
             $img = $product->getCover($product->id);
-            $image_type = ImageType::getFormattedName('home');
-            $product_main_image = $link->getImageLink(isset($product->link_rewrite) ? $product->
-                link_rewrite : $product->name, $img['id_image'], $image_type);
+            $image_type = ImageType::getFormattedName('large');
+            $product_main_image = $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int)$img['id_image'], $image_type);
             $cats = Product::getProductCategoriesFull($product_id, $id_lang);
             $cat = '';
             foreach ($cats as $c) {
@@ -156,8 +156,8 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
             $images = $product->getImages($id_lang);
             $media = '';
             foreach ($images as $img) {
-                $image_type = ImageType::getFormattedName('small');
-                $media .= '<image>' . $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, $img['id_image'], $image_type) . '</image>';
+                $image_type = ImageType::getFormattedName('large');
+                $media .= '<image>' . $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int)$img['id_image'], $image_type) . '</image>';
             }
             // compinations
             $compination = '';
@@ -356,7 +356,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                 } else {
                     $product_sku = $product_sku;
                 }
-                $image_type = ImageType::getFormattedName('home');
+                $image_type = ImageType::getFormattedName('large');
                 $xml_schema_arr[] = '
 					<product>
 						  <id>' . $product_id . '</id>
@@ -415,9 +415,8 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                         $product_sku = $product_sku;
                     }
                     $img = $product->getCover($product->id);
-                    $image_type = ImageType::getFormattedName('home');
-                    $main_img = $link->getImageLink(isset($product->link_rewrite) ? $product->
-                        link_rewrite : $product->name, $extra['attribute_color_image'], $image_type);
+                    $image_type = ImageType::getFormattedName('large');
+                    $main_img = $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int)$img['id_image'], $image_type);
                     if (count($images) > 1) {
                         $main_img = $main_img;
                     } else {
