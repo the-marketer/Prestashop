@@ -8,8 +8,6 @@
 //add to cart 
 ;jQuery(function ($) {
 
-	//var siteurl = "https://click4fashion.com/";
-
     prestashop.on('updateCart', function (event) {
         setTimeout(function () {
             if(event.reason.cart === undefined){}else{
