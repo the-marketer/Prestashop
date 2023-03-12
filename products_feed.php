@@ -7,7 +7,6 @@
 * @copyright  2022-2023 theMarketer.com
 * @license    http:// opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 */
-
 $link = '';
 $sum_price = '';
 $normal_price = '';
@@ -74,7 +73,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
             // main image
             $img = $product->getCover($product->id);
             $image_type = ImageType::getFormattedName('large');
-            $product_main_image = $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int)$img['id_image'], $image_type);
+            $product_main_image = $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int) $img['id_image'], $image_type);
             $cats = Product::getProductCategoriesFull($product_id, $id_lang);
             $cat = '';
             foreach ($cats as $c) {
@@ -157,7 +156,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
             $media = '';
             foreach ($images as $img) {
                 $image_type = ImageType::getFormattedName('large');
-                $media .= '<image>' . $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int)$img['id_image'], $image_type) . '</image>';
+                $media .= '<image>' . $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int) $img['id_image'], $image_type) . '</image>';
             }
             // compinations
             $compination = '';
@@ -416,7 +415,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                     }
                     $img = $product->getCover($product->id);
                     $image_type = ImageType::getFormattedName('large');
-                    $main_img = $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int)$img['id_image'], $image_type);
+                    $main_img = $link->getImageLink(isset($product->link_rewrite) ? $product->link_rewrite : $product->name, (int) $img['id_image'], $image_type);
                     if (count($images) > 1) {
                         $main_img = $main_img;
                     } else {
