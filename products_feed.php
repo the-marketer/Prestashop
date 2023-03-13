@@ -20,16 +20,17 @@ $limit = 10000000000;
 $order_by = 'id_product';
 $order_way = 'ASC';
 $xml_schema_arr = [];
+
 $prosnew = Db::getInstance()->executeS('SELECT p.id_product as id_product, p.active as active, p.wholesale_price as wholesale_price,
-p.date_add as date_add, pl.description as description, pl.name as name, pa.id_product_attribute as id_product_attribute, GROUP_CONCAT(DISTINCT(pal.name) SEPARATOR \',\') as combination,
-p.price as normprice, pa.reference as reference, pq.quantity as quantity,  pai.id_image AS attribute_color_image
+p.date_add as date_add, pl.name as name,
+p.price as normprice, pa.reference as reference
 FROM ' . _DB_PREFIX_ . 'product p
+LEFT JOIN ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product)
 LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON (p.id_product = pl.id_product)
 LEFT JOIN ' . _DB_PREFIX_ . 'category_product cp ON (p.id_product = cp.id_product)
 LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (cp.id_category = cl.id_category)
 LEFT JOIN ' . _DB_PREFIX_ . 'category c ON (cp.id_category = c.id_category)
 LEFT JOIN ' . _DB_PREFIX_ . 'product_tag pt ON (p.id_product = pt.id_product)
-LEFT JOIN ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product)
 LEFT JOIN `' . _DB_PREFIX_ .
     'product_attribute_image` AS pai ON pai.`id_product_attribute` = pa.`id_product_attribute`
 LEFT JOIN ' . _DB_PREFIX_ .
@@ -44,22 +45,16 @@ WHERE pl.id_lang = ' . $id_lang . '
 AND cl.id_lang = ' . $id_lang . '
 AND p.id_shop_default = 1
 AND c.id_shop_default = 1
-GROUP by p.id_product, pl.description, pl.name, pa.id_product_attribute, p.price, pa.reference, pq.quantity,  pai.id_image');
+AND p.active = 1
+GROUP by p.id_product, pl.name, p.price, pa.reference');
+
 // check auth
 if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
-    $all_products = Product::getProducts(
-        $id_lang,
-        $start,
-        $limit,
-        $order_by,
-        $order_way,
-        $id_category = false,
-        $only_active = false,
-        $context = null
-    );
+
     // start xml schema
     $xml_schema = '<?xml version=\'1.0\' encoding=\'UTF-8\'?><products>';
     // get products data
+    
     foreach ($prosnew as $product_key => $product_val) {
         if ($product_val['active'] == 1) {
             $combinations = 0;
@@ -69,7 +64,8 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
             $combinations = $product->getAttributeCombinations($id_lang, true);
             $product_sku = $product_val['reference'];
             $product_name = $product_val['name'];
-            $product_description = htmlentities($product_val['description']);
+            //$product_description = htmlentities($product_val['description']);
+            $product_description = $product_val['name'];
             $product_url = Context::getContext()->link->getProductLink($product_id);
             // main image
             $img = $product->getCover($product->id);
@@ -93,6 +89,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
 
             $normprice = $price;
             $product_price = round($product_val['normprice'], 2);
+            $product_price = $product->getPriceWithoutReduct(false,null);
             // get discount
             $discount_price_val = 0;
             $discount_price_per = 0;
@@ -150,6 +147,11 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                 $availability_supplier = 0;
             }
             $product_quantity = Product::getQuantity($product_id);
+            
+            if ($product_quantity > 999999999) {
+                $product_quantity = 999;
+            }
+            
             $product_availability = $availability;
             $product_availability_supplier = $availability_supplier;
             // images list
@@ -175,7 +177,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                 $colorsize = [];
                 foreach ($combarr as $k => $cv) {
                     foreach ($cv as $c) {
-                        $colorsize[$k]['quantity'] = $c['quantity'];
+                        $colorsize[$k]['quantity'] = $c['quantity'] > 999999999 ? 999 : $c['quantity'];
                         $colorsize[$k]['add_price'] = $c['price'];
                         $colorsize[$k]['id_product_attribute'] = $c['id_product_attribute'];
                         $colorsize[$k]['reference'] = $c['reference'];
@@ -215,19 +217,19 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                             LEFT JOIN `' . _DB_PREFIX_ .
                     'product_attribute_image` pai ON pai.`id_product_attribute` = pa.`id_product_attribute`
                             WHERE pa.`id_product` = ' . $product_id . '
-							GROUP BY pa.`id_product_attribute`, pai.`id_image`,a.`id_attribute`
+                            GROUP BY pa.`id_product_attribute`, pai.`id_image`,a.`id_attribute`
                             ORDER BY pa.`id_product_attribute`');
                 $data = [];
                 foreach ($result as $cs) {
                     $attr = $cs['id_attribute'];
                     $iscolor = Db::getInstance()->executeS('
-						SELECT `group_type`
-						FROM `' . _DB_PREFIX_ . 'attribute_group`
-						WHERE `id_attribute_group` = (
-							SELECT `id_attribute_group`
-							FROM `' . _DB_PREFIX_ . 'attribute`
-							WHERE `id_attribute` = ' . $attr . ')
-						AND group_type = \'color\'');
+                        SELECT `group_type`
+                        FROM `' . _DB_PREFIX_ . 'attribute_group`
+                        WHERE `id_attribute_group` = (
+                            SELECT `id_attribute_group`
+                            FROM `' . _DB_PREFIX_ . 'attribute`
+                            WHERE `id_attribute` = ' . $attr . ')
+                        AND group_type = \'color\'');
                     if ($iscolor) {
                         $cs['color'] = 1;
                     } else {
@@ -259,11 +261,14 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                         if (empty($atrname['size']) && empty($atrname['color'])) {
                             $groupname = strtolower(str_replace(' ', '_', $atrname['group_name']));
                             $attr_value = $atrname['attribute_name'];
+                            /*
                             $extra_attr[$atrname['id_attribute']] = [
                                     'name' => $groupname,
                                     'value' => $attr_value,
                                     'extra_price' => $atrname['price'],
                                 ];
+                            */   
+                            $extra_attr = '';
                         } else {
                             $extra_attr = '';
                         }
@@ -325,7 +330,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                 }
             }
             if ($qty > 0) {
-                $product_quantity = $qty;
+                $product_quantity = $qty > 999999999 ? 999 : $qty;
             } else {
                 $product_quantity = $product_quantity;
             }
@@ -358,57 +363,58 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                 }
                 $image_type = ImageType::getFormattedName('large');
                 $xml_schema_arr[] = '
-					<product>
-						  <id>' . $product_id . '</id>
-						  <sku>' . $product_sku . '</sku>
-						  <name><![CDATA[' . $product_name . ']]></name>
-						  <description><![CDATA[' . $product_description . ']]></description>
-						  <url><![CDATA[' . $product_url . ']]></url>
-						  <main_image>' . $product_main_image . '</main_image>
-						  <category><![CDATA[' . $product_category . ']]></category>
-						  <brand><![CDATA[' . $product_brand . ']]></brand>
-						  <acquisition_price>' . $product_acquisition_price .
+                    <product>
+                          <id>' . $product_id . '</id>
+                          <sku>' . $product_sku . '</sku>
+                          <name><![CDATA[' . $product_name . ']]></name>
+                          <description><![CDATA[' . $product_description . ']]></description>
+                          <url><![CDATA[' . $product_url . ']]></url>
+                          <main_image>' . $product_main_image . '</main_image>
+                          <category><![CDATA[' . $product_category . ']]></category>
+                          <brand><![CDATA[' . $product_brand . ']]></brand>
+                          <acquisition_price>' . $product_acquisition_price .
                     '</acquisition_price>
-						  <price>' . round($normal_price, 2) . '</price>
-						  <sale_price>' . round($normprice, 2) . '</sale_price>
-						  <sale_price_start_date>' . $product_sale_price_start_date .
+                          <price>' . round($normal_price, 2) . '</price>
+                          <sale_price>' . round($normprice, 2) . '</sale_price>
+                          <sale_price_start_date>' . $product_sale_price_start_date .
                     '</sale_price_start_date>
-						  <sale_price_end_date>' . $product_sale_price_end_date .
+                          <sale_price_end_date>' . $product_sale_price_end_date .
                     '</sale_price_end_date>
-						  <availability>' . $product_availability . '</availability>
-						  <stock>' . $product_quantity . '</stock>		
-						  ' . $media_tag . '
-						  ' . $variations . '
-						  <created_at>' . date('Y-m-d H:i', strtotime($product_val['date_add'])) .
+                          <availability>' . $product_availability . '</availability>
+                          <stock>' . $product_quantity . '</stock>      
+                          ' . $media_tag . '
+                          ' . $variations . '
+                          <created_at>' . date('Y-m-d H:i', strtotime($product_val['date_add'])) .
                     '</created_at>
-						  <extra_attributes></extra_attributes>
-					</product>';
+                          <extra_attributes></extra_attributes>
+                    </product>';
             } else {
                 $prodattr = Db::getInstance()->executeS('SELECT pa.*, ag.id_attribute_group, ag.is_color_group, agl.name AS group_name, al.name AS attribute_name, a.id_attribute, pa.price as price,  pai.id_image AS attribute_color_image
-					FROM ' . _DB_PREFIX_ . 'product_attribute pa
-					LEFT JOIN ' . _DB_PREFIX_ .
+                    FROM ' . _DB_PREFIX_ . 'product_attribute pa
+                    LEFT JOIN ' . _DB_PREFIX_ .
                                 'product_attribute_combination pac ON pac.id_product_attribute = pa.id_product_attribute
-					LEFT JOIN `' . _DB_PREFIX_ .
+                    LEFT JOIN `' . _DB_PREFIX_ .
                                 'product_attribute_image` AS pai ON pai.`id_product_attribute` = pa.`id_product_attribute`
-					LEFT JOIN ' . _DB_PREFIX_ . 'attribute a ON a.id_attribute = pac.id_attribute
-					LEFT JOIN ' . _DB_PREFIX_ .
+                    LEFT JOIN ' . _DB_PREFIX_ . 'attribute a ON a.id_attribute = pac.id_attribute
+                    LEFT JOIN ' . _DB_PREFIX_ .
                                 'attribute_group ag ON ag.id_attribute_group = a.id_attribute_group
-					LEFT JOIN ' . _DB_PREFIX_ .
+                    LEFT JOIN ' . _DB_PREFIX_ .
                                 'attribute_lang al ON (a.id_attribute = al.id_attribute AND al.id_lang = ' . $id_lang .
                                 ')
-					LEFT JOIN ' . _DB_PREFIX_ .
+                    LEFT JOIN ' . _DB_PREFIX_ .
                                 'attribute_group_lang agl ON (ag.id_attribute_group = agl.id_attribute_group AND agl.id_lang = ' .
                                 $id_lang . ')
-					WHERE pa.id_product = ' . $product_id . '
-					ORDER BY pa.id_product_attribute');
-
+                    WHERE pa.id_product = ' . $product_id . '
+                    ORDER BY pa.id_product_attribute');
+                    
                 foreach ($prodattr as $extra_key => $extra) {
                     $sqlid_product_attribute = $extra['id_product_attribute'];
                     $extravalue = $extra['attribute_name'];
                     $extraextra_price = $extra['price'];
                     $extraname = str_replace(' ', '_', $extra['group_name']);
 
-                    $product_price = (($product_price / 100) * $product->tax_rate) + $product_price;
+                    //$product_price = (($product_price / 100) * $product->tax_rate) + $product_price;
+                    $product_price = $product_price;
                     if (empty($product_sku)) {
                         $product_sku = 'sku_' . $product_id;
                     } else {
@@ -423,31 +429,31 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
                         $main_img = $product_main_image;
                     }
                     $xml_schema_arr[] = '
-						<product>
-								  <id>' . $product_id . '_' . $sqlid_product_attribute . '</id>
-								  <sku>' . $product_sku . '</sku>
-								  <name><![CDATA[' . $product_name . ' - ' . $extravalue . ']]></name>
-								  <description><![CDATA[' . $product_description . ']]></description>
-								  <url><![CDATA[' . $product_url . ']]></url>
-								  <main_image>' . $main_img . '</main_image>
-								  <category><![CDATA[' . $product_category . ']]></category>
-								  <brand><![CDATA[' . $product_brand . ']]></brand>
-								  <acquisition_price>' . $product_acquisition_price .
+                        <product>
+                                  <id>' . $product_id . '_' . $sqlid_product_attribute . '</id>
+                                  <sku>' . $product_sku . '</sku>
+                                  <name><![CDATA[' . $product_name . ' - ' . $extravalue . ']]></name>
+                                  <description><![CDATA[' . $product_description . ']]></description>
+                                  <url><![CDATA[' . $product_url . ']]></url>
+                                  <main_image>' . $main_img . '</main_image>
+                                  <category><![CDATA[' . $product_category . ']]></category>
+                                  <brand><![CDATA[' . $product_brand . ']]></brand>
+                                  <acquisition_price>' . $product_acquisition_price .
                         '</acquisition_price>
-								  <price>' . round($product_price, 2) . '</price>
-								  <sale_price>' . round($price, 2) . '</sale_price>
-								  <sale_price_start_date>' . $product_sale_price_start_date .
+                                  <price>' . round($product_price, 2) . '</price>
+                                  <sale_price>' . round($price, 2) . '</sale_price>
+                                  <sale_price_start_date>' . $product_sale_price_start_date .
                         '</sale_price_start_date>
-								  <sale_price_end_date>' . $product_sale_price_end_date .
+                                  <sale_price_end_date>' . $product_sale_price_end_date .
                         '</sale_price_end_date>
-								  <availability>' . $product_availability . '</availability>
-								  <stock>' . $product_quantity . '</stock>		
-								  ' . $media_tag . '
-								  <created_at>' . date('Y-m-d H:i', strtotime($product_val['date_add'])) .
+                                  <availability>' . $product_availability . '</availability>
+                                  <stock>' . $product_quantity . '</stock>      
+                                  ' . $media_tag . '
+                                  <created_at>' . date('Y-m-d H:i', strtotime($product_val['date_add'])) .
                         '</created_at>
-								  <extra_attributes><' . $extraname . '><![CDATA[' . $extravalue .
+                                  <extra_attributes><' . $extraname . '><![CDATA[' . $extravalue .
                         ']]></' . $extraname . '></extra_attributes>
-						</product>';
+                        </product>';
                 }
             }
         } else {
