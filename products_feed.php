@@ -470,7 +470,7 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key')) {
     $xmlfile = fopen($filename, 'w');
     fwrite($xmlfile, $xml_schema);
     fclose($xmlfile);
-    echo 'Products Feed URL saved at: ' . Tools::getHttpHost(true) . __PS_BASE_URI__ .
-        'modules/themarketer/products_feed_' . Tools::getValue('key') . '.xml';
+    //echo 'Products Feed URL saved at: ' . Tools::getHttpHost(true) . __PS_BASE_URI__ .'modules/themarketer/products_feed_' . Tools::getValue('key') . '.xml';
+    print_r($xml_schema);
 } else {
 }
