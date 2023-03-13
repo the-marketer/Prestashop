@@ -27,6 +27,8 @@ class TheMarketer extends Module
     public const REVIEWS_FEED_LINK = 'THEMARKETER_REVIEWS_FEED_LINK';
     public const TM_ENABLE_NOTIFICATIONS = 'THEMARKETER_ENABLE_NOTIFICATIONS';
     public const TM_ENABLE_REVIEWS = 'THEMARKETER_ENABLE_REVIEWS';
+    public const GOOGLE_TRACKING_STATUS = 'THEMARKETER_GOOGLE_TRACKING_STATUS';
+    public const GOOGLE_TRACKING_KEY = 'THEMARKETER_GOOGLE_TRACKING_KEY';
 
     public function __construct()
     {
@@ -64,6 +66,8 @@ class TheMarketer extends Module
         Configuration::updateValue(self::REVIEWS_FEED_LINK, '') &&
         Configuration::updateValue(self::TM_ENABLE_NOTIFICATIONS, '') &&
         Configuration::updateValue(self::TM_ENABLE_REVIEWS, '') &&
+        Configuration::updateValue(self::GOOGLE_TRACKING_STATUS, '') &&
+        Configuration::updateValue(self::GOOGLE_TRACKING_KEY, '') &&
         $this->registerHook('actionValidateOrder') &&
         $this->registerHook('displayOrderConfirmation') &&
         $this->registerHook('actionAuthentication') &&
@@ -92,6 +96,8 @@ class TheMarketer extends Module
         Configuration::deleteByName(self::REVIEWS_FEED_LINK);
         Configuration::deleteByName(self::TM_ENABLE_NOTIFICATIONS);
         Configuration::deleteByName(self::TM_ENABLE_REVIEWS);
+        Configuration::deleteByName(self::GOOGLE_TRACKING_STATUS);
+        Configuration::deleteByName(self::GOOGLE_TRACKING_KEY);
         return true;
     }
 
@@ -209,6 +215,8 @@ class TheMarketer extends Module
         }
         $this->context->smarty->assign([
             'tm_id' => Configuration::get(self::TRACKING_KEY),
+            'tm_google_status' => (bool) Configuration::get(self::GOOGLE_TRACKING_STATUS),
+            'tm_google_key' => Configuration::get(self::GOOGLE_TRACKING_KEY),
             'tm_page_name' => $this->context->controller->php_self,
             'tm_product_id' => $pid,
             'tm_product_compination' => $comb_id,
@@ -295,6 +303,10 @@ class TheMarketer extends Module
             } else {
                 Configuration::updateValue(self::ORDERS_FEED_DATE, $tmordersfeeddate);
             }
+            $GOOGLE_TRACKING_KEY = Tools::getValue(self::GOOGLE_TRACKING_KEY);
+            Configuration::updateValue(self::GOOGLE_TRACKING_KEY, $GOOGLE_TRACKING_KEY);
+            $GOOGLE_TRACKING_STATUS = Tools::getValue(self::GOOGLE_TRACKING_STATUS);
+            Configuration::updateValue(self::GOOGLE_TRACKING_STATUS, $GOOGLE_TRACKING_STATUS);
         }
         $output .= $this->context->smarty->fetch($this->local_path . 'views/templates/admin/configure.tpl');
         $feedsLinks = $this->context->smarty->fetch($this->local_path . 'views/templates/admin/themarketer_feeds/feeds.tpl');
@@ -523,6 +535,26 @@ class TheMarketer extends Module
                     'class' => 'tm-brands-feed-link',
                     'desc' => '<span style=\'cursor:pointer;padding:5px 10px; background:#fff;border:1px solid #666;position:absolute;right:10px;top:5px;\' onclick=\'copyLinkBrands(),alert(alertordersfeed )\' id=\'spanCopyBrands\'><i class=\'material-icons\' style=\'font-size:0.9em;\'>collections</i> ' . $this->l('Copy') . '</span></p>',
                 ],
+                [
+                    'type' => 'header',
+                    'name' => $this->l('Google Settings'),
+                    'label' => '<strong>' . $this->l('Google Settings') . '</strong>',
+                ],
+                [
+                    'type' => 'select',
+                    'label' => $this->l('Status'),
+                    'name' => self::GOOGLE_TRACKING_STATUS,
+                    'options' => [
+                      'query' => $optionsorders,
+                      'id' => 'id_option',
+                      'name' => 'name',
+                    ],
+                ],
+                [
+                    'type' => 'text',
+                    'label' => $this->l('Tracking key') . ';',
+                    'name' => self::GOOGLE_TRACKING_KEY,
+                ],
             ],
             'submit' => [
                 'title' => $this->l('Save'),
@@ -565,6 +597,10 @@ class TheMarketer extends Module
         $helper->fields_value[self::CATEGORIES_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/categories_feed.php?key=' . Configuration::get(self::REST_KEY);
         $helper->fields_value[self::BRANDS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/brands_feed.php?key=' . Configuration::get(self::REST_KEY);
         $helper->fields_value[self::REVIEWS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/reviews_feed.php?key=' . Configuration::get(self::REST_KEY) . '&start_date=' . Configuration::get(self::ORDERS_FEED_DATE);
+
+        $helper->fields_value[self::GOOGLE_TRACKING_STATUS] = Configuration::get(self::GOOGLE_TRACKING_STATUS);
+        $helper->fields_value[self::GOOGLE_TRACKING_KEY] = Configuration::get(self::GOOGLE_TRACKING_KEY);
+
         return $helper->generateForm($fieldsForm);
     }
 
