@@ -5,64 +5,69 @@
 *  @copyright  2022-2023 theMarketer.com    
 *  @license    http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 */
-//add to cart 
+
+const mktr = {
+	idProduct:0,
+	idProductAttribute:0,
+	qty:0
+};
+
 ;jQuery(function ($) {
-
     prestashop.on('updateCart', function (event) {
-        setTimeout(function () {
-            if(event.reason.cart === undefined){}else{
-				var qty = event.reason.cart.products.reverse()[0].embedded_attributes.quantity;
-				var skunum = event.reason.cart.products.reverse()[0].embedded_attributes.reference;
-				var pid = event.reason.idProduct;
-				var pidattr = 0;
-				if (event.reason.idProductAttribute > 0) {
-					var pidattr = event.reason.idProductAttribute;
-					pid = pid + '_' + pidattr;
-				}
-				console.log(pid);
-				dataLayer.push({
-					event: "__sm__add_to_cart",
-					product_id: pid,
-					quantity: qty,
-					variation: {
-						id: pidattr,
-						sku: skunum
-					}
-				});
-            }
-        }, 100);
-    });
+		if(typeof event === "object" && typeof event.reason === "object" && event.reason.hasOwnProperty('linkAction'))
+        {
+			const di = new Date();
+			let time = di.getTime();
 
-    jQuery(document).on('click','.remove-from-cart', function () {
-		const di = new Date();
-		let time = di.getTime();	  		
-        pid = jQuery(this).data('id-product');
-		
-        pidatr = jQuery(this).data('id-product-attribute');
-        if (pidatr > 0) {
-            pida = pid + '_' + pidatr;
-        } else {
-            pida = pid;
-			pidatr = '';
-        }
-		console.log(pida);
-		jQuery.post( siteurl+"modules/themarketer/get-product.php?t="+time, { product_id: pid, comb_id: pidatr }, function( skuid ) {
-			console.log(skuid);
-					var qty = 1;
+			if (event.reason.linkAction === "add-to-cart") {
+				jQuery.post(siteurl+"modules/themarketer/get-product.php?t="+time, {
+					product_id: event.reason.idProduct,
+					comb_id: event.reason.idProductAttribute,
+					qty: event.resp.quantity
+				}, function( skuid ) {
+					let data = JSON.parse(skuid);
+					
+					dataLayer.push({
+						event: "__sm__add_to_cart",
+						product_id: data.product_id,
+						quantity: data.qty,
+						variation: data.variation
+					});
+				});
+			} else if (event.reason.linkAction === "delete-from-cart") {
+				jQuery.post(siteurl+"modules/themarketer/get-product.php?t="+time, {
+					product_id:event.reason.idProduct,
+					comb_id:event.reason.idProductAttribute,
+					qty:mktr.qty
+				}, function( skuid ) {
+					let data = JSON.parse(skuid);
+
 					dataLayer.push({
 						event: "__sm__remove_from_cart",
-						product_id: pida,
-						quantity: qty,
-						variation: {
-							id: pidatr,
-							sku: skuid
-						}
+						product_id: data.product_id,
+						quantity: data.qty,
+						variation: data.variation
 					});
-		});		
+				});	
+			}
+		}
     });
+	
+    jQuery(document).on('click','.remove-from-cart', function () {
+		mktr.idProduct = jQuery(this).data('id-product');
+		mktr.idProductAttribute = jQuery(this).data('id-product-attribute');
+		mktr.qty = 1;
+		
+		for (let pro of prestashop.cart.products) {
+			if (pro.id_product == mktr.idProduct &&
+				pro.id_product_attribute == mktr.idProductAttribute) {
+				mktr.qty = pro.quantity;
+			}
+		}
+    });
+
 	//check _initiate_checkout
 	if(typeof tmpagename !== 'undefined' && tmpagename == 'order'){
-		
 		if(tmgetCookie('tm_initate_checkout') ==''){
 			tmsetCookie('tm_initate_checkout', 1, 1);
 			dataLayer.push({
@@ -75,98 +80,53 @@
 		var wl_text = $(this).find('i:first').text();
 		var pid = jQuery('#product_page_product_id').val();
 		var pidatr = jQuery('.product-information .product-variants.js-product-variants').find("select :selected").val();
-		if (pidatr > 0) {
-		   comp = pidatr;
-	   } else {
-		  comp = 0;
-	   }	
-		jQuery.post( siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: comp }, function( data ) {
+		
+		jQuery.post( siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: pidatr }, function( d ) {
+			let data = JSON.parse(d);
 			
-		  if(data != 'no'){
-		  const dataarr = data.split("@");
-		  var statuswish = dataarr[0];
-		  var reference = dataarr[1];
-			if (pidatr > 0) {
-				pida = pid + '_' + pidatr;
-			} else {
-				pida = pid;
-			}
-
 			if(wl_text == 'favorite_border'){
-			dataLayer.push({
-				event: "__sm__add_to_wishlist",
-				product_id: pida,
-				variation: {
-					id: pidatr,
-					sku: reference
-				}
-			});
-				
-			console.log('wl_added');
+				dataLayer.push({
+					event: "__sm__add_to_wishlist",
+					product_id: data.product_id,
+					variation: data.variation
+				});
+				console.log('wl_added');
 			} else if(wl_text == 'favorite'){
 				dataLayer.push({
 					event: "__sm__remove_from_wishlist",
-					product_id: pida,
-					variation: {
-						id: pidatr,
-						sku: reference
-					}
+					product_id: data.product_id,
+					variation: data.variation
 				});				
-			  
-			console.log('wl_removed');
-			}  
-		  } else {}
+				console.log('wl_removed');
+			}
 		});
 	});	
 	
 	//add-remove from wishlist
 	jQuery('#products .wishlist-button-add,.page-home .wishlist-button-add,.wishlist-list-item').on('click', function (ev) {
-		//alert(JSON.stringify(ev.target, null, 4));
 		var wl_text = $(this).find('i:first').text();
-		//alert(wl_text);
+		
 		var pid = jQuery(this).closest('article').data('id-product');
 		var pidatr = jQuery(this).closest('article').data('id-product-attribute');
-		if (pidatr > 0) {
-		   comp = pidatr;
-	   } else {
-		  comp = 0;
-	   }	
-	   console.log(pid);console.log(pidatr);
-		jQuery.post( siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: comp }, function( data ) {
-			
-		  if(data != 'no'){
-		  const dataarr = data.split("@");
-		  var statuswish = dataarr[0];
-		  var reference = dataarr[1];
-			if (pidatr > 0) {
-				pida = pid + '_' + pidatr;
-			} else {
-				pida = pid;
-			}
-			console.log(statuswish);
+		
+		jQuery.post( siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: pidatr }, function( d ) {
+			let data = JSON.parse(d);
+		  
 			if(wl_text == 'favorite_border'){
-			dataLayer.push({
-				event: "__sm__add_to_wishlist",
-				product_id: pida,
-				variation: {
-					id: pidatr,
-					sku: reference
-				}
-			});
-			console.log('wl_added');
+				dataLayer.push({
+					event: "__sm__add_to_wishlist",
+					product_id: data.product_id,
+					variation: data.variation
+				});
+				console.log('wl_added');
 			} else if(wl_text == 'favorite'){
 				dataLayer.push({
 					event: "__sm__remove_from_wishlist",
-					product_id: pida,
-					variation: {
-						id: pidatr,
-						sku: reference
-					}
-				});				
-
-			console.log('wl_removed');			  
-			}  
-		  } else {}
+					product_id: data.product_id,
+					variation: data.variation
+				});
+				console.log('wl_removed');			  
+			}
 		});
 	});
 

@@ -10,25 +10,39 @@
 if (!defined('_PS_VERSION_')) {
     exit;
 }
+if (!defined('MKTR_DIR')) {
+    define('MKTR_DIR', dirname(__FILE__) . '/');
+}
 
+/**
+ * @property $confirmUninstall
+ * @property array $_errors
+ */
 class TheMarketer extends Module
 {
-    public const TRACKING_KEY = 'THEMARKETER_TRACKING_KEY';
-    public const REST_KEY = 'THEMARKETER_REST_KEY';
-    public const TM_API_URL = 'https://t.themarketer.com/api/v1';
-    public const TM_CUSTOMER_ID = 'THEMARKETER_CUSTOMER_ID';
-    public const ORDERS_FEED_ALLOW = 'THEMARKETER_ORDERS_FEED_ALLOW';
-    public const ORDERS_FEED_DATE = 'THEMARKETER_ORDERS_FEED_DATE';
-    public const ORDERS_FEED_LINK = 'THEMARKETER_ORDERS_FEED_LINK';
-    public const PRODUCTS_FEED_LINK = 'THEMARKETER_PRODUCTS_FEED_LINK';
-    public const PRODUCTS_FEED_CRON = 'THEMARKETER_PRODUCTS_FEED_CRON';
-    public const CATEGORIES_FEED_LINK = 'THEMARKETER_CATEGORIES_FEED_LINK';
-    public const BRANDS_FEED_LINK = 'THEMARKETER_BRANDS_FEED_LINK';
-    public const REVIEWS_FEED_LINK = 'THEMARKETER_REVIEWS_FEED_LINK';
-    public const TM_ENABLE_NOTIFICATIONS = 'THEMARKETER_ENABLE_NOTIFICATIONS';
-    public const TM_ENABLE_REVIEWS = 'THEMARKETER_ENABLE_REVIEWS';
-    public const GOOGLE_TRACKING_STATUS = 'THEMARKETER_GOOGLE_TRACKING_STATUS';
-    public const GOOGLE_TRACKING_KEY = 'THEMARKETER_GOOGLE_TRACKING_KEY';
+    const TRACKING_KEY = 'THEMARKETER_TRACKING_KEY';
+    const REST_KEY = 'THEMARKETER_REST_KEY';
+    const TM_API_URL = 'https://t.themarketer.com/api/v1';
+    const TM_CUSTOMER_ID = 'THEMARKETER_CUSTOMER_ID';
+    const ORDERS_FEED_ALLOW = 'THEMARKETER_ORDERS_FEED_ALLOW';
+    const ORDERS_FEED_DATE = 'THEMARKETER_ORDERS_FEED_DATE';
+    const ORDERS_FEED_LINK = 'THEMARKETER_ORDERS_FEED_LINK';
+    const PRODUCTS_FEED_LINK = 'THEMARKETER_PRODUCTS_FEED_LINK';
+    const PRODUCTS_FEED_CRON = 'THEMARKETER_PRODUCTS_FEED_CRON';
+    const CATEGORIES_FEED_LINK = 'THEMARKETER_CATEGORIES_FEED_LINK';
+    const BRANDS_FEED_LINK = 'THEMARKETER_BRANDS_FEED_LINK';
+    const REVIEWS_FEED_LINK = 'THEMARKETER_REVIEWS_FEED_LINK';
+    const TM_ENABLE_NOTIFICATIONS = 'THEMARKETER_ENABLE_NOTIFICATIONS';
+    const TM_ENABLE_REVIEWS = 'THEMARKETER_ENABLE_REVIEWS';
+    const CRON_FEED = 'THEMARKETER_CRON_FEED';
+    const UPDATE_FEED = 'THEMARKETER_UPDATE_FEED';
+    const COLOR_ATTRIBUTE = 'THEMARKETER_COLOR_ATTRIBUTE';
+    const SIZE_ATTRIBUTE = 'THEMARKETER_SIZE_ATTRIBUTE';
+    const DEFAULT_STOCK = 'THEMARKETER_DEFAULT_STOCK';
+    const GOOGLE_TRACKING_STATUS = 'THEMARKETER_GOOGLE_TRACKING_STATUS';
+    const GOOGLE_TRACKING_KEY = 'THEMARKETER_GOOGLE_TRACKING_KEY';
+
+    public static $loaded = [];
 
     public function __construct()
     {
@@ -42,6 +56,11 @@ class TheMarketer extends Module
         $this->displayName = $this->l('TheMarketer Platform');
         $this->description = $this->l('Integrates themarketer.com platform.');
         $this->confirmUninstall = $this->l('Are you sure you want to uninstall this module?');
+    }
+
+    public function runCronJob()
+    {
+        return 'Done';
     }
 
     public function install()
@@ -66,6 +85,11 @@ class TheMarketer extends Module
         Configuration::updateValue(self::REVIEWS_FEED_LINK, '') &&
         Configuration::updateValue(self::TM_ENABLE_NOTIFICATIONS, '') &&
         Configuration::updateValue(self::TM_ENABLE_REVIEWS, '') &&
+        Configuration::updateValue(self::CRON_FEED, 0) &&
+        Configuration::updateValue(self::UPDATE_FEED, 4) &&
+        Configuration::updateValue(self::COLOR_ATTRIBUTE, 'Color') &&
+        Configuration::updateValue(self::SIZE_ATTRIBUTE, 'Size') &&
+        Configuration::updateValue(self::DEFAULT_STOCK, 0) &&
         Configuration::updateValue(self::GOOGLE_TRACKING_STATUS, '') &&
         Configuration::updateValue(self::GOOGLE_TRACKING_KEY, '') &&
         $this->registerHook('actionValidateOrder') &&
@@ -78,6 +102,7 @@ class TheMarketer extends Module
             return true;
         }
         $this->_errors[] = $this->trans('There was an error during the installation.');
+
         return false;
     }
 
@@ -96,9 +121,41 @@ class TheMarketer extends Module
         Configuration::deleteByName(self::REVIEWS_FEED_LINK);
         Configuration::deleteByName(self::TM_ENABLE_NOTIFICATIONS);
         Configuration::deleteByName(self::TM_ENABLE_REVIEWS);
+        Configuration::deleteByName(self::CRON_FEED);
+        Configuration::deleteByName(self::UPDATE_FEED);
+        Configuration::deleteByName(self::COLOR_ATTRIBUTE);
+        Configuration::deleteByName(self::SIZE_ATTRIBUTE);
+        Configuration::deleteByName(self::DEFAULT_STOCK);
         Configuration::deleteByName(self::GOOGLE_TRACKING_STATUS);
         Configuration::deleteByName(self::GOOGLE_TRACKING_KEY);
+
         return true;
+    }
+
+    public static function getModel($model = null)
+    {
+        if ($model !== null) {
+            if (!isset(self::$loaded[$model])) {
+                require_once MKTR_DIR . 'Model/' . $model . '.php';
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public static function getHelp($model = null)
+    {
+        if ($model !== null) {
+            if (!isset(self::$loaded[$model])) {
+                require_once MKTR_DIR . 'Help/' . $model . '.php';
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     public function hookDisplayHeader($params)
@@ -233,6 +290,7 @@ class TheMarketer extends Module
             'tm_phone' => $phone,
             'tm_action' => Tools::getValue('action'),
         ]);
+
         return $this->display(__FILE__, 'header.tpl');
     }
 
@@ -248,6 +306,7 @@ class TheMarketer extends Module
             'tm_page_name' => $this->context->controller->php_self,
             'tm_product_id' => $pid,
         ]);
+
         return $this->display(__FILE__, 'footer.tpl');
     }
 
@@ -303,6 +362,16 @@ class TheMarketer extends Module
             } else {
                 Configuration::updateValue(self::ORDERS_FEED_DATE, $tmordersfeeddate);
             }
+            $CRON_FEED = Tools::getValue(self::CRON_FEED);
+            Configuration::updateValue(self::CRON_FEED, $CRON_FEED);
+            $UPDATE_FEED = Tools::getValue(self::UPDATE_FEED);
+            Configuration::updateValue(self::UPDATE_FEED, $UPDATE_FEED);
+            $COLOR_ATTRIBUTE = Tools::getValue(self::COLOR_ATTRIBUTE);
+            Configuration::updateValue(self::COLOR_ATTRIBUTE, $COLOR_ATTRIBUTE);
+            $SIZE_ATTRIBUTE = Tools::getValue(self::SIZE_ATTRIBUTE);
+            Configuration::updateValue(self::SIZE_ATTRIBUTE, $SIZE_ATTRIBUTE);
+            $DEFAULT_STOCK = Tools::getValue(self::DEFAULT_STOCK);
+            Configuration::updateValue(self::DEFAULT_STOCK, $DEFAULT_STOCK);
             $GOOGLE_TRACKING_KEY = Tools::getValue(self::GOOGLE_TRACKING_KEY);
             Configuration::updateValue(self::GOOGLE_TRACKING_KEY, $GOOGLE_TRACKING_KEY);
             $GOOGLE_TRACKING_STATUS = Tools::getValue(self::GOOGLE_TRACKING_STATUS);
@@ -310,6 +379,7 @@ class TheMarketer extends Module
         }
         $output .= $this->context->smarty->fetch($this->local_path . 'views/templates/admin/configure.tpl');
         $feedsLinks = $this->context->smarty->fetch($this->local_path . 'views/templates/admin/themarketer_feeds/feeds.tpl');
+
         return $output . $this->displayForm() . $feedsLinks;
     }
 
@@ -322,6 +392,7 @@ class TheMarketer extends Module
         $form_group_class = ''
     ) {
         $other['hint'] = $description;
+
         return array_merge([
             'type' => 'switch',
             'label' => $label,
@@ -498,6 +569,45 @@ class TheMarketer extends Module
                     'label' => '<strong>' . $this->l('Products XML Feed') . '</strong>',
                 ],
                 [
+                    'type' => 'select',
+                    'label' => $this->l('Default Stock if negative Stock Value'),
+                    'name' => self::DEFAULT_STOCK,
+                    'options' => [
+                      'query' => [
+                            [
+                            'id_option' => 0,
+                            'name' => $this->l('Out of Stock'),
+                            ], [
+                            'id_option' => 1,
+                            'name' => $this->l('In Stock'),
+                            ], [
+                            'id_option' => 2,
+                            'name' => $this->l('In supplier stock'),
+                            ],
+                        ],
+                      'id' => 'id_option',
+                      'name' => 'name',
+                    ],
+                ],
+                [
+                    'type' => 'select',
+                    'label' => $this->l('Activate Cron Feed'),
+                    'name' => self::CRON_FEED,
+                    'desc' => '<b>' . $this->l('If Enable, Please Add this to your server Cron Jobs') .
+                        '</b><br /><code>0 */1 * * * /usr/bin/php ' . MKTR_DIR . 'cron.php > /dev/null 2>&1</code>',
+                    'options' => [
+                      'query' => $optionsorders,
+                      'id' => 'id_option',
+                      'name' => 'name',
+                    ],
+                ], [
+                    'type' => 'text',
+                    'label' => $this->l('Cron Update feed every (hours)') . ';',
+                    'name' => self::UPDATE_FEED,
+                    'desc' => '<b>' . $this->l('Set number of hours') . '</b>',
+                ],
+
+                [
                     'type' => 'text',
                     'label' => $this->l('PRODUCTS XML FEED LINK') . ';',
                     'name' => self::PRODUCTS_FEED_LINK,
@@ -534,6 +644,20 @@ class TheMarketer extends Module
                     'name' => self::BRANDS_FEED_LINK,
                     'class' => 'tm-brands-feed-link',
                     'desc' => '<span style=\'cursor:pointer;padding:5px 10px; background:#fff;border:1px solid #666;position:absolute;right:10px;top:5px;\' onclick=\'copyLinkBrands(),alert(alertordersfeed )\' id=\'spanCopyBrands\'><i class=\'material-icons\' style=\'font-size:0.9em;\'>collections</i> ' . $this->l('Copy') . '</span></p>',
+                ], [
+                    'type' => 'header',
+                    'name' => $this->l('Attribute Settings'),
+                    'label' => '<strong>' . $this->l('Attribute Settings') . '</strong>',
+                ],
+                [
+                    'type' => 'text',
+                    'label' => $this->l('Color Attribute') . ';',
+                    'name' => self::COLOR_ATTRIBUTE,
+                ],
+                [
+                    'type' => 'text',
+                    'label' => $this->l('Size Attribute') . ';',
+                    'name' => self::SIZE_ATTRIBUTE,
                 ],
                 [
                     'type' => 'header',
@@ -592,12 +716,16 @@ class TheMarketer extends Module
         $helper->fields_value[self::ORDERS_FEED_ALLOW] = Configuration::get(self::ORDERS_FEED_ALLOW);
         $helper->fields_value[self::ORDERS_FEED_DATE] = Configuration::get(self::ORDERS_FEED_DATE);
         $helper->fields_value[self::ORDERS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/orders_export.php?key=' . Configuration::get(self::REST_KEY) . '&customerId=' . Configuration::get(self::TM_CUSTOMER_ID) . '&start_date=' . Configuration::get(self::ORDERS_FEED_DATE) . '&page=1';
-        $helper->fields_value[self::PRODUCTS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/products_feed_' . Configuration::get(self::REST_KEY) . '.xml';
-        $helper->fields_value[self::PRODUCTS_FEED_CRON] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/products_feed.php?key=' . Configuration::get(self::REST_KEY);
+        $helper->fields_value[self::PRODUCTS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'module/themarketer/api?p=feed&key=' . Configuration::get(self::REST_KEY);
+        $helper->fields_value[self::PRODUCTS_FEED_CRON] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'module/themarketer/api?p=feed&key=' . Configuration::get(self::REST_KEY) . '&read';
         $helper->fields_value[self::CATEGORIES_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/categories_feed.php?key=' . Configuration::get(self::REST_KEY);
         $helper->fields_value[self::BRANDS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/brands_feed.php?key=' . Configuration::get(self::REST_KEY);
         $helper->fields_value[self::REVIEWS_FEED_LINK] = str_replace('http:// ', 'https://', _PS_BASE_URL_) . __PS_BASE_URI__ . 'modules/themarketer/reviews_feed.php?key=' . Configuration::get(self::REST_KEY) . '&start_date=' . Configuration::get(self::ORDERS_FEED_DATE);
-
+        $helper->fields_value[self::CRON_FEED] = Configuration::get(self::CRON_FEED);
+        $helper->fields_value[self::UPDATE_FEED] = Configuration::get(self::UPDATE_FEED);
+        $helper->fields_value[self::COLOR_ATTRIBUTE] = Configuration::get(self::COLOR_ATTRIBUTE);
+        $helper->fields_value[self::SIZE_ATTRIBUTE] = Configuration::get(self::SIZE_ATTRIBUTE);
+        $helper->fields_value[self::DEFAULT_STOCK] = Configuration::get(self::DEFAULT_STOCK);
         $helper->fields_value[self::GOOGLE_TRACKING_STATUS] = Configuration::get(self::GOOGLE_TRACKING_STATUS);
         $helper->fields_value[self::GOOGLE_TRACKING_KEY] = Configuration::get(self::GOOGLE_TRACKING_KEY);
 
@@ -664,11 +792,13 @@ class TheMarketer extends Module
             'tm_enable' => $enable,
             'tm_product_compination' => 0,
         ]);
+
         return $this->display(__FILE__, 'footer.tpl');
     }
 
     public function hookDisplayOrderConfirmation($params)
     {
+        TheMarketer::getModel('Product');
         $api_url = 'https://t.themarketer.com/api/v1/save_order';
         $rest_key = Configuration::get('THEMARKETER_REST_KEY');
         $customerId = Configuration::get(self::TM_CUSTOMER_ID);
@@ -699,18 +829,14 @@ class TheMarketer extends Module
         }
         $product_data = [];
         foreach ($order_data as $product) {
-            $comb_id = $product['product_attribute_id'];
-            if ($comb_id > 0) {
-                $product['product_id'] = $product['product_id'] . '_' . $comb_id;
-            } else {
-                $product['product_id'] = $product['product_id'];
-            }
+            ModelProduct::getProductByID($product['product_id']);
+            $variant = ModelProduct::getVariant($product['product_attribute_id']);
             $product_data[] = [
-                    'product_id' => $product['product_id'],
-                    'price' => round($product['unit_price_tax_incl'], 2),
-                    'quantity' => $product['product_quantity'],
-                    'variation_sku' => $product['product_reference'],
-                    ];
+                'product_id' => ModelProduct::getId(),
+                'price' => round($product['unit_price_tax_incl'], 2),
+                'quantity' => $product['product_quantity'],
+                'variation_sku' => $variant['sku'],
+            ];
         }
         $orderData = [
             'k' => $rest_key,
@@ -759,6 +885,7 @@ class TheMarketer extends Module
             'tm_product_compination' => 0,
             'tm_enable' => $enable,
         ]);
+
         return $this->display(__FILE__, 'order-confirmation.tpl');
     }
 
@@ -820,6 +947,7 @@ class TheMarketer extends Module
             'tm_enable' => $enable,
             'tm_product_compination' => 0,
         ]);
+
         return $this->display(__FILE__, 'footer.tpl');
     }
 }

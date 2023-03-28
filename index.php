@@ -2,6 +2,7 @@
 /**
 *  theMarketer V1.0.0 module
 *  for Prestashop v1.7.X
+*
 *  @author themarketer.com
 *  @copyright  2022-2023 theMarketer.com
 *  @license    http:// opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)

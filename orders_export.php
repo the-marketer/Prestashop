@@ -9,33 +9,44 @@
 */
 include '../../config/config.inc.php';
 include '../../init.php';
-$tm_allow = Configuration::get('THEMARKETER_ORDERS_FEED_ALLOW');
+
+if (!defined('MKTR_DIR')) {
+    define('MKTR_DIR', dirname(__FILE__) . '/');
+}
+include MKTR_DIR . 'themarketer.php';
+include MKTR_DIR . 'Model/Product.php';
+
+$tm_allow = Configuration::get(TheMarketer::ORDERS_FEED_ALLOW);
 if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key') && Configuration::get('THEMARKETER_CUSTOMER_ID') == Tools::getValue('customerId') && !empty(Tools::getValue('start_date')) && $tm_allow == 1) {
-    function getCategoryTree($id_product, $id_lang)
-    {
-        $root = Category::getRootCategory();
-        $selected_cat = Product::getProductCategoriesFull($id_product, $id_lang);
-        $tab_root = [
-            'id_category' => $root->id,
-            'name' => $root->name,
-        ];
-        $helper = new Helper();
-        $category_tree = $helper->renderCategoryTree($tab_root, $selected_cat, 'categoryBox', false, true, [], false, true);
-        return $selected_cat;
-    }
     // get orders data
     if (Tools::getIsset('page') && Tools::getValue('page') > 0) {
         $page = Tools::getValue('page');
     } else {
         $page = 1;
     }
+    $start = strtotime(Tools::getValue('start_date'));
     $total_entries = $page * 50;
-    $orders_data = Order::getOrdersWithInformations();
+
+    $sql = 'SELECT *, (
+            SELECT osl.`name`
+            FROM `' . _DB_PREFIX_ . 'order_state_lang` osl
+            WHERE osl.`id_order_state` = o.`current_state`
+            AND osl.`id_lang` = ' . (int) Context::getContext()->language->id . '
+            LIMIT 1
+        ) AS `state_name`, o.`date_add` AS `date_add`, o.`date_upd` AS `date_upd`, o.`invoice_date` AS `invoice_date`
+        FROM `' . _DB_PREFIX_ . 'orders` o
+        LEFT JOIN `' . _DB_PREFIX_ . 'customer` c ON (c.`id_customer` = o.`id_customer`)
+        WHERE o.`invoice_date` >= \'' . pSQL(date('Y-m-d h:i:sa', $start)) . '\'
+        ORDER BY o.`date_add` DESC ' . ((int) $total_entries ? 'LIMIT 0, ' . (int) $total_entries : '');
+
+    $orders_data = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+
     $ordersarr = [];
     $states = new OrderState(Context::getContext()->language->id);
     $statesarr = $states->getOrderStates(Context::getContext()->language->id);
     $langId = Context::getContext()->language->id;
     $ce = 1;
+
     usort($orders_data, function ($a, $b) {
         return $a['id_order'] - $b['id_order'];
     });
@@ -43,16 +54,21 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key') && Conf
         if ($ce >= ($total_entries - 49) && $ce <= $total_entries) {
             $orderId = $order['id_order'];
             $statusID = $order['current_state'];
-            $statusName = Db::getInstance()->getRow('SELECT name FROM `' . _DB_PREFIX_ . 'order_state_lang` WHERE `id_order_state`=' . $statusID . ' AND `id_lang`=' . $langId);
-            $statusName = $statusName['name'];
+            if ($statusID != 0) {
+                $statusName = Db::getInstance()->getRow('SELECT name FROM `' . _DB_PREFIX_ . 'order_state_lang` WHERE `id_order_state`=' . $statusID . ' AND `id_lang`=' . $langId);
+                $statusName = $statusName['name'];
+            } else {
+                $statusName = 'unknown';
+            }
+
             $customerId = $order['id_customer'];
             $addressId = $order['id_address_invoice'];
             $discount = round($order['total_discounts_tax_incl'], 2);
             $total = round($order['total_paid'], 2);
             $totalShipping = round($order['total_shipping_tax_incl'], 2);
-            $orderinfo = Order::getOrderByCartId($order['id_cart']);
+            $orderinfo = Order::getIdByCartId($order['id_cart']);
             $order_details = new Order($orderinfo);
-            $date_created = $order_details->date_add;
+            $date_created = date(ModelProduct::$dateFormat, strtotime($order_details->date_add));
             $delivery_details = new Address($order_details->id_address_invoice);
             $customer = new Customer($delivery_details->id_customer);
             $products = $order_details->getProducts();
@@ -65,33 +81,22 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key') && Conf
             $i = 0;
             $products_data = [];
             foreach ($products as $p) {
-                $product = new Product($p['id_product'], false, Context::getContext()->language->id);
-                $link = new Link();
-                $url = $url = $link->getProductLink($product);
-                $image = Image::getCover($p['id_product']);
-                $imagePath = 'https://' . $link->getImageLink($product->link_rewrite, $image['id_image'], ImageType::getFormattedName('home'));
-                $cats = getCategoryTree($p['id_product'], Context::getContext()->language->id);
-                $cat = '';
-                foreach ($cats as $c) {
-                    $cat .= $c['name'] . '|';
-                }
-                $cat = mb_substr($cat, 0, -1);
-                $manufacturer = new Manufacturer($p['id_manufacturer'], Context::getContext()->language->id);
-                $products_data[$i]['product_id'] = $p['id_product'];
-                $products_data[$i]['sku'] = $p['reference'];
-                $products_data[$i]['name'] = $p['product_name'];
-                $products_data[$i]['url'] = $url;
-                $products_data[$i]['main_image'] = $imagePath;
-                $products_data[$i]['category'] = $cat;
-                $products_data[$i]['brand'] = $manufacturer->name;
+                ModelProduct::getProductByID($p['id_product']);
+                $products_data[$i]['product_id'] = ModelProduct::getId();
+                $products_data[$i]['sku'] = ModelProduct::getSku();
+                $products_data[$i]['name'] = ModelProduct::getName();
+                $products_data[$i]['url'] = ModelProduct::getUrl();
+                $products_data[$i]['main_image'] = ModelProduct::getMainImage();
+                $products_data[$i]['category'] = ModelProduct::getCategory();
+                $products_data[$i]['brand'] = ModelProduct::getBrand();
                 $products_data[$i]['quantity'] = $p['product_quantity'];
-                $attriduteId = $p['product_attribute_id'];
-                $combination = new Combination($attriduteId);
-                $products_data[$i]['variation_id'] = $attriduteId;
-                $products_data[$i]['variation_sku'] = $combination->reference;
                 $products_data[$i]['price'] = $p['product_quantity'] * $p['original_product_price'];
                 $products_data[$i]['sale_price'] = round($p['total_price_tax_incl'], 2);
-                $i = $i + 1;
+
+                $variant = ModelProduct::getVariant($p['product_attribute_id']);
+
+                $products_data[$i]['variation_id'] = $variant['id'];
+                $products_data[$i]['variation_sku'] = $variant['sku'];
             }
             // create order array
             $ordersarr['orders']['order'][$k]['order_no'] = $orderId;
@@ -112,6 +117,5 @@ if (Configuration::get('THEMARKETER_REST_KEY') == Tools::getValue('key') && Conf
     header('Access-Control-Allow-Origin: *');
     header('Content-type: application/json');
 
-    echo json_encode($ordersarr);
-} else {
+    echo json_encode($ordersarr); /* , JSON_PRETTY_PRINT); */
 }
