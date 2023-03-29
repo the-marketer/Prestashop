@@ -27,7 +27,7 @@ $upReview = $data->update_review;
 
 if (Configuration::get(TheMarketer::CRON_FEED) != 0 && $upFeed < time()) {
     Array2XML::setCDataValues(['name', 'description', 'category', 'brand', 'size', 'color', 'hierarchy']);
-
+    Array2XML::$noNull = true;
     $run = ModelProduct::getNewFeed();
     $XML = Array2XML::cXML('products', ['product' => $run])->saveXML();
 

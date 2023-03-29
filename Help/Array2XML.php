@@ -24,6 +24,8 @@ class Array2XML
     const LABEL_DOCTYPE = '@docType';
     const LABEL_VALUE = '@value';
 
+    public static $noNull = false;
+
     protected static $xml;
 
     protected static $domVersion;
@@ -283,9 +285,7 @@ class Array2XML
 
                 return $node;
             }
-        }
 
-        if (is_array($arr)) {
             foreach ($arr as $key => $value) {
                 if (!self::isValidTagName($key)) {
                     $error = 'Illegal character in tag name. tag: ' . $key . ' in node: ' . $node_name;
@@ -294,9 +294,15 @@ class Array2XML
                 }
                 if (is_array($value) && is_numeric(key($value))) {
                     foreach ($value as $v) {
+                        if (self::$noNull && $v === null) {
+                            continue;
+                        }
                         $node->appendChild(self::convert($key, $v));
                     }
                 } else {
+                    if (self::$noNull && $value === null) {
+                        continue;
+                    }
                     $node->appendChild(self::convert($key, $value));
                 }
                 unset($arr[$key]);
@@ -304,6 +310,9 @@ class Array2XML
         }
 
         if (!is_array($arr)) {
+            if (self::$noNull && $arr === null) {
+                return $node;
+            }
             if ($arr === null) {
                 $arr = '';
             }

@@ -63,7 +63,7 @@ class ThemarketerApiModuleFrontController extends ModuleFrontController
                 $pro = ModelProduct::getNewFeed(Tools::getValue('page', null));
 
                 Array2XML::setCDataValues(['name', 'description', 'category', 'brand', 'size', 'color', 'hierarchy']);
-
+                Array2XML::$noNull = true;
                 try {
                     $file = Array2XML::cXML('products', ['product' => $pro])->saveXML();
                     self::writeFile('feed.xml', $file);

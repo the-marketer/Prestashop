@@ -97,7 +97,7 @@ class ModelProduct
 
     public static function getCreatedAt()
     {
-        return self::getValue('created_at');
+        return date(self::$dateFormat, strtotime(self::getValue('created_at')));
     }
 
     public static function getDescription()
@@ -150,9 +150,9 @@ class ModelProduct
         return null;
     }
 
-    public static function toDigit($num, $digit = 2)
+    public static function toDigit($num = null, $digit = 2)
     {
-        return number_format((float) $num, $digit, '.', '');
+        return $num === null ? null : number_format((float) $num, $digit, '.', '');
     }
 
     public static function getPrice()
@@ -258,6 +258,8 @@ class ModelProduct
 
             foreach ($allCombinationsIds as $combination) {
                 if (!isset($combinations[$combination['id_product_attribute']])) {
+                    $price = self::getPrice();
+                    $sale_price = empty((float) $combination['price']) ? ModelProduct::getSalePrice() : self::toDigit($combination['price']);
                     $combinations[$combination['id_product_attribute']] = [
                         'id' => [
                             self::$asset->id,
@@ -266,8 +268,8 @@ class ModelProduct
                             self::$asset->reference,
                         ],
                         'acquisition_price' => self::toDigit($combination['wholesale_price']),
-                        'price' => self::getPrice(),
-                        'sale_price' => empty((float) $combination['price']) ? ModelProduct::getSalePrice() : $combination['price'],
+                        'price' => max($price, $sale_price),
+                        'sale_price' => $sale_price,
                         'availability' => self::getAvailability($combination['quantity']),
                         'stock' => $combination['quantity'],
                         'size' => null,
@@ -360,8 +362,8 @@ class ModelProduct
     private static function getPricesNow($witch = null)
     {
         if (self::$prices === null) {
-            self::$prices['price'] = self::$asset->getPriceWithoutReduct(false, null, 2);
-            self::$prices['sale_price'] = self::$asset->getPrice(false, null, 2);
+            self::$prices['price'] = self::toDigit(self::$asset->getPriceWithoutReduct(false, null, 2));
+            self::$prices['sale_price'] = self::toDigit(self::$asset->getPrice(false, null, 2));
 
             self::$prices['price'] = empty(self::$prices['price']) && !empty(self::$prices['sale_price']) ?
                 self::$prices['sale_price'] : self::$prices['price'];
@@ -517,7 +519,7 @@ class ModelProduct
         if ($variation === null) {
             unset($data['variations']);
         } else {
-            $data['variations'] = $variation;
+            $data['variations']['variation'] = $variation;
         }
 
         if (empty($data['media_gallery']['image'])) {
