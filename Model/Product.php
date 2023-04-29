@@ -362,8 +362,10 @@ class ModelProduct
     private static function getPricesNow($witch = null)
     {
         if (self::$prices === null) {
+            // $tax = (self::$asset->getTaxesRate() != 0);
+
             self::$prices['price'] = self::toDigit(self::$asset->getPriceWithoutReduct(false, null, 2));
-            self::$prices['sale_price'] = self::toDigit(self::$asset->getPrice(false, null, 2));
+            self::$prices['sale_price'] = self::toDigit(self::$asset->getPrice(true, null, 2));
 
             self::$prices['price'] = empty(self::$prices['price']) && !empty(self::$prices['sale_price']) ?
                 self::$prices['sale_price'] : self::$prices['price'];
