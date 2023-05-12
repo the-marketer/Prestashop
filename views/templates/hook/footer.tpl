@@ -1,5 +1,5 @@
 {*
-*  theMarketer V1.0.0 module   
+*  theMarketer V1.0.3 module   
 *  for Prestashop v1.7.X         
 *  @author themarketer.com  
 *  @copyright  2022-2023 theMarketer.com    
@@ -9,7 +9,6 @@
 
 	<!-- Themarketer page name/data -->
 	   <script>
-		var siteurl = "{Context::getContext()->shop->getBaseURL(true)|cleanHtml nofilter}";
 	   {literal}
 		function decodeHtml(html) {
 			var txt = document.createElement('textarea');

@@ -1,6 +1,6 @@
 <?php
 /**
-*  theMarketer V1.0.0 module
+*  theMarketer V1.0.3 module
 *  for Prestashop v1.7.X
 *
 *  @author themarketer.com

@@ -1,5 +1,5 @@
-	/**
-*  theMarketer V1.0.0 module   
+/**
+*  theMarketer V1.0.3 module   
 *  for Prestashop v1.7.X         
 *  @author themarketer.com  
 *  @copyright  2022-2023 theMarketer.com    
@@ -18,9 +18,11 @@ const mktr = {
         {
 			const di = new Date();
 			let time = di.getTime();
+			
+			event.resp.quantity = event.resp.quantity ?? 1;
 
 			if (event.reason.linkAction === "add-to-cart") {
-				jQuery.post(siteurl+"modules/themarketer/get-product.php?t="+time, {
+				jQuery.post( window.mktr.siteurl+"modules/themarketer/get-product.php?t="+time, {
 					product_id: event.reason.idProduct,
 					comb_id: event.reason.idProductAttribute,
 					qty: event.resp.quantity
@@ -35,7 +37,7 @@ const mktr = {
 					});
 				});
 			} else if (event.reason.linkAction === "delete-from-cart") {
-				jQuery.post(siteurl+"modules/themarketer/get-product.php?t="+time, {
+				jQuery.post( window.mktr.siteurl+"modules/themarketer/get-product.php?t="+time, {
 					product_id:event.reason.idProduct,
 					comb_id:event.reason.idProductAttribute,
 					qty:mktr.qty
@@ -81,7 +83,7 @@ const mktr = {
 		var pid = jQuery('#product_page_product_id').val();
 		var pidatr = jQuery('.product-information .product-variants.js-product-variants').find("select :selected").val();
 		
-		jQuery.post( siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: pidatr }, function( d ) {
+		jQuery.post( window.mktr.siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: pidatr }, function( d ) {
 			let data = JSON.parse(d);
 			
 			if(wl_text == 'favorite_border'){
@@ -109,7 +111,7 @@ const mktr = {
 		var pid = jQuery(this).closest('article').data('id-product');
 		var pidatr = jQuery(this).closest('article').data('id-product-attribute');
 		
-		jQuery.post( siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: pidatr }, function( d ) {
+		jQuery.post( window.mktr.siteurl+"modules/themarketer/get-wishlist.php", { product_id: pid, comb_id: pidatr }, function( d ) {
 			let data = JSON.parse(d);
 		  
 			if(wl_text == 'favorite_border'){
@@ -134,14 +136,14 @@ const mktr = {
 	jQuery('input[name="submitNewsletter"]').on('click', function () {
 		var nlemail = jQuery('#blockEmailSubscription_displayFooterBefore input[name="email"]').val();
 		if(nlemail !=''){
-			jQuery.post( siteurl+"modules/themarketer/add-subscribe.php", { email: nlemail }, function( data ) {console.log(data);});			
+			jQuery.post( window.mktr.siteurl+"modules/themarketer/add-subscribe.php", { email: nlemail }, function( data ) {console.log(data);});			
 		}		
 	});
 	
 	jQuery('#checkout-guest-form button.continue').on('click', function () {	
 		if($('input[name="newsletter"]').prop('checked')){			
 			var nlemail = $('#field-email').val();			
-			jQuery.post("../modules/themarketer/add-subscribe.php", { email: nlemail }, function( data ) {console.log(data);});
+			jQuery.post( window.mktr.siteurl+"modules/themarketer/add-subscribe.php", { email: nlemail }, function( data ) {console.log(data);});
 		}		
 	});
 
@@ -153,9 +155,9 @@ const mktr = {
 		var tmlastname = jQuery('#customer-form input[name="lastname"]').val();
 		
 		if (jQuery('#customer-form input[name="newsletter"]').prop('checked') !== false) {
-			jQuery.post( siteurl+"modules/themarketer/add-subscribe.php", { email: nlemail }, function( data ) {});	
+			jQuery.post( window.mktr.siteurl+"modules/themarketer/add-subscribe.php", { email: nlemail }, function( data ) {});	
 		} else {
-			jQuery.post( siteurl+"modules/themarketer/remove-subscribe.php", { email: nlemail }, function( data ) {});
+			jQuery.post( window.mktr.siteurl+"modules/themarketer/remove-subscribe.php", { email: nlemail }, function( data ) {});
 		}
 
 		dataLayer.push({

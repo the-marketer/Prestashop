@@ -1,5 +1,5 @@
 {*
-*  theMarketer V1.0.0 module   
+*  theMarketer V1.0.3 module   
 *  for Prestashop v1.7.X         
 *  @author themarketer.com  
 *  @copyright  2022-2023 theMarketer.com    
@@ -12,6 +12,10 @@
 	</script>
     <!-- Themarketer Tracking -->
 	<script>
+      window.mktr = window.mktr || {};
+      window.mktr.siteurl = "{Context::getContext()->shop->getBaseURL(true)|cleanHtml nofilter}";
+      window.mktr.siteurl = window.mktr.siteurl.substr(id.length - 1) === "/" ? window.mktr.siteurl : window.mktr.siteurl+"/";
+      
       (function(){
       var mktr = document.createElement("script"); mktr.async = true; mktr.src = "https://t.themarketer.com/t/j/{$tm_id|cleanHtml nofilter}";
       var s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(mktr,s);})();
