@@ -1,6 +1,6 @@
 <?php
 /**
-* theMarketer V1.0.3 module
+* theMarketer module
 * for Prestashop v1.7.X.
 *
 * @author themarketer.com
@@ -47,7 +47,7 @@ class TheMarketer extends Module
     public function __construct()
     {
         $this->name = 'themarketer';
-        $this->version = '1.0.3';
+        $this->version = '1.0.4';
         $this->tab = 'advertising_marketing';
         $this->author = 'Themarketer.com';
         $this->need_instance = 0;
