@@ -1,0 +1,63 @@
+/**
+ * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @copyright   Copyright (c) 2023 TheMarketer.com
+ * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ * @project     TheMarketer.com
+ * @website     https://themarketer.com/
+ * @docs        https://themarketer.com/resources/api
+ **/
+
+ .icon-Mktr:before{
+    content:"Ⓜ️";
+    height: 0.5rem;
+    display: block;
+}
+
+.mi-mktr:before{
+    content:"Ⓜ️";
+    height: 0.2rem;
+    display: block;
+}
+
+.sidebar-closed .mi-mktr:before{
+    content:"Ⓜ️";
+    height: 0.5rem;
+    display: block; 
+}
+
+.process-icon-mktr-up:before{
+    content:""
+}
+.process-icon-mktr-user:before{content:""}
+
+.mi-mktr {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    --breakpoint-xs: 0;
+    --breakpoint-sm: 544px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 1024px;
+    --breakpoint-xl: 1300px;
+    --breakpoint-xxl: 1600px;
+    --font-family-sans-serif: "Open Sans", helvetica, arial, sans-serif;
+    --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    word-break: break-word;
+    box-sizing: border-box;
+    display: inline-block;
+    font-family: "Material Icons", Arial, Verdana, Tahoma, sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    vertical-align: middle;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "liga";
+    font-size: 1.188rem;
+    line-height: inherit;
+    color: #fff;
+    width: 19px;
+}
