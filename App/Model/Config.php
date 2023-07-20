@@ -103,10 +103,12 @@ class Config
     public static function nws()
     {
         if (self::$nws === null) {
-            if (_PS_VERSION_ >= 1.7) {
+            if (_PS_VERSION_ >= '1.7.2.0') {
                 self::$nws = [
-                    'CONFIRMATION' => \Contactform::SEND_CONFIRMATION_EMAIL,
-                    'NOTIFICATION' => \Contactform::SEND_NOTIFICATION_EMAIL,
+                    'CONFIRMATION' => 'CONTACTFORM_SEND_CONFIRMATION_EMAIL',
+                    // \Contactform::SEND_CONFIRMATION_EMAIL,
+                    'NOTIFICATION' => 'CONTACTFORM_SEND_NOTIFICATION_EMAIL',
+                    // \Contactform::SEND_NOTIFICATION_EMAIL,
                 ];
             } else {
                 self::$nws = [
