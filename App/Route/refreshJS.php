@@ -67,6 +67,7 @@ window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (le
 window.mktr.ready = false;
 window.mktr.pending = [];
 window.mktr.retryCount = 0;
+window.mktr.loading = true;
 
 ';
 
@@ -105,9 +106,7 @@ window.mktr.eventsName = {
 
 window.mktr.buildEvent = function (name = null, data = {}) {
     if (data === null) { data = {}; }
-    if (name !== null && window.mktr.eventsName.hasOwnProperty(name)) {
-        data.event = window.mktr.eventsName[name];
-    }
+    if (name !== null && window.mktr.eventsName.hasOwnProperty(name)) { data.event = window.mktr.eventsName[name]; }
     ' . (_PS_MODE_DEV_ ? 'if (!window.mktr.eventsName.hasOwnProperty(name)){ data.event = name; data.type = "notListed"; }' : '') . '
     if (typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
         dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . '
@@ -123,7 +122,7 @@ window.mktr.retry = function () {
         window.mktr.retryCount++; setTimeout(window.mktr.retry, 1000);
     }
 };
-window.mktr.loadEvents = function () { let time = (new Date()).getTime();
+window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
     jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/api/GetEvents?' : '?fc=module&module=mktr&controller=Api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
         for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
     });
@@ -133,24 +132,40 @@ window.mktr.ajax = $.ajax;
 window.mktr.fetch = fetch;
 
 window.mktr.toCheck = function (data, d = null) {
-    ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data",data, d);' : '') . '
-    if (data.search("cart") != -1 || data.search("wishlist") != -1 &&
-        data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
-        setTimeout(window.mktr.loadEvents, 1000);
-    } else if(data.search("subscription") != -1) {
-        setTimeout(function () {
-            let time = (new Date()).getTime();
-            let add = document.createElement("script"); add.async = true;
-            add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time;
-            let s = document.getElementsByTagName("script")[0];
-            s.parentNode.insertBefore(add,s);
-        }, 1000);
+    if (data != null && window.mktr.loading) {
+        ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data", data, d);' : '') . '
+        if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 &&
+            data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
+            window.mktr.loading = false;
+            setTimeout(window.mktr.loadEvents, 1000);
+        } else if(data.search("subscription") != -1) {
+            window.mktr.loading = false;
+            setTimeout(function () {
+                let time = (new Date()).getTime();
+                let add = document.createElement("script"); add.async = true;
+                add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time;
+                let s = document.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(add,s);
+            }, 1000);
+        }
     }
 };
+
+if (typeof prestashop === "object") {
+    prestashop.on("updateCart", function (event) {
+        if(window.mktr.loading && typeof event === "object" && typeof event.reason === "object" && event.reason.hasOwnProperty("linkAction")) {
+            if (event.reason.linkAction === "add-to-cart" || event.reason.linkAction === "delete-from-cart") {
+                window.mktr.loading = false;
+                setTimeout(window.mktr.loadEvents, 1000);
+            }
+        }
+    });
+}
 
 $.ajax = function (data) {
     let ret = window.mktr.ajax.apply(this, arguments);
     window.mktr.toCheck(arguments[0].url, arguments[0].data); return ret; };
+
 fetch = function (data) {
     let ret = window.mktr.fetch.apply(this, arguments);
     window.mktr.toCheck(arguments[0]); return ret; };
