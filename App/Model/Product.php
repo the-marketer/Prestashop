@@ -271,7 +271,7 @@ class Product extends DataBase
     protected function isCombination()
     {
         if ($this->isCombination === null) {
-            if (_PS_VERSION_ < 1.7) {
+            if (_PS_VERSION_ < '1.7.8.0') {
                 $this->isCombination = $this->data->hasAttributes();
             } else {
                 $this->isCombination = $this->data->product_type === 'combinations';

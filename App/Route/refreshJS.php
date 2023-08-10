@@ -141,6 +141,7 @@ window.mktr.toCheck = function (data, d = null) {
         } else if(data.search("subscription") != -1) {
             window.mktr.loading = false;
             setTimeout(function () {
+                window.mktr.loading = true;
                 let time = (new Date()).getTime();
                 let add = document.createElement("script"); add.async = true;
                 add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time;
