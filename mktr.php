@@ -50,7 +50,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.0.0';
+        $this->version = '1.0.2';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -384,8 +384,8 @@ class Mktr extends Module
             foreach ($evList as $key => $value) {
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
-                    $events[] = '<script type="text/javascript"> (function(){ let add = document.createElement("script"); add.async = true; add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/' . $value . '&' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time="+(new Date()).getTime(); let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s); })(); </script>';
-                    $events[] = '<noscript><iframe src="' . $this->context->link->getBaseLink() . ($rewrite ? 'mktr/api/' . $value . '&' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+                    $events[] = '<script type="text/javascript"> (function(){ let add = document.createElement("script"); add.async = true; add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time="+(new Date()).getTime(); let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s); })(); </script>';
+                    $events[] = '<noscript><iframe src="' . $this->context->link->getBaseLink() . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
                 }
             }
 
