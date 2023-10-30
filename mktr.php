@@ -82,6 +82,8 @@ class Mktr extends Module
             'displayHeader',
             'moduleRoutes',
             'actionDispatcher',
+            'displayFooterAfter',
+            'displayFooterBefore',
             /* Admin */
             'displayBackOfficeHeader',
             'actionOrderStatusUpdate',
@@ -276,6 +278,15 @@ class Mktr extends Module
     {
         return $this->script();
     }
+    public function hookDisplayFooterBefore($params)
+    {
+        return $this->script();
+    }
+
+    public function hookDisplayFooterAfter()
+    {
+        return $this->script();
+    }
 
     public function script()
     {
@@ -354,6 +365,7 @@ class Mktr extends Module
             }
 
             $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
+            $events[] = 'window.mktr.tryLoad = 0;';
             $events[] = 'window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? "'" . $this->context->link->getBaseLink() . "'" : 'baseUri') . '';
             $events[] = 'window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";';
 
@@ -366,7 +378,8 @@ class Mktr extends Module
             }
 
             $events[] = '};';
-            $events[] = '(typeof window.mktr.buildEvent != "function") ? document.addEventListener("mktr_loaded", function () { window.mktr.run(); }) : window.mktr.run();';
+            $events[] = 'window.mktr.LoadEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.LoadEvents, 1000); } }';
+            $events[] = 'window.mktr.LoadEvents();';
 
             $evList = [
                 'set_email' => 'setEmail',
