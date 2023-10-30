@@ -312,7 +312,8 @@ class Orders extends DataBase
             $products[$i]['category'] = $pp->category;
             $products[$i]['brand'] = $pp->brand;
             $products[$i]['quantity'] = $p['product_quantity'];
-            $products[$i]['price'] = $p['product_quantity'] * $p['total_price_tax_incl'];
+            // $products[$i]['price'] = $p['product_quantity'] * $p['total_price_tax_incl'];
+            $products[$i]['price'] = $p['total_price_tax_incl'];
             $products[$i]['sale_price'] = round($p['total_price_tax_incl'], 2);
 
             $variant = $pp->getVariant($p['product_attribute_id']);
@@ -333,7 +334,8 @@ class Orders extends DataBase
             $pp = Product::getByID($p['id_product'], true);
             $products[$i]['product_id'] = $pp->id;
             $products[$i]['quantity'] = $p['product_quantity'];
-            $products[$i]['price'] = $p['product_quantity'] * $p['total_price_tax_incl'];
+            // $products[$i]['price'] = $p['product_quantity'] * $p['total_price_tax_incl'];
+            $products[$i]['price'] = $p['total_price_tax_incl'];
             $variant = $pp->getVariant($p['product_attribute_id']);
             $products[$i]['variation_sku'] = $variant['sku'];
             ++$i;
