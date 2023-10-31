@@ -34,6 +34,7 @@ class MktrController extends AdminController
     private static $i = null;
     private static $t = null;
     private static $config = null;
+    private static $jsRefresh = true;
 
     private static $err = [
         'log' => [],
@@ -48,6 +49,17 @@ class MktrController extends AdminController
     {
         parent::__construct();
         self::$i = $this;
+
+        if (self::$jsRefresh) {
+            Mktr\Route\refreshJS::loadJs();
+
+            $filePath = MKTR_APP . 'controllers/admin/MktrController.php';
+            $content = Tools::file_get_contents($filePath, true);
+            $newContent = str_replace('private static $jsRefresh = true;', 'private static $jsRefresh = false;', $content);
+            $file = fopen($filePath, 'w+');
+            fwrite($file, $newContent);
+            fclose($file);
+        }
     }
 
     public static function i()

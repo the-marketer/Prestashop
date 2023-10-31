@@ -50,7 +50,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.0.2';
+        $this->version = '1.0.3';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -278,6 +278,7 @@ class Mktr extends Module
     {
         return $this->script();
     }
+
     public function hookDisplayFooterBefore($params)
     {
         return $this->script();
