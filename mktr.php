@@ -367,7 +367,7 @@ class Mktr extends Module
 
             $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
             $events[] = 'window.mktr.tryLoad = 0;';
-            $events[] = 'window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? "'" . $this->context->link->getBaseLink() . "'" : 'baseUri') . '';
+            $events[] = 'window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? "'" . Tools::getShopDomainSsl(true) . "'" : 'baseUri') . '';
             $events[] = 'window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";';
 
             $events[] = 'window.mktr.run = function () {';
