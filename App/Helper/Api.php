@@ -143,6 +143,8 @@ class Api
             self::$info = \curl_getinfo(self::$cURL);
 
             \curl_close(self::$cURL);
+
+            sleep(1);
         } catch (\Exception $e) {
         }
 

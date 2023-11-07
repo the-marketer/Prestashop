@@ -52,10 +52,10 @@ class MktrController extends AdminController
 
         if (self::$jsRefresh) {
             Mktr\Route\refreshJS::loadJs();
-
+            $bind = ['private static $jsRefresh ', '= true;'];
             $filePath = MKTR_APP . 'controllers/admin/MktrController.php';
             $content = Tools::file_get_contents($filePath, true);
-            $newContent = str_replace('private static $jsRefresh = true;', 'private static $jsRefresh = false;', $content);
+            $newContent = str_replace(implode('', $bind), 'private static $jsRefresh = false;', $content);
             $file = fopen($filePath, 'w+');
             fwrite($file, $newContent);
             fclose($file);

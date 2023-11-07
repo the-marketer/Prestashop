@@ -336,11 +336,15 @@ class Mktr extends Module
                     if ($this->context->controller instanceof OrderController) {
                         if (method_exists($this->context->controller, 'getCheckoutProcess')) {
                             $checkoutSteps = $this->context->controller->getCheckoutProcess()->getSteps();
-                        } else {
+                        } elseif (_PS_VERSION_ >= 1.7) {
                             $reflectedObject = (new ReflectionObject($this->context->controller))->getProperty('checkoutProcess');
                             $reflectedObject->setAccessible(true);
                             $checkoutProcessClass = $reflectedObject->getValue($this->context->controller);
                             $checkoutSteps = $checkoutProcessClass->getSteps();
+                        } else {
+                            $checkoutSteps = [];
+                            $action = 'checkout';
+                            $data = 1;
                         }
 
                         foreach ($checkoutSteps as $stepObject) {
@@ -367,6 +371,7 @@ class Mktr extends Module
 
             $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
             $events[] = 'window.mktr.tryLoad = 0;';
+            $events[] = 'window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";';
             $events[] = 'window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? "'" . Tools::getShopDomainSsl(true) . "'" : 'baseUri') . '';
             $events[] = 'window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";';
 
@@ -399,7 +404,7 @@ class Mktr extends Module
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
                     $events[] = '<script type="text/javascript"> (function(){ let add = document.createElement("script"); add.async = true; add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time="+(new Date()).getTime(); let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s); })(); </script>';
-                    $events[] = '<noscript><iframe src="' . $this->context->link->getBaseLink() . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+                    $events[] = '<noscript><iframe src="' . Tools::getShopDomainSsl(true) . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
                 }
             }
 
