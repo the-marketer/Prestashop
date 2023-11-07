@@ -342,14 +342,17 @@ class Mktr extends Module
                             $checkoutProcessClass = $reflectedObject->getValue($this->context->controller);
                             $checkoutSteps = $checkoutProcessClass->getSteps();
                         } else {
-                            $checkoutSteps = [];
-                            $action = 'checkout';
-                            $data = 1;
+                            if ($this->context->controller->step == 1) {
+                                $checkoutSteps = [];
+                                $action = 'checkout';
+                                $data = $this->context->controller->step;
+                            }
                         }
-
-                        foreach ($checkoutSteps as $stepObject) {
-                            if ($data === 0 && ($stepObject instanceof CheckoutPersonalInformationStep || $stepObject instanceof CheckoutAddressesStep)) {
-                                $data = (int) $stepObject->isCurrent();
+                        if (_PS_VERSION_ >= 1.7) {
+                            foreach ($checkoutSteps as $stepObject) {
+                                if ($data === 0 && ($stepObject instanceof CheckoutPersonalInformationStep || $stepObject instanceof CheckoutAddressesStep)) {
+                                    $data = (int) $stepObject->isCurrent();
+                                }
                             }
                         }
                     }
