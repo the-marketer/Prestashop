@@ -356,10 +356,20 @@ class Mktr extends Module
 
                         }
                         if (_PS_VERSION_ >= 1.7) {
+                            $data = 0;
                             foreach ($checkoutSteps as $stepObject) {
                                 if ($data === 0 && ($stepObject instanceof CheckoutPersonalInformationStep || $stepObject instanceof CheckoutAddressesStep)) {
                                     $data = (int) $stepObject->isCurrent();
                                 }
+                            }
+                            
+                            if ($data == 0) {
+                                $checkOUT = Mktr\Helper\Valid::getParam('checkout');
+                                if ($checkOUT !== null && $checkOUT == 1) {
+                                    $checkoutSteps = [];
+                                    $action = 'checkout';
+                                    $data = 1;
+                                } 
                             }
                         }
                     }
