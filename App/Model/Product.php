@@ -459,7 +459,7 @@ class Product extends DataBase
                         'size' => null,
                         'color' => null,
                     ];
-                    $this->realStock = $this->realStock + $combination['quantity'];
+                    $this->realStock += $combination['quantity'];
                 }
 
                 $combinations[$combination['id_product_attribute']]['id'][] = $combination['id_attribute'];

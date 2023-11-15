@@ -287,7 +287,7 @@ class Orders extends DataBase
                 $resume = \OrderSlip::getProductSlipResume($v['id_order_detail']);
                 $v['total_refunded_tax_incl'] = $resume['amount_tax_incl'];
             }
-            $this->refund = $this->refund + $v['total_refunded_tax_incl'];
+            $this->refund += $v['total_refunded_tax_incl'];
         }
 
         return $this->refund;

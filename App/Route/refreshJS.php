@@ -111,7 +111,7 @@ window.mktr.buildEvent = function (name = null, data = {}) {
     if (typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
         dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . '
     } else {
-        window.mktr.pending.push(data); setTimeout(window.mktr.retry, 1000);
+        window.mktr.pending.push(data); setTimeout(window.mktr.retry, 2000);
     }
 }
 
@@ -119,7 +119,7 @@ window.mktr.retry = function () {
     if (typeof dataLayer != "undefined" && window.mktr.ready) {
         for (let data of window.mktr.pending) { if (data.event != "undefined") { dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . ' } }        
     } else if (window.mktr.retryCount < 6) {
-        window.mktr.retryCount++; setTimeout(window.mktr.retry, 1000);
+        window.mktr.retryCount++; setTimeout(window.mktr.retry, 2000);
     }
 };
 window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
@@ -131,23 +131,25 @@ window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window
 window.mktr.ajax = $.ajax;
 window.mktr.fetch = fetch;
 
-window.mktr.toCheck = function (data, d = null) {
+window.mktr.toCheck = function (data = null, d = null) {
     if (data != null && window.mktr.loading) {
-        ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data", data, d);' : '') . '
-        if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 &&
-            data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
-            window.mktr.loading = false;
-            setTimeout(window.mktr.loadEvents, 1000);
-        } else if(data.search("subscription") != -1) {
-            window.mktr.loading = false;
-            setTimeout(function () {
-                window.mktr.loading = true;
-                let time = (new Date()).getTime();
-                let add = document.createElement("script"); add.async = true;
-                add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time;
-                let s = document.getElementsByTagName("script")[0];
-                s.parentNode.insertBefore(add,s);
-            }, 1000);
+        if (typeof data === "string") {
+            ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data", data, d);' : '') . '
+            if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 &&
+                data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
+                window.mktr.loading = false;
+                setTimeout(window.mktr.loadEvents, 2000);
+            } else if(data.search("subscription") != -1) {
+                window.mktr.loading = false;
+                setTimeout(function () {
+                    window.mktr.loading = true;
+                    let time = (new Date()).getTime();
+                    let add = document.createElement("script"); add.async = true;
+                    add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time;
+                    let s = document.getElementsByTagName("script")[0];
+                    s.parentNode.insertBefore(add,s);
+                }, 2000);
+            }
         }
     }
 };
@@ -157,7 +159,7 @@ if (typeof prestashop === "object") {
         if(window.mktr.loading && typeof event === "object" && typeof event.reason === "object" && event.reason.hasOwnProperty("linkAction")) {
             if (event.reason.linkAction === "add-to-cart" || event.reason.linkAction === "delete-from-cart") {
                 window.mktr.loading = false;
-                setTimeout(window.mktr.loadEvents, 1000);
+                setTimeout(window.mktr.loadEvents, 2000);
             }
         }
     });

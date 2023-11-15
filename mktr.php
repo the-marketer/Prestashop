@@ -50,7 +50,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.0.3';
+        $this->version = '1.0.4';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -298,6 +298,25 @@ class Mktr extends Module
             $id_order = null;
             if (in_array($action, ['order-confirmation', 'thank_you_page', 'orderconfirmation', 'confirmare-comanda'])) {
                 $id_order = Mktr\Helper\Valid::getParam('id_order', null);
+
+                if ($id_order === null) {
+                    $cartId = Mktr\Helper\Valid::getParam('id_cart', null);
+
+                    if ($cartId === null) {
+                        $cartId = Mktr\Helper\Valid::getParam('orderId', null);
+                        $cartId = explode('%', $cartId);
+                        $cartId = $cartId[0];
+                    }
+
+                    if ($cartId !== null) {
+                        if (method_exists('\Order', 'getIdByCartId')) {
+                            $id_order = \Order::getIdByCartId($cartId);
+                        } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                            $id_order = \Order::getOrderByCartId($cartId);
+                        }
+                    }
+                }
+
                 if ($id_order !== null) {
                     Mktr\Helper\Session::set('save_order', [$id_order]);
                     Mktr\Helper\Session::save();
@@ -343,17 +362,16 @@ class Mktr extends Module
                             $checkoutSteps = $checkoutProcessClass->getSteps();
                         } else {
                             $checkOUT = Mktr\Helper\Valid::getParam('checkout');
-                            
+
                             if ($checkOUT !== null && $checkOUT == 1) {
                                 $checkoutSteps = [];
                                 $action = 'checkout';
                                 $data = 1;
-                            } else if ($this->context->controller->step == 1) {
+                            } elseif ($this->context->controller->step == 1) {
                                 $checkoutSteps = [];
                                 $action = 'checkout';
                                 $data = $this->context->controller->step;
                             }
-
                         }
                         if (_PS_VERSION_ >= 1.7) {
                             $data = 0;
@@ -362,14 +380,14 @@ class Mktr extends Module
                                     $data = (int) $stepObject->isCurrent();
                                 }
                             }
-                            
+
                             if ($data == 0) {
                                 $checkOUT = Mktr\Helper\Valid::getParam('checkout');
                                 if ($checkOUT !== null && $checkOUT == 1) {
                                     $checkoutSteps = [];
                                     $action = 'checkout';
                                     $data = 1;
-                                } 
+                                }
                             }
                         }
                     }
@@ -404,8 +422,8 @@ class Mktr extends Module
             }
 
             $events[] = '};';
-            $events[] = 'window.mktr.LoadEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.LoadEvents, 1000); } }';
-            $events[] = 'window.mktr.LoadEvents();';
+            $events[] = 'window.mktr.runEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); window.mktr.loadEvents(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1000); } }';
+            $events[] = 'window.mktr.runEvents();';
 
             $evList = [
                 'set_email' => 'setEmail',
