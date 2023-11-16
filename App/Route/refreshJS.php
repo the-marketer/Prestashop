@@ -65,7 +65,8 @@ importScripts("https://t.themarketer.com/firebase.js");';
 
 window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
 window.mktr.ready = false;
-window.mktr.pending = [];
+window.mktr.pending = window.mktr.pending || [];
+window.mktr.toLoad = window.mktr.toLoad || [];
 window.mktr.retryCount = 0;
 window.mktr.loading = true;
 
@@ -122,11 +123,23 @@ window.mktr.retry = function () {
         window.mktr.retryCount++; setTimeout(window.mktr.retry, 2000);
     }
 };
+
 window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
     jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/api/GetEvents?' : '?fc=module&module=mktr&controller=Api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
         for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
     });
 };
+
+window.mktr.loadScript = function (scriptName = null) {
+    if (scriptName !== null) {
+        let time = (new Date()).getTime();
+        let add = document.createElement("script"); add.async = true;
+        add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/"+scriptName+"?' : '?fc=module&module=mktr&controller=Api&pg="+scriptName+"&') . 'mktr_time="+(new Date()).getTime();
+        let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s);
+    }
+};
+
+window.mktr.toLoadLoader = function (scriptName = null) { if (window.mktr.toLoad.length > 0) { for (let eventName of window.mktr.toLoad) { window.mktr.loadScript(eventName); } } };
 
 window.mktr.ajax = $.ajax;
 window.mktr.fetch = fetch;

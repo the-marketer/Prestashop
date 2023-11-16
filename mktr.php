@@ -412,6 +412,7 @@ class Mktr extends Module
 
             $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
             $events[] = 'window.mktr.tryLoad = 0;';
+            $events[] = 'window.mktr.toLoad = window.mktr.toLoad || [];';
             $events[] = 'window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";';
             $events[] = 'window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? "'" . Tools::getShopDomainSsl(true) . "'" : 'baseUri') . '';
             $events[] = 'window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";';
@@ -420,18 +421,8 @@ class Mktr extends Module
             if ($action !== null) {
                 $events[] = 'window.mktr.buildEvent("' . $action . '", ' . ($data === null ? 'null' : $data) . ');';
             }
-            if ($id_order !== null) {
-                $orderData = Mktr\Model\Orders::getByID($id_order)->toEvent(true);
-
-                $dataLogs = \Mktr\Helper\Logs::init();
-                $dataLogs->addTo('saveOrderEventData', json_decode($orderData));
-                $dataLogs->save();
-
-                $events[] = 'window.mktr.buildEvent("save_order", ' . Mktr\Model\Orders::getByID($id_order)->toEvent(true) . ');';
-            }
-
             $events[] = '};';
-            $events[] = 'window.mktr.runEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); window.mktr.loadEvents(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1000); } }';
+            $events[] = 'window.mktr.runEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); window.mktr.loadEvents(); window.mktr.toLoadLoader(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1000); } }';
             $events[] = 'window.mktr.runEvents();';
 
             $evList = [
@@ -450,7 +441,7 @@ class Mktr extends Module
             foreach ($evList as $key => $value) {
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
-                    $events[] = '<script type="text/javascript"> (function(){ let add = document.createElement("script"); add.async = true; add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time="+(new Date()).getTime(); let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s); })(); </script>';
+                    $events[] = '<script type="text/javascript"> window.mktr.toLoad.push("' . $value . '"); </script>';
                     $events[] = '<noscript><iframe src="' . Tools::getShopDomainSsl(true) . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
                 }
             }

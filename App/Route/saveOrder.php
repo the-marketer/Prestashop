@@ -25,18 +25,32 @@ namespace Mktr\Route;
 
 class saveOrder
 {
+    private static $try = 0;
     public static function run()
     {
+        $events = [''];
         $Order = \Mktr\Helper\Session::get('save_order');
         $allGood = true;
 
         if (!empty($Order)) {
             foreach ($Order as $sOrder) {
-                $sOrder = \Mktr\Model\Orders::getByID($sOrder)->toApi();
+                $temp = \Mktr\Model\Orders::getByID($sOrder);
+                $sOrder = $temp->toApi();
 
                 $dataLogs = \Mktr\Helper\Logs::init();
                 $dataLogs->addTo('saveOrder', $sOrder);
                 $dataLogs->save();
+
+                if (empty($temp->getProducts())) {
+                    self::$try++;
+                    sleep(2);
+                    if (self::$try < 5) {
+                        return self::run();
+                    }
+                    return 'console.log("Empty Products");';
+                }
+                
+                $events[] = 'window.mktr.buildEvent("save_order", ' . $temp->toEvent(true) . ');';
 
                 \Mktr\Helper\Api::send('save_order', $sOrder);
                 if (\Mktr\Helper\Api::getStatus() != 200) {
@@ -80,6 +94,7 @@ class saveOrder
             }
         }
 
-        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), true) . ');';
+        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), true) . ');' . implode('
+', $events);
     }
 }
