@@ -441,7 +441,7 @@ class Mktr extends Module
             foreach ($evList as $key => $value) {
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
-                    $events[] = '<script type="text/javascript"> window.mktr.toLoad.push("' . $value . '"); </script>';
+                    $events[] = '<script type="text/javascript">window.mktr.toLoad.push("' . $value . '");</script>';
                     $events[] = '<noscript><iframe src="' . Tools::getShopDomainSsl(true) . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
                 }
             }
