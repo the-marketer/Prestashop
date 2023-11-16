@@ -318,6 +318,9 @@ class Mktr extends Module
                 }
 
                 if ($id_order !== null) {
+                    $dataLogs = \Mktr\Helper\Logs::init();
+                    $dataLogs->addTo('saveOrderEvent', $id_order);
+                    $dataLogs->save();
                     Mktr\Helper\Session::set('save_order', [$id_order]);
                     Mktr\Helper\Session::save();
                 }
@@ -418,6 +421,12 @@ class Mktr extends Module
                 $events[] = 'window.mktr.buildEvent("' . $action . '", ' . ($data === null ? 'null' : $data) . ');';
             }
             if ($id_order !== null) {
+                $orderData = Mktr\Model\Orders::getByID($id_order)->toEvent(true);
+
+                $dataLogs = \Mktr\Helper\Logs::init();
+                $dataLogs->addTo('saveOrderEventData', json_decode($orderData));
+                $dataLogs->save();
+
                 $events[] = 'window.mktr.buildEvent("save_order", ' . Mktr\Model\Orders::getByID($id_order)->toEvent(true) . ');';
             }
 

@@ -33,6 +33,11 @@ class saveOrder
         if (!empty($Order)) {
             foreach ($Order as $sOrder) {
                 $sOrder = \Mktr\Model\Orders::getByID($sOrder)->toApi();
+
+                $dataLogs = \Mktr\Helper\Logs::init();
+                $dataLogs->addTo('saveOrder', $sOrder);
+                $dataLogs->save();
+
                 \Mktr\Helper\Api::send('save_order', $sOrder);
                 if (\Mktr\Helper\Api::getStatus() != 200) {
                     $allGood = false;
