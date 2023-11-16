@@ -26,6 +26,7 @@ namespace Mktr\Route;
 class saveOrder
 {
     private static $try = 0;
+
     public static function run()
     {
         $events = [''];
@@ -42,14 +43,15 @@ class saveOrder
                 $dataLogs->save();
 
                 if (empty($temp->getProducts())) {
-                    self::$try++;
+                    ++self::$try;
                     sleep(2);
                     if (self::$try < 5) {
                         return self::run();
                     }
+
                     return 'console.log("Empty Products");';
                 }
-                
+
                 $events[] = 'window.mktr.buildEvent("save_order", ' . $temp->toEvent(true) . ');';
 
                 \Mktr\Helper\Api::send('save_order', $sOrder);
