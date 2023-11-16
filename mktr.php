@@ -422,7 +422,7 @@ class Mktr extends Module
                 $events[] = 'window.mktr.buildEvent("' . $action . '", ' . ($data === null ? 'null' : $data) . ');';
             }
             $events[] = '};';
-            $events[] = 'window.mktr.runEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); window.mktr.loadEvents(); window.mktr.toLoadLoader(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1000); } }';
+            $events[] = 'window.mktr.runEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); window.mktr.loadEvents(); setTimeout(window.mktr.toLoadLoader, 1500); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1500); } }';
             $events[] = 'window.mktr.runEvents();';
 
             $evList = [
