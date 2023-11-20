@@ -121,7 +121,7 @@ class Mktr extends Module
 
     public function getContent()
     {
-        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
+        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
 
         return null;
     }
@@ -157,6 +157,8 @@ class Mktr extends Module
 
         if (self::$displayLoad['dispatcher'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['dispatcher'] = false;
+
+            \Mktr\Helper\Session::init();
 
             $pId = null;
             $pAttr = null;
@@ -237,6 +239,54 @@ class Mktr extends Module
                     Mktr\Helper\Session::save();
                 }
             }
+
+            $cont = Mktr\Helper\Valid::getParam('controller', null);
+            if (in_array($cont, ['order-confirmation', 'thank_you_page', 'orderconfirmation', 'confirmare-comanda'])) {
+                $id_order = Mktr\Helper\Valid::getParam('id_order', null);
+
+                if ($id_order === null) {
+                    $cartId = Mktr\Helper\Valid::getParam('id_cart', null);
+
+                    if ($cartId === null) {
+                        $cartId = Mktr\Helper\Valid::getParam('orderId', null);
+                        $cartId = explode('%', $cartId);
+                        $cartId = $cartId[0];
+                    }
+
+                    if ($cartId !== null) {
+                        Mktr\Helper\Session::set('save_order', [['id' => $cartId, 'is_order' => false]]);
+                        Mktr\Helper\Session::save();
+                    }
+                } else {
+                    Mktr\Helper\Session::set('save_order', [['id' => $id_order, 'is_order' => true]]);
+                    Mktr\Helper\Session::save();
+                }
+            }
+            if (isset($_COOKIE['EAX'])) {
+                if (Mktr\Helper\Valid::getParam('orders') !== null) {
+                    $orders = explode(',', Mktr\Helper\Valid::getParam('orders'));
+                    $list = [];
+
+                    foreach ($orders as $order) {
+                        $list[] = ['id' => $order, 'is_order' => true];
+                    }
+
+                    \Mktr\Helper\Session::set('save_order', $list);
+                    \Mktr\Helper\Session::save();
+                } elseif (Mktr\Helper\Valid::getParam('update_orders') !== null) {
+                    $orders = explode(',', Mktr\Helper\Valid::getParam('update_orders'));
+                    $list = [];
+                    foreach ($orders as $order) {
+                        $temp = \Mktr\Model\Orders::getByID($order);
+                        $send = [
+                            'order_number' => $temp->number,
+                            'order_status' => $temp->order_status,
+                        ];
+
+                        \Mktr\Helper\Api::send('update_order_status', $send, false);
+                    }
+                }
+            }
         }
     }
 
@@ -261,11 +311,14 @@ class Mktr extends Module
     {
         if (self::$displayLoad['header'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['header'] = false;
-            if (Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
-                Mktr\Helper\Session::set('cartID', $this->context->cart->id);
-                Mktr\Helper\Session::save();
+            $js = Mktr\Model\Config::i()->js_file;
+            if ($js !== '') {
+                if (Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
+                    Mktr\Helper\Session::set('cartID', $this->context->cart->id);
+                    Mktr\Helper\Session::save();
+                }
+                $this->context->controller->addJS($this->_path . 'mktr.' . $js . '.js');
             }
-            $this->context->controller->addJS($this->_path . 'views/js/mktr.js');
         }
     }
 
@@ -293,35 +346,6 @@ class Mktr extends Module
     {
         if (self::$displayLoad['footer'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['footer'] = false;
-
-            $action = Mktr\Helper\Valid::getParam('controller', null);
-            $id_order = null;
-            if (in_array($action, ['order-confirmation', 'thank_you_page', 'orderconfirmation', 'confirmare-comanda'])) {
-                $id_order = Mktr\Helper\Valid::getParam('id_order', null);
-
-                if ($id_order === null) {
-                    $cartId = Mktr\Helper\Valid::getParam('id_cart', null);
-
-                    if ($cartId === null) {
-                        $cartId = Mktr\Helper\Valid::getParam('orderId', null);
-                        $cartId = explode('%', $cartId);
-                        $cartId = $cartId[0];
-                    }
-
-                    if ($cartId !== null) {
-                        if (method_exists('\Order', 'getIdByCartId')) {
-                            $id_order = \Order::getIdByCartId($cartId);
-                        } elseif (method_exists('\Order', 'getOrderByCartId')) {
-                            $id_order = \Order::getOrderByCartId($cartId);
-                        }
-                    }
-                }
-
-                if ($id_order !== null) {
-                    Mktr\Helper\Session::set('save_order', [$id_order]);
-                    Mktr\Helper\Session::save();
-                }
-            }
 
             $data = null;
             $events = [];
@@ -406,23 +430,16 @@ class Mktr extends Module
             } elseif (is_array($data)) {
                 $data = Mktr\Helper\Valid::toJson($data);
             }
-
+            $main = '';
             $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
-            $events[] = 'window.mktr.tryLoad = 0;';
-            $events[] = 'window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";';
-            $events[] = 'window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? "'" . Tools::getShopDomainSsl(true) . "'" : 'baseUri') . '';
-            $events[] = 'window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";';
-
-            $events[] = 'window.mktr.run = function () {';
+            $events[] = 'window.mktr.toLoad = window.mktr.toLoad || [];';
             if ($action !== null) {
-                $events[] = 'window.mktr.buildEvent("' . $action . '", ' . ($data === null ? 'null' : $data) . ');';
+                $main = 'window.mktr.buildEvent("' . $action . '", ' . ($data === null ? 'null' : $data) . ');';
             }
-            if ($id_order !== null) {
-                $events[] = 'window.mktr.buildEvent("save_order", ' . Mktr\Model\Orders::getByID($id_order)->toEvent(true) . ');';
-            }
-
-            $events[] = '};';
-            $events[] = 'window.mktr.runEvents = function () { if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") {  window.mktr.run(); window.mktr.loadEvents(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1000); } }';
+            $events[] = 'window.mktr.runEvents = function () {
+                if (typeof window.mktr.tryLoad == "undefined") { window.mktr.tryLoad = 0; }
+                if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") { ' . $main . ' window.mktr.loadEvents(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1500); }
+            }';
             $events[] = 'window.mktr.runEvents();';
 
             $evList = [
@@ -434,15 +451,18 @@ class Mktr extends Module
                 'setEmail' => false,
                 'saveOrder' => false,
             ];
-
-            $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
             $events[] = ' </script>';
+            /*
+                        // $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
 
+                        //$linkPath = \Tools::getShopDomainSsl(true);
+                        //$linkPath = $linkPath . (substr($linkPath, -1) === '/' ? '' : '/');
+            */
             foreach ($evList as $key => $value) {
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
-                    $events[] = '<script type="text/javascript"> (function(){ let add = document.createElement("script"); add.async = true; add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time="+(new Date()).getTime(); let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s); })(); </script>';
-                    $events[] = '<noscript><iframe src="' . Tools::getShopDomainSsl(true) . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=Api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+                    /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
                 }
             }
 

@@ -77,7 +77,7 @@ class FileSystem
     {
         self::$lastPath = self::getPath() . $fName;
 
-        if (self::fileExists($fName)) {
+        if (self::fileExists($fName) && filesize(self::$lastPath) > 0) {
             $file = fopen(self::$lastPath, $mode);
 
             $contents = fread($file, filesize(self::$lastPath));
@@ -96,7 +96,7 @@ class FileSystem
         $contents = '';
         self::$lastPath = self::getPath() . $fName;
 
-        if (self::fileExists($fName)) {
+        if (self::fileExists($fName) && filesize(self::$lastPath) > 0) {
             $file = fopen(self::$lastPath, $mode);
 
             $contents = fread($file, filesize(self::$lastPath));

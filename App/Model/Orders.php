@@ -304,7 +304,9 @@ class Orders extends DataBase
         $products = [];
         foreach ($this->data->getProducts() as $p) {
             $pp = Product::getByID($p['id_product'], true);
-
+            if ($p['unit_price_tax_incl'] <= 0) {
+                continue;
+            }
             $products[$i]['product_id'] = $pp->id;
             $products[$i]['sku'] = $pp->sku;
             $products[$i]['name'] = $pp->name;
@@ -333,6 +335,9 @@ class Orders extends DataBase
         $products = [];
         foreach ($this->data->getProducts() as $p) {
             $pp = Product::getByID($p['id_product'], true);
+            if ($p['unit_price_tax_incl'] <= 0) {
+                continue;
+            }
             $products[$i]['product_id'] = $pp->id;
             $products[$i]['quantity'] = $p['product_quantity'];
 

@@ -32,6 +32,9 @@ class GetEvents
             'remove_from_cart' => '__sm__remove_from_cart',
             'add_to_wish_list' => '__sm__add_to_wishlist',
             'remove_from_wishlist' => '__sm__remove_from_wishlist',
+            'save_order' => '__sm__order',
+            'set_email' => '__sm__set_email',
+            'set_phone' => '__sm__set_phone'
         ];
         $events = [];
 
@@ -41,27 +44,132 @@ class GetEvents
         foreach ($evList as $event => $value) {
             $list = \Mktr\Helper\Session::get($event);
             if (!empty($list)) {
-                foreach ($list as $ey => $value1) {
-                    $pId = $value1[0];
-                    $pAttr = $value1[1];
+                foreach ($list as $key => $value1) {
+                    if ($event === 'save_order') {
+                        if (is_array($value1) && array_key_exists('is_order', $value1) && $value1['is_order'] == false) {
+                            if (method_exists('\Order', 'getIdByCartId')) {
+                                $value1['id'] = \Order::getIdByCartId($value1['id']);
+                            } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                                $value1['id'] = \Order::getOrderByCartId($value1['id']);
+                            }
+                            if ($value1['id'] == false) {
+                                $toClean[] = $key;
+                                continue;
+                            }
+                        } elseif (!is_array($value1) || !array_key_exists('is_order', $value1)) {
+                            $toClean[] = $key;
+                            continue;
+                        }
 
-                    $pp = \Mktr\Model\Product::getByID($pId, true);
-                    $variant = $pp->getVariant($pAttr);
+                        $temp = \Mktr\Model\Orders::getByID($value1['id']);
+                        $sOrder = $temp->toApi();
 
-                    $add = [
-                        'product_id' => $pId,
-                        'variation' => $variant,
-                    ];
+                        if (!empty($temp->getProducts())) {
+                            $events[] = [$event, $temp->toEvent()];
+                            \Mktr\Helper\Api::send('save_order', $sOrder);
 
-                    if (in_array($event, ['add_to_cart', 'remove_from_cart'])) {
-                        $add['qty'] = $value1[2];
+                            if (\Mktr\Helper\Api::getStatus() == 200) {
+                                $toClean[] = $key;
+                            }
+
+                            if (!empty($sOrder['email_address'])) {
+                                $v = \Mktr\Model\Subscription::getByEmail($sOrder['email_address']);
+                                if ($v->subscribed) {
+                                    $info = ['email' => $v->email_address];
+                                    $name = [];
+                                    if ($v->firstname !== null) {
+                                        $name[] = $v->firstname;
+                                    }
+                                    if ($v->lastname !== null) {
+                                        $name[] = $v->lastname;
+                                    }
+                                    if ($v->phone !== null) {
+                                        $info['phone'] = $v->phone;
+                                    }
+                                    $info['name'] = implode(' ', $name);
+                                    \Mktr\Helper\Api::send('add_subscriber', $info);
+                                }
+                            }
+                        }
+                    } elseif (in_array($event, ['set_email', 'set_phone'])) {
+                        $v = null;
+                        if ($event === 'set_email') {
+                            $v = \Mktr\Model\Subscription::getByEmail($value1);
+                            $value1 = [
+                                'email_address' => $value1,
+                            ];
+
+                            if ($v !== null) {
+                                if ($v->firstname !== null) {
+                                    $value1['firstname'] = $v->firstname;
+                                }
+
+                                if ($v->lastname !== null) {
+                                    $value1['lastname'] = $v->lastname;
+                                }
+                            }
+                        } elseif ($event === 'set_phone') {
+                            $value1 = [
+                                'phone' => \Mktr\Helper\Valid::validateTelephone($value1),
+                            ];
+                            $toClean[] = $key;
+                        }
+                        $events[] = [$event, $value1];
+
+                        if ($event === 'set_email') {
+                            $info = [
+                                'email' => $v->email_address,
+                            ];
+
+                            if ($v->subscribed) {
+                                $name = [];
+
+                                if ($v->firstname !== null) {
+                                    $name[] = $v->firstname;
+                                }
+
+                                if ($v->lastname !== null) {
+                                    $name[] = $v->lastname;
+                                }
+
+                                $info['name'] = implode(' ', $name);
+
+                                if ($v->phone !== null) {
+                                    $info['phone'] = $v->phone;
+                                }
+
+                                \Mktr\Helper\Api::send('add_subscriber', $info);
+                            } else {
+                                \Mktr\Helper\Api::send('remove_subscriber', $info);
+                            }
+
+                            if (\Mktr\Helper\Api::getStatus() == 200) {
+                                $toClean[] = $key;
+                            }
+                        }
+                    } else {
+                        $pId = $value1[0];
+                        $pAttr = $value1[1];
+
+                        $pp = \Mktr\Model\Product::getByID($pId, true);
+                        $variant = $pp->getVariant($pAttr);
+
+                        $add = [
+                            'product_id' => $pId,
+                            'variation' => $variant,
+                        ];
+
+                        if (in_array($event, ['add_to_cart', 'remove_from_cart'])) {
+                            $add['qty'] = $value1[2];
+                        }
+
+                        $value1 = $add;
+
+                        $events[] = [$event, $value1];
+                        $toClean[] = $key;
                     }
-
-                    $value1 = $add;
-
-                    $events[] = [$event, $value1];
-                    $toClean[] = $ey;
                 }
+
                 $vv = \Mktr\Helper\Session::get($event);
 
                 foreach ($toClean as $vd) {

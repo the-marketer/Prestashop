@@ -62,10 +62,11 @@ importScripts("https://t.themarketer.com/firebase.js");';
     {
         if (\Mktr\Model\Config::showJs(true)) {
             $c = 'window.mktr = window.mktr || {};
-
+window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";
 window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
 window.mktr.ready = false;
-window.mktr.pending = [];
+window.mktr.pending = window.mktr.pending || [];
+window.mktr.toLoad = window.mktr.toLoad || [];
 window.mktr.retryCount = 0;
 window.mktr.loading = true;
 
@@ -87,6 +88,18 @@ var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
 j.src = "https://t.themarketer.com/t/j/" + i; f.parentNode.insertBefore(j, f);
 window.mktr.ready = true;
 })(document, "script", "' . self::c()->tracking_key . '");
+/*
+window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? '"' . \Tools::getShopDomainSsl(true) . '"' : 'baseUri') . '
+window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";
+*/
+window.mktr.setEmail = true;
+window.mktr.saveOrder = true;
+
+window.mktr.apiScript = {
+    set_email : "setEmail",
+    set_phone : "setEmail",
+    save_order : "saveOrder"
+};
 
 window.mktr.eventsName = {
     "home_page":"__sm__view_homepage",
@@ -110,6 +123,9 @@ window.mktr.buildEvent = function (name = null, data = {}) {
     ' . (_PS_MODE_DEV_ ? 'if (!window.mktr.eventsName.hasOwnProperty(name)){ data.event = name; data.type = "notListed"; }' : '') . '
     if (typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
         dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . '
+        /*if (window.mktr.apiScript.hasOwnProperty(name) && window.mktr[window.mktr.apiScript[name]]) {
+            window.mktr[window.mktr.apiScript[name]] = false; window.mktr.loadScript(window.mktr.apiScript[name]);
+        }*/
     } else {
         window.mktr.pending.push(data); setTimeout(window.mktr.retry, 2000);
     }
@@ -122,12 +138,28 @@ window.mktr.retry = function () {
         window.mktr.retryCount++; setTimeout(window.mktr.retry, 2000);
     }
 };
+
 window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
+    /*
     jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/api/GetEvents?' : '?fc=module&module=mktr&controller=Api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
+        for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
+    });
+    */
+    jQuery.get("/?fc=module&module=mktr&controller=Api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
         for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
     });
 };
 
+window.mktr.loadScript = function (scriptName = null) {
+    if (scriptName !== null) {
+        (function(d, s, i) { var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
+        /* j.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/"+i+"?' : '?fc=module&module=mktr&controller=Api&pg="+i+"&') . 'mktr_time="+(new Date()).getTime(); */
+        j.src = "/?fc=module&module=mktr&controller=Api&pg="+i+"&mktr_time="+(new Date()).getTime();
+        f.parentNode.insertBefore(j, f); })(document, "script", scriptName);
+    }
+};
+
+window.mktr.LoadMktr = window.mktr.retry;
 window.mktr.ajax = $.ajax;
 window.mktr.fetch = fetch;
 
@@ -142,12 +174,10 @@ window.mktr.toCheck = function (data = null, d = null) {
             } else if(data.search("subscription") != -1) {
                 window.mktr.loading = false;
                 setTimeout(function () {
-                    window.mktr.loading = true;
-                    let time = (new Date()).getTime();
-                    let add = document.createElement("script"); add.async = true;
-                    add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time;
-                    let s = document.getElementsByTagName("script")[0];
-                    s.parentNode.insertBefore(add,s);
+                    window.mktr.loading = true; let time = (new Date()).getTime(); let add = document.createElement("script"); add.async = true;
+                    /* add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time; */
+                    add.src = "/?fc=module&module=mktr&controller=Api&pg=setEmail&mktr_time="+time;
+                    let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s);
                 }, 2000);
             }
         }
@@ -173,11 +203,18 @@ fetch = function (data) {
     let ret = window.mktr.fetch.apply(this, arguments);
     window.mktr.toCheck(arguments[0]); return ret; };
 ';
-
-            self::write('views/js/mktr.js', $c);
+            if (self::c()->js_file !== '' && file_exists(MKTR_APP . 'mktr.' . self::c()->js_file . '.js')) {
+                unlink(MKTR_APP . 'mktr.' . self::c()->js_file . '.js');
+            }
+            self::c()->js_file = time();
+            self::write('mktr.' . self::c()->js_file . '.js', $c);
         } else {
-            self::write('views/js/mktr.js', '');
+            if (self::c()->js_file !== '' && file_exists(MKTR_APP . 'mktr.' . self::c()->js_file . '.js')) {
+                unlink(MKTR_APP . 'mktr.' . self::c()->js_file . '.js');
+            }
+            self::c()->js_file = '';
         }
+        self::c()->save();
     }
 
     public static function updatePushStatus()
