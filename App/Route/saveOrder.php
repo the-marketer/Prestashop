@@ -25,14 +25,48 @@ namespace Mktr\Route;
 
 class saveOrder
 {
+    private static $try = 0;
+
     public static function run()
     {
+        $events = [''];
         $Order = \Mktr\Helper\Session::get('save_order');
         $allGood = true;
 
         if (!empty($Order)) {
-            foreach ($Order as $sOrder) {
-                $sOrder = \Mktr\Model\Orders::getByID($sOrder)->toApi();
+            foreach ($Order as $sOrderData) {
+                if (array_key_exists('is_order', $sOrderData) && $sOrderData['is_order'] == false) {
+                    if (is_array($value1) && method_exists('\Order', 'getIdByCartId')) {
+                        $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
+                    } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                        $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
+                    }
+                    if ($sOrderData['id'] == false) {
+                        \Mktr\Helper\Session::set('save_order', []);
+                        \Mktr\Helper\Session::save();
+
+                        return 'console.log("Clean");';
+                    }
+                } elseif (!array_key_exists('is_order', $sOrderData)) {
+                    \Mktr\Helper\Session::set('save_order', []);
+                    \Mktr\Helper\Session::save();
+
+                    return 'console.log("OLD VERSION");';
+                }
+
+                $temp = \Mktr\Model\Orders::getByID($sOrderData['id']);
+                $sOrder = $temp->toApi();
+
+                if (empty($temp->getProducts())) {
+                    ++self::$try;
+                    sleep(2);
+                    if (self::$try < 5) {
+                        return self::run();
+                    }
+
+                    return 'console.log("Empty Products");';
+                }
+
                 \Mktr\Helper\Api::send('save_order', $sOrder);
                 if (\Mktr\Helper\Api::getStatus() != 200) {
                     $allGood = false;
@@ -75,6 +109,7 @@ class saveOrder
             }
         }
 
-        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), true) . ');';
+        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), true) . ');' . implode('
+', $events);
     }
 }

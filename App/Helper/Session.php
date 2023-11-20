@@ -152,8 +152,11 @@ class Session
                     Config::db()->query('INSERT INTO `' . self::$MKTR_TABLE . '` (' . $columns . ') VALUES (' . $values . ')');
                     $range_id = (int) Config::db()->Insert_ID();
                 }
+                self::init()->org = self::init()->data;
             } else {
                 Config::db()->query('DELETE FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
+                self::init()->org = [];
+                self::init()->data = [];
             }
 
             self::clearIfExipire();
@@ -209,12 +212,12 @@ class Session
 
     public static function setEmail($email)
     {
-        self::sessionSet('set_email', $email);
+        self::set('set_email', [$email]);
     }
 
     public static function setPhone($phone)
     {
-        self::sessionSet('set_phone', $phone);
+        self::set('set_phone', [$phone]);
     }
 
     public static function sessionSet($name, $data, $key = null)

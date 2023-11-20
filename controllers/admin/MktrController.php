@@ -49,17 +49,6 @@ class MktrController extends AdminController
     {
         parent::__construct();
         self::$i = $this;
-
-        if (self::$jsRefresh) {
-            Mktr\Route\refreshJS::loadJs();
-            $bind = ['private static $jsRefresh ', '= true;'];
-            $filePath = MKTR_APP . 'controllers/admin/MktrController.php';
-            $content = Tools::file_get_contents($filePath, true);
-            $newContent = str_replace(implode('', $bind), 'private static $jsRefresh = false;', $content);
-            $file = fopen($filePath, 'w+');
-            fwrite($file, $newContent);
-            fclose($file);
-        }
     }
 
     public static function i()
@@ -67,8 +56,41 @@ class MktrController extends AdminController
         return self::$i;
     }
 
+    public static function correctUpdate($filePath, $from, $to)
+    {
+        $content = \Tools::file_get_contents($filePath, true);
+        $newContent = str_replace($from, $to, $content);
+
+        $file = fopen($filePath, 'w+');
+        fwrite($file, $newContent);
+        fclose($file);
+    }
+
     public static function FormData()
     {
+        if (self::$jsRefresh) {
+            Mktr\Route\refreshJS::loadJs();
+            self::correctUpdate(
+                MKTR_APP . 'controllers/admin/MktrController.php',
+                implode('', ['private static $jsRefresh ', '= true;']),
+                'private static $jsRefresh = false;'
+            );
+
+            self::correctUpdate(
+                MKTR_APP . 'mktr.php',
+                [
+                    "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
+                    "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
+                    "
+    \$d = MKTR_ROOT . 'modules/mktr/';",
+                ],
+                [
+                    "define('MKTR_ROOT', '" . MKTR_ROOT . "');",
+                    "define('MKTR_APP', '" . MKTR_APP . "');",
+                ]
+            );
+        }
+
         return [
             'tracker' => [
                 'status' => ['type' => 'switch', 'label' => 'Status'],
@@ -238,14 +260,14 @@ class MktrController extends AdminController
 
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
-            $vv = Tools::getValue($key);
+            $vv = \Tools::getValue($key);
 
             if (in_array($key, ['rest_key', 'tracking_key', 'customer_id']) && empty($vv)) {
                 self::$err['log'][] = self::$err['msg'][$key];
             }
 
             if (self::$config->{$key} != $vv) {
-                self::$config->update($key, Tools::getValue($key));
+                self::$config->update($key, \Tools::getValue($key));
                 $proccess[] = $key;
             }
         }
@@ -301,6 +323,7 @@ class MktrController extends AdminController
             'languages' => $this->context->controller->getLanguages(),
             'id_language' => Mktr\Model\Config::getLang(),
         ];
+
         $out = '';
 
         if (self::$config->tracking_key === '') {
@@ -335,7 +358,7 @@ class MktrController extends AdminController
 
         self::$page = Mktr\Helper\Valid::getParam('page', self::$page);
 
-        if (((bool) Tools::isSubmit('submitMktrModule')) == true) {
+        if (((bool) \Tools::isSubmit('submitMktrModule')) == true) {
             $this->post();
         }
 
@@ -358,16 +381,19 @@ class MktrController extends AdminController
                         'name' => 'Modules',
                         'href' => $this->context->link->getAdminLink('AdminModules', true),
                         'icon' => '',
+                        'id_parent' => 0
                     ],
                     'tab' => [
                         'name' => 'TheMarketer',
                         'href' => self::$currentIndex . '&' . $this->token(),
                         'icon' => '',
+                        'id_parent' => 0
                     ],
                     'action' => [
                         'name' => '',
                         'href' => '',
                         'icon' => '',
+                        'id_parent' => 0
                     ],
                 ],
                 'content' => $this->outPut(),
