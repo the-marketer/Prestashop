@@ -63,14 +63,15 @@ class Session
     public static function getUid()
     {
         if (self::$uid === null) {
-            $cookie = \Context::getContext()->cookie;
-            if (!isset($cookie->__sm__uid) || $cookie->__sm__uid === false) {
-                // setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
+            // $cookie = \Context::getContext()->cookie;
+            // if (!isset($cookie->__sm__uid) || $cookie->__sm__uid === false) {
+            if (array_key_exists('__sm__uid', $_COOKIE)) {
                 self::$uid = uniqid();
-                $cookie->__sm__uid = self::$uid;
+                setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
+            // $cookie->__sm__uid = self::$uid;
             } else {
-                // self::$uid = $cookie['__sm__uid'];
-                self::$uid = $cookie->__sm__uid;
+                self::$uid = $_COOKIE['__sm__uid'];
+                // self::$uid = $cookie->__sm__uid;
             }
         }
 

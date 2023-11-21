@@ -66,6 +66,7 @@ class Mktr extends Module
         spl_autoload_register([$this, 'load'], true, true);
 
         \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        \Mktr\Helper\Session::getUid();
 
         // $this->registerHook('actionDispatcher');
     }
@@ -158,7 +159,7 @@ class Mktr extends Module
         if (self::$displayLoad['dispatcher'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['dispatcher'] = false;
 
-            \Mktr\Helper\Session::init();
+            // \Mktr\Helper\Session::init();
 
             $pId = null;
             $pAttr = null;
