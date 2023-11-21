@@ -29,7 +29,7 @@ if (!defined('MKTR_ROOT')) {
 }
 
 if (!defined('MKTR_APP')) {
-    // define('MKTR_APP', __DIR__ . (substr(__DIR__, -1) === '/' ? '' : '/'));
+    // define("MKTR_APP", __DIR__ . (substr(__DIR__, -1) === "/" ? "" : "/"));
     $d = MKTR_ROOT . 'modules/mktr/';
     define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
 }
@@ -37,13 +37,15 @@ if (!defined('MKTR_APP')) {
 class Mktr extends Module
 {
     private static $i = null;
+    private static $update = true;
     private static $included = [];
-    private static $vr = [];
     private static $displayLoad = [
         'header' => true,
         'footer' => true,
         'dispatcher' => true,
     ];
+
+    private static $vr = [];
     private static $runAction = true;
 
     public function __construct()
@@ -66,7 +68,12 @@ class Mktr extends Module
         spl_autoload_register([$this, 'load'], true, true);
 
         \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
-        \Mktr\Helper\Session::getUid();
+
+        if (self::$update) {
+            self::preConfig();
+        } else {
+            \Mktr\Helper\Session::getUid();
+        }
 
         // $this->registerHook('actionDispatcher');
     }
@@ -74,6 +81,43 @@ class Mktr extends Module
     public static function i()
     {
         return self::$i;
+    }
+
+    public static function correctUpdate($filePath, $from, $to)
+    {
+        $content = \Tools::file_get_contents($filePath, true);
+        $newContent = str_replace($from, $to, $content);
+
+        $file = fopen($filePath, 'w+');
+        fwrite($file, $newContent);
+        fclose($file);
+    }
+
+    public static function preConfig()
+    {
+        if (self::$update) {
+            if (file_exists(MKTR_APP . 'mktr.php')) {
+                self::$update = false;
+                \Mktr\Route\refreshJS::loadJs();
+
+                self::correctUpdate(
+                    MKTR_APP . 'mktr.php',
+                    [
+                        implode('', ['private static $update ', '= true;']),
+                        "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
+                        "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
+                        "
+        \$d = MKTR_ROOT . 'modules/mktr/';",
+                    ],
+                    [
+                        'private static $update = false;',
+                        "define('MKTR_ROOT', '" . MKTR_ROOT . "');",
+                        "define('MKTR_APP', '" . MKTR_APP . "');",
+                        '',
+                    ]
+                );
+            }
+        }
     }
 
     public function install()
@@ -142,6 +186,7 @@ class Mktr extends Module
             }
         }
     }
+
     public static $checkList = [
         'update' => false,
         'isAdd' => false,

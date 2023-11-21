@@ -56,41 +56,8 @@ class MktrController extends AdminController
         return self::$i;
     }
 
-    public static function correctUpdate($filePath, $from, $to)
-    {
-        $content = \Tools::file_get_contents($filePath, true);
-        $newContent = str_replace($from, $to, $content);
-
-        $file = fopen($filePath, 'w+');
-        fwrite($file, $newContent);
-        fclose($file);
-    }
-
     public static function FormData()
     {
-        if (self::$jsRefresh) {
-            Mktr\Route\refreshJS::loadJs();
-            self::correctUpdate(
-                MKTR_APP . 'controllers/admin/MktrController.php',
-                implode('', ['private static $jsRefresh ', '= true;']),
-                'private static $jsRefresh = false;'
-            );
-
-            self::correctUpdate(
-                MKTR_APP . 'mktr.php',
-                [
-                    "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
-                    "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
-                    "
-    \$d = MKTR_ROOT . 'modules/mktr/';",
-                ],
-                [
-                    "define('MKTR_ROOT', '" . MKTR_ROOT . "');",
-                    "define('MKTR_APP', '" . MKTR_APP . "');",
-                ]
-            );
-        }
-
         return [
             'tracker' => [
                 'status' => ['type' => 'switch', 'label' => 'Status'],
