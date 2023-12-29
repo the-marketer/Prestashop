@@ -63,6 +63,7 @@ importScripts("https://t.themarketer.com/firebase.js");';
         if (\Mktr\Model\Config::showJs(true)) {
             $c = 'window.mktr = window.mktr || {};
 window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";
+window.mktr.MKTR_VERSION = "' . \Mktr::i()->version . '";
 window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
 window.mktr.ready = false;
 window.mktr.pending = window.mktr.pending || [];

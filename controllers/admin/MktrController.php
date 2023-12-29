@@ -64,7 +64,7 @@ class MktrController extends AdminController
                 'tracking_key' => ['type' => 'text', 'label' => 'Tracking API Key *'],
                 'rest_key' => ['type' => 'text', 'label' => 'REST API Key *'],
                 'customer_id' => ['type' => 'text', 'label' => 'Customer ID *'],
-                'cron_feed' => ['type' => 'switch', 'label' => 'Activate Cron Feed', 'desc' => implode('', ['<b>If Enable, Please Add this to your server Cron Jobs</b>', '<br /><code>0 */1 * * * /usr/bin/php ' . MKTR_APP . 'cron.php > /dev/null 2>&1</code>'])],
+                'cron_feed' => ['type' => 'switch', 'label' => 'Activate Cron Feed', 'desc' => implode('', ['<b>If Enable, Please Add this to your server Cron Jobs</b>', '<br /><code>0 * * * * /usr/bin/php ' . MKTR_APP . 'cron.php > /dev/null 2>&1</code>'])],
                 'update_feed' => ['type' => 'text', 'label' => 'Cron Update feed every (hours)'],
                 'cron_review' => ['type' => 'switch', 'label' => 'Activate Cron Review'],
                 'update_review' => ['type' => 'text', 'label' => 'Cron Update Review every (hours)'],

@@ -105,7 +105,7 @@ class Product extends DataBase
     protected $orderBy = 'id_product';
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
-    protected $hide = ['variation'];
+    protected $hide = ['variation', 'regular_price'];
 
     private static $i = null;
     private static $curent = null;
@@ -163,7 +163,7 @@ class Product extends DataBase
         $sql = 'SELECT p.`id_product` AS id, product_shop.visibility, product_shop.active , pl.`id_lang` FROM ' .
         '`' . _DB_PREFIX_ . 'product` p ' . \Shop::addSqlAssociation('product', 'p') .
         ' LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl ON (p.`id_product` = pl.`id_product` ' . \Shop::addSqlRestrictionOnLang('pl') . ')' .
-        ' WHERE pl.`id_lang` = ' . Config::getLang() . ' AND product_shop.`visibility` IN ("both", "catalog")' .
+        ' WHERE pl.`id_lang` = ' . Config::getLang() . ' AND product_shop.`visibility` IN ("both", "catalog", "search")' .
         ' AND product_shop.`active` = 1 ORDER BY p.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
 
         $i->list = Config::db()->executeS($sql);
