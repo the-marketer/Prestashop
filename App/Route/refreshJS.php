@@ -83,16 +83,24 @@ j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNo
 ";
             }
 
+            if (defined('__PS_BASE_URI__')) {
+                $base = '"' . __PS_BASE_URI__ . '"';
+            } elseif (_PS_VERSION_ >= 1.7) {
+                $base = '"' . \Tools::getShopDomainSsl(true) . '"';
+            } else {
+                $base = 'baseUri';
+            }
+
             $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
             $c = $c . '(function(d, s, i) {
 var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
 j.src = "https://t.themarketer.com/t/j/" + i; f.parentNode.insertBefore(j, f);
 window.mktr.ready = true;
 })(document, "script", "' . self::c()->tracking_key . '");
-/*
-window.mktr.base = ' . (_PS_VERSION_ >= 1.7 ? '"' . \Tools::getShopDomainSsl(true) . '"' : 'baseUri') . '
+
+window.mktr.base = ' . $base . '
 window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";
-*/
+
 window.mktr.setEmail = true;
 window.mktr.saveOrder = true;
 
@@ -146,7 +154,7 @@ window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window
         for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
     });
     */
-    jQuery.get("/?fc=module&module=mktr&controller=Api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
+    jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=Api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
         for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
     });
 };
@@ -155,7 +163,7 @@ window.mktr.loadScript = function (scriptName = null) {
     if (scriptName !== null) {
         (function(d, s, i) { var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
         /* j.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/"+i+"?' : '?fc=module&module=mktr&controller=Api&pg="+i+"&') . 'mktr_time="+(new Date()).getTime(); */
-        j.src = "/?fc=module&module=mktr&controller=Api&pg="+i+"&mktr_time="+(new Date()).getTime();
+        j.src = window.mktr.base + "?fc=module&module=mktr&controller=Api&pg="+i+"&mktr_time="+(new Date()).getTime();
         f.parentNode.insertBefore(j, f); })(document, "script", scriptName);
     }
 };
@@ -177,7 +185,7 @@ window.mktr.toCheck = function (data = null, d = null) {
                 setTimeout(function () {
                     window.mktr.loading = true; let time = (new Date()).getTime(); let add = document.createElement("script"); add.async = true;
                     /* add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time; */
-                    add.src = "/?fc=module&module=mktr&controller=Api&pg=setEmail&mktr_time="+time;
+                    add.src = window.mktr.base + "?fc=module&module=mktr&controller=Api&pg=setEmail&mktr_time="+time;
                     let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s);
                 }, 2000);
             }
