@@ -396,6 +396,7 @@ class Mktr extends Module
             $data = null;
             $events = [];
             $action = Mktr\Helper\Valid::getParam('controller', null);
+            // $listCheck = [];
             switch ($action) {
                 case '':
                 case 'index':
@@ -421,7 +422,6 @@ class Mktr extends Module
                     // case 'cart':
                     $data = 0;
                     $action = 'checkout';
-
                     if ($this->context->controller instanceof OrderController) {
                         if (method_exists($this->context->controller, 'getCheckoutProcess')) {
                             $checkoutSteps = $this->context->controller->getCheckoutProcess()->getSteps();
@@ -443,23 +443,32 @@ class Mktr extends Module
                                 $data = $this->context->controller->step;
                             }
                         }
-                        if (_PS_VERSION_ >= 1.7) {
+                        if (empty($checkoutSteps)) {
+                            $data = 1;
+                            $action = 'checkout';
+                        } else {
                             $data = 0;
                             foreach ($checkoutSteps as $stepObject) {
                                 if ($data === 0 && ($stepObject instanceof CheckoutPersonalInformationStep || $stepObject instanceof CheckoutAddressesStep)) {
                                     $data = (int) $stepObject->isCurrent();
                                 }
-                            }
-
-                            if ($data == 0) {
-                                $checkOUT = Mktr\Helper\Valid::getParam('checkout');
-                                if ($checkOUT !== null && $checkOUT == 1) {
-                                    $checkoutSteps = [];
-                                    $action = 'checkout';
-                                    $data = 1;
-                                }
+                                // $listCheck[] = $stepObject->getTitle();
                             }
                         }
+
+                        if ($data == 0) {
+                            $checkOUT = Mktr\Helper\Valid::getParam('checkout');
+                            if ($checkOUT !== null && $checkOUT == 1) {
+                                $checkoutSteps = [];
+                                $action = 'checkout';
+                                $data = 1;
+                            }
+                        } else {
+                            $action = 'checkout';
+                        }
+                    } else {
+                        $data = 1;
+                        $action = 'checkout';
                     }
 
                     if ($data === 0) {
@@ -479,6 +488,11 @@ class Mktr extends Module
             $main = '';
             $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
             $events[] = 'window.mktr.toLoad = window.mktr.toLoad || [];';
+            /*
+            $events[] = 'window.mktr.action = "' . Mktr\Helper\Valid::getParam('controller', null) . '";';
+            $events[] = 'window.mktr.listDataCheck = "' . json_encode($listCheck) . '";';
+            */
+
             if ($action !== null) {
                 $main = 'window.mktr.buildEvent("' . $action . '", ' . ($data === null ? 'null' : $data) . ');';
             }
