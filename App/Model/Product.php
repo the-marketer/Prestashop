@@ -258,7 +258,7 @@ class Product extends DataBase
         }
         krsort($p);
 
-        return implode('|', $p);
+        return empty($p) ? 'N/A' : implode('|', $p);
     }
 
     protected function getBrand()
@@ -444,6 +444,15 @@ class Product extends DataBase
                 if (!isset($combinations[$combination['id_product_attribute']])) {
                     $price = self::getPrice();
                     $sale_price = empty((float) $combination['price']) ? $this->getSalePrice() : $this->toDigit($combination['price']);
+
+                    if (0 >= $price || 0 >= $sale_price) {
+                        continue;
+                    }
+
+                    if (0 >= $combination['quantity']) {
+                        $combination['quantity'] = self::getDefaultStock();
+                    }
+
                     $combinations[$combination['id_product_attribute']] = [
                         'id' => [
                             $this->data->id,

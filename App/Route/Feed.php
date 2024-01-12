@@ -47,7 +47,13 @@ class Feed
             $pages = $stop ? 0 : count($cPage);
 
             foreach ($cPage as $val) {
-                $data[] = Product::getByID($val['id'], true)->toArray();
+                $product = Product::getByID($val['id'], true);
+
+                if (0 >= $product->getPrice() || 0 >= $product->getSalePrice()) {
+                    continue;
+                }
+
+                $data[] = $product->toArray();
             }
 
             ++$currentPage;
