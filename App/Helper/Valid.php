@@ -130,11 +130,11 @@ class Valid
                                 break;
 
                             case 'DateCheckDiscount':
-                                if (self::getParam($k) !== null && !self::validateDate(self::getParam($k), Config::$dateFormat)) {
+                                if (self::getParam($k) !== null && !self::validateDate(self::getParam($k), Config::$dateFormatParam)) {
                                     self::$error = 'Incorrect Date ' .
                                         $k . ' - ' .
                                         self::getParam($k) . ' - ' .
-                                        Config::$dateFormat;
+                                        Config::$dateFormatParam;
                                 }
                                 break;
                             case 'StartDate':
