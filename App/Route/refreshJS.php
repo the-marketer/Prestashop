@@ -103,7 +103,7 @@ window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" 
 
 window.mktr.setEmail = true;
 window.mktr.saveOrder = true;
-
+window.mktr.selectors = "' . addslashes(self::c()->selectors) . '";
 window.mktr.apiScript = {
     set_email : "setEmail",
     set_phone : "setEmail",
@@ -120,6 +120,7 @@ window.mktr.eventsName = {
     "add_to_wish_list":"__sm__add_to_wishlist",
     "remove_from_wishlist":"__sm__remove_from_wishlist",
     "checkout":"__sm__initiate_checkout",
+    /* "default":"__sm__initiate_checkout", */
     "save_order":"__sm__order",
     "search":"__sm__search",
     "set_email":"__sm__set_email",
@@ -171,7 +172,6 @@ window.mktr.loadScript = function (scriptName = null) {
 window.mktr.LoadMktr = window.mktr.retry;
 window.mktr.ajax = $.ajax;
 window.mktr.fetch = fetch;
-
 window.mktr.toCheck = function (data = null, d = null) {
     if (data != null && window.mktr.loading) {
         if (typeof data === "string") {
@@ -203,6 +203,8 @@ if (typeof prestashop === "object") {
         }
     });
 }
+
+document.addEventListener("click", function(event){ if (window.mktr.selectors.length !== 0 && (event.target.matches(window.mktr.selectors) || event.target.closest(window.mktr.selectors))) { setTimeout(window.mktr.loadEvents, 2000); } });
 
 $.ajax = function (data) {
     let ret = window.mktr.ajax.apply(this, arguments);

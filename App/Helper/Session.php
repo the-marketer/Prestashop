@@ -196,12 +196,12 @@ class Session
         }
     }
 
-    public static function addToWishlist($pId, $pAttr)
+    public static function addToWishlist($pId, $pAttr = 0)
     {
         self::sessionSet('add_to_wish_list', [$pId, $pAttr]);
     }
 
-    public static function removeFromWishlist($pId, $pAttr)
+    public static function removeFromWishlist($pId, $pAttr = 0)
     {
         self::sessionSet('remove_from_wishlist', [$pId, $pAttr]);
     }

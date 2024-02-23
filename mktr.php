@@ -284,6 +284,20 @@ class Mktr extends Module
                     Mktr\Helper\Session::removeFromWishlist($p['id_product'], $p['id_product_attribute']);
                     Mktr\Helper\Session::save();
                 }
+            } else {
+                if (Mktr\Helper\Valid::getParam('process', null) === 'add') {
+                    $p = Mktr\Helper\Valid::getParam('id_product', null);
+                    if ($p !== null) {
+                        Mktr\Helper\Session::addToWishlist($p, 0);
+                        Mktr\Helper\Session::save();
+                    }
+                } else if (Mktr\Helper\Valid::getParam('process', null) === 'remove') {
+                    $p = Mktr\Helper\Valid::getParam('id_product', null);
+                    if ($p !== null) {
+                        Mktr\Helper\Session::removeFromWishlist($p, 0);
+                        Mktr\Helper\Session::save();
+                    }
+                }
             }
 
             $cont = Mktr\Helper\Valid::getParam('controller', null);
