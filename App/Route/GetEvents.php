@@ -152,9 +152,7 @@ class GetEvents
                         $pAttr = $value1[1];
 
                         $pp = \Mktr\Model\Product::getByID($pId, true);
-                        if ($pAttr !== 0) {
-                            $variant = $pp->getVariant($pAttr);
-                        }
+                        $variant = $pp->getVariant($pAttr);
 
                         $add = [
                             'product_id' => $pId,
