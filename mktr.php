@@ -215,7 +215,19 @@ class Mktr extends Module
             $phone1 = Mktr\Helper\Valid::getParam('phone_mobile', null);
 
             if ($email !== null) {
-                Mktr\Helper\Session::setEmail($email);
+                $remove = false;
+                /*
+                $newsletter = Mktr\Helper\Valid::getParam('newsletter', null);
+                $newsletter !== null ||
+                 || Mktr\Helper\Valid::getParam('create_account', null) !== null
+                 , 'order'
+                */
+                if (in_array(Mktr\Helper\Valid::getParam('controller', null), ['identity'])) {
+                    $remove = true;
+                    // var_dump($newsletter);
+                    // die();
+                }
+                Mktr\Helper\Session::setEmail([$email, $remove]);
                 Mktr\Helper\Session::save();
             }
 
@@ -291,7 +303,7 @@ class Mktr extends Module
                         Mktr\Helper\Session::addToWishlist($p, 0);
                         Mktr\Helper\Session::save();
                     }
-                } else if (Mktr\Helper\Valid::getParam('process', null) === 'remove') {
+                } elseif (Mktr\Helper\Valid::getParam('process', null) === 'remove') {
                     $p = Mktr\Helper\Valid::getParam('id_product', null);
                     if ($p !== null) {
                         Mktr\Helper\Session::removeFromWishlist($p, 0);

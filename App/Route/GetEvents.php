@@ -93,6 +93,13 @@ class GetEvents
                         }
                     } elseif (in_array($event, ['set_email', 'set_phone'])) {
                         $v = null;
+                        $remove = false;
+                    
+                        if (is_array($value1)) {
+                            $remove = $value1[1];
+                            $value1 = $value1[0];
+                        }
+
                         if ($event === 'set_email') {
                             $v = \Mktr\Model\Subscription::getByEmail($value1);
                             $value1 = [
@@ -114,6 +121,7 @@ class GetEvents
                             ];
                             $toClean[] = $key;
                         }
+                        
                         $events[] = [$event, $value1];
 
                         if ($event === 'set_email') {
@@ -139,7 +147,7 @@ class GetEvents
                                 }
 
                                 \Mktr\Helper\Api::send('add_subscriber', $info);
-                            } else {
+                            } elseif ($remove) {
                                 \Mktr\Helper\Api::send('remove_subscriber', $info);
                             }
 

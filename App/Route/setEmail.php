@@ -38,6 +38,13 @@ class setEmail
             $list = \Mktr\Helper\Session::get($event);
             if (!empty($list)) {
                 foreach ($list as $ey => $value1) {
+                    $remove = false;
+                    
+                    if (is_array($value1)) {
+                        $remove = $value1[1];
+                        $value1 = $value1[0];
+                    }
+
                     $v = null;
                     if ($event === 'set_email') {
                         $v = \Mktr\Model\Subscription::getByEmail($value1);
@@ -84,7 +91,7 @@ class setEmail
                             }
 
                             \Mktr\Helper\Api::send('add_subscriber', $info);
-                        } else {
+                        } elseif ($remove) {
                             \Mktr\Helper\Api::send('remove_subscriber', $info);
                         }
 
