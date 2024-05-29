@@ -94,7 +94,7 @@ class GetEvents
                     } elseif (in_array($event, ['set_email', 'set_phone'])) {
                         $v = null;
                         $remove = false;
-                    
+
                         if (is_array($value1)) {
                             $remove = $value1[1];
                             $value1 = $value1[0];
@@ -121,7 +121,7 @@ class GetEvents
                             ];
                             $toClean[] = $key;
                         }
-                        
+
                         $events[] = [$event, $value1];
 
                         if ($event === 'set_email') {

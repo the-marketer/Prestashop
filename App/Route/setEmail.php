@@ -39,7 +39,7 @@ class setEmail
             if (!empty($list)) {
                 foreach ($list as $ey => $value1) {
                     $remove = false;
-                    
+
                     if (is_array($value1)) {
                         $remove = $value1[1];
                         $value1 = $value1[0];

@@ -416,8 +416,12 @@ class Product extends DataBase
         if ($qty < 0) {
             $availability = self::getDefaultStock();
         } elseif ($qty == 0) {
-            /** @noinspection PhpUnnecessaryBoolCastInspection */
-            $availability = (bool) $this->data->available_for_order ? 2 : 0;
+            if ($this->data->out_of_stock !== null) {
+                $av = $this->data->out_of_stock;
+            } else {
+                $av = $this->data->available_for_order;
+            }
+            $availability = $av == 1 ? 2 : 0;
         } else {
             $availability = 1;
         }
