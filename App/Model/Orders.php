@@ -249,6 +249,10 @@ class Orders extends DataBase
     {
         $customer = self::AdressData($this->id_address_invoice);
 
+        if (empty($customer->phone) || $customer->phone === " ") {
+            return '';
+        }
+        
         return $customer->phone;
     }
 
