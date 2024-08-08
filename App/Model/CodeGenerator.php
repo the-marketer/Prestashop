@@ -16,23 +16,30 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Mktr\Helper\Valid;
 
 class CodeGenerator
 {
-    private static $init = null;
+    private static $init;
 
     private static $map = [];
 
     private static $ruleType;
-    private static $code = null;
+    private static $code;
 
     const PREFIX = 'MKTR-';
     const LENGTH = 10;
@@ -69,7 +76,7 @@ class CodeGenerator
         $type = Valid::getParam('type', null);
         $value = Valid::getParam('value', null);
         $expiration = Valid::getParam('expiration_date', null);
-        $c = (int) \Mktr\Model\Config::getContext()->cart->id_currency;
+        $c = (int) Config::getContext()->cart->id_currency;
 
         $rules = [
             0 => 'fixed_cart',
@@ -102,7 +109,7 @@ class CodeGenerator
         $coupon->date_from = date('Y-m-d H:i:s', time());
 
         $coupon->name = [
-            \Mktr\Model\Config::getConfig('PS_LANG_DEFAULT') => 'Themarketer - ' . $rules[$type] . '-' . $value . ($expiration === null ? '' : '-' . $expiration),
+            Config::getConfig('PS_LANG_DEFAULT') => 'Themarketer - ' . $rules[$type] . '-' . $value . ($expiration === null ? '' : '-' . $expiration),
         ];
         $coupon->description = self::DESCRIPTION . ' (' . $rules[$type] . '-' . $value . ($expiration === null ? '' : '-' . $expiration) . ')';
         $coupon->id_customer = 0;

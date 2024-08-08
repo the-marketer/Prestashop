@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
@@ -25,9 +28,13 @@ namespace Mktr\Helper;
 
 use Mktr\Model\Config;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 class Api
 {
-    private static $init = null;
+    private static $init;
 
     public static function init()
     {
@@ -42,16 +49,16 @@ class Api
     // private static $mURL = "https://eaxdev.ga/mktr/EventsTrap/";
     private static $bURL = 'https://eaxdev.ga/mktr/BugTrap/';
 
-    private static $timeOut = null;
+    private static $timeOut;
 
-    private static $cURL = null;
+    private static $cURL;
 
-    private static $params = null;
-    private static $lastUrl = null;
+    private static $params;
+    private static $lastUrl;
 
-    private static $info = null;
-    private static $exec = null;
-    private static $requestType = null;
+    private static $info;
+    private static $exec;
+    private static $requestType;
 
     /** @noinspection PhpUnused */
     public static function send($name, $data = [], $post = true)

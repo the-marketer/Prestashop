@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 if (!defined('_PS_VERSION_')) {
@@ -29,6 +32,6 @@ class MktrTrackerController extends AdminController
     public function __construct()
     {
         parent::__construct();
-        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true) . '&page=tracker');
+        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true) . '&page=tracker');
     }
 }

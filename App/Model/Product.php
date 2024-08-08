@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -107,22 +114,22 @@ class Product extends DataBase
     protected $dateFormat = 'Y-m-d H:i';
     protected $hide = ['variation', 'regular_price'];
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
 
     protected $realStock = 0;
-    protected $isCombination = null;
-    protected $img = null;
-    protected $prices = null;
-    protected $pricesDate = null;
-    protected $reference = null;
-    protected $var = null;
+    protected $isCombination;
+    protected $img;
+    protected $prices;
+    protected $pricesDate;
+    protected $reference;
+    protected $var;
     protected $variant = [];
 
     const TYPE_COMBINATION = 'combinations';
-    private static $defStock = null;
-    private static $att = null;
+    private static $defStock;
+    private static $att;
 
     public static function i()
     {
@@ -248,17 +255,24 @@ class Product extends DataBase
 
     protected function getCategory()
     {
-        $cat = new \Category($this->data->id_category_default, Config::getLang());
-        $parents = $cat->getParentsCategories(Config::getLang());
-        $p = [];
-        foreach ($parents as $ch) {
-            if (isset($ch['name'])) {
-                $p[] = $ch['name'];
+        $new = [];
+        $categoryes = $this->data->getCategories();
+        foreach ($categoryes as $cID) {
+            $p = [];
+            $cat = new \Category($cID, Config::getLang());
+            $parents = $cat->getParentsCategories(Config::getLang());
+            foreach ($parents as $ch) {
+                if (isset($ch['name'])) {
+                    $p[] = $ch['name'];
+                }
+            }
+            krsort($p);
+            if (!empty($p)) {
+                $new[] = implode('|', $p);
             }
         }
-        krsort($p);
 
-        return empty($p) ? 'N/A' : implode('|', $p);
+        return empty($new) ? 'N/A' : implode('||', $new);
     }
 
     protected function getBrand()

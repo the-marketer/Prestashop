@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 if (!defined('_PS_VERSION_')) {
@@ -28,8 +31,8 @@ use Mktr\Helper\Valid;
 
 class MktrApiModuleFrontController extends FrontController
 {
-    private static $init = null;
-    private static $page = null;
+    private static $init;
+    private static $page;
     private static $check = [
         'orders' => [
             'key' => 'Required|Key|allow_export',
@@ -116,7 +119,7 @@ class MktrApiModuleFrontController extends FrontController
             return call_user_func_array([$this, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
+                throw new Exception("Method {$name} does not exist.");
             }
 
             return null;

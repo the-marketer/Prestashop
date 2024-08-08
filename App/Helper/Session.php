@@ -16,20 +16,27 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Helper;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Mktr\Model\Config;
 
 class Session
 {
-    private static $init = null;
-    private static $uid = null;
-    private static $MKTR_TABLE = null;
+    private static $init;
+    private static $uid;
+    private static $MKTR_TABLE;
 
     private $data = [];
     private $org = [];
@@ -90,7 +97,7 @@ class Session
         $uid = self::getUid();
         $data = Config::db()->executeS('SELECT `data` FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
 
-        $this->org = array_key_exists(0, $data) ? unserialize($data[0]['data']) : [];
+        $this->org = array_key_exists(0, $data) ? call_user_func('unserialize', $data[0]['data']) : [];
         $this->data = $this->org;
     }
 
@@ -121,7 +128,7 @@ class Session
             $table_name = self::$MKTR_TABLE;
             if (!empty(self::init()->data)) {
                 $data = [
-                    'data' => serialize(self::init()->data),
+                    'data' => call_user_func('serialize', self::init()->data),
                     'expire' => date('Y-m-d H:i:s', strtotime('+2 day')),
                 ];
 

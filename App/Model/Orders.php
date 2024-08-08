@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -110,11 +117,11 @@ class Orders extends DataBase
 
     protected $refund = 0;
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
-    private static $shop = null;
-    private static $orderState = null;
+    private static $shop;
+    private static $orderState;
     private static $customerData = [];
     private static $adressData = [];
 
@@ -135,7 +142,7 @@ class Orders extends DataBase
     public static function orderState($ID)
     {
         if (self::$orderState === null) {
-            foreach (\OrderState::getOrderStates(\Mktr\Model\Config::getLang()) as $state) {
+            foreach (\OrderState::getOrderStates(Config::getLang()) as $state) {
                 self::$orderState[$state['id_order_state']] = $state;
             }
         }
@@ -249,10 +256,10 @@ class Orders extends DataBase
     {
         $customer = self::AdressData($this->id_address_invoice);
 
-        if (empty($customer->phone) || $customer->phone === " ") {
+        if (empty($customer->phone) || $customer->phone === ' ') {
             return '';
         }
-        
+
         return $customer->phone;
     }
 

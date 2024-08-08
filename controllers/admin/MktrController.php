@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 if (!defined('_PS_VERSION_')) {
@@ -31,9 +34,9 @@ class MktrController extends AdminController
     const Register = 'https://app.themarketer.com/register';
 
     private static $page = 'tracker';
-    private static $i = null;
-    private static $t = null;
-    private static $config = null;
+    private static $i;
+    private static $t;
+    private static $config;
     private static $jsRefresh = true;
 
     private static $err = [
@@ -227,14 +230,14 @@ class MktrController extends AdminController
 
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
-            $vv = \Tools::getValue($key);
+            $vv = Tools::getValue($key);
 
             if (in_array($key, ['rest_key', 'tracking_key', 'customer_id']) && empty($vv)) {
                 self::$err['log'][] = self::$err['msg'][$key];
             }
 
             if (self::$config->{$key} != $vv) {
-                self::$config->update($key, \Tools::getValue($key));
+                self::$config->update($key, Tools::getValue($key));
                 $proccess[] = $key;
             }
         }
@@ -325,7 +328,7 @@ class MktrController extends AdminController
 
         self::$page = Mktr\Helper\Valid::getParam('page', self::$page);
 
-        if (((bool) \Tools::isSubmit('submitMktrModule')) == true) {
+        if (((bool) Tools::isSubmit('submitMktrModule')) == true) {
             $this->post();
         }
 
@@ -348,19 +351,19 @@ class MktrController extends AdminController
                         'name' => 'Modules',
                         'href' => $this->context->link->getAdminLink('AdminModules', true),
                         'icon' => '',
-                        'id_parent' => 0
+                        'id_parent' => 0,
                     ],
                     'tab' => [
                         'name' => 'TheMarketer',
                         'href' => self::$currentIndex . '&' . $this->token(),
                         'icon' => '',
-                        'id_parent' => 0
+                        'id_parent' => 0,
                     ],
                     'action' => [
                         'name' => '',
                         'href' => '',
                         'icon' => '',
-                        'id_parent' => 0
+                        'id_parent' => 0,
                     ],
                 ],
                 'content' => $this->outPut(),

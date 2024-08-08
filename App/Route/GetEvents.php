@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Route;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class GetEvents
 {
@@ -34,7 +41,7 @@ class GetEvents
             'remove_from_wishlist' => '__sm__remove_from_wishlist',
             'save_order' => '__sm__order',
             'set_email' => '__sm__set_email',
-            'set_phone' => '__sm__set_phone'
+            'set_phone' => '__sm__set_phone',
         ];
         $events = [];
 

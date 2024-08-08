@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Route;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class refreshJS
 {
@@ -39,7 +46,7 @@ importScripts("https://www.gstatic.com/firebasejs/9.4.0/firebase-messaging-compa
 importScripts("./firebase-config.js");
 importScripts("https://t.themarketer.com/firebase.js");';
 
-    private static $config = null;
+    private static $config;
 
     public static function run()
     {
@@ -120,6 +127,7 @@ window.mktr.eventsName = {
     "add_to_wish_list":"__sm__add_to_wishlist",
     "remove_from_wishlist":"__sm__remove_from_wishlist",
     "checkout":"__sm__initiate_checkout",
+    "supercheckout":"__sm__initiate_checkout",
     /* "default":"__sm__initiate_checkout", */
     "save_order":"__sm__order",
     "search":"__sm__search",

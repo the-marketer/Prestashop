@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class Config
 {
@@ -87,12 +94,12 @@ class Config
     public static $dateFormat = 'Y-m-d H:i';
     public static $dateFormatParam = 'Y-m-d';
 
-    private static $i = null;
-    private static $nws = null;
-    private static $lang_id = null;
-    private static $context = null;
-    private static $shop = null;
-    private static $db = null;
+    private static $i;
+    private static $nws;
+    private static $lang_id;
+    private static $context;
+    private static $shop;
+    private static $db;
 
     private static $checkData = [
         'showJs' => null,
@@ -305,8 +312,7 @@ class Config
     {
         if ($new === true || self::$checkData['rest'] === null) {
             $i = self::i();
-            self::$checkData['rest'] = $i->status && $i->tracking_key !== '' &&
-                $i->rest_key !== '' && $i->customer_id !== '';
+            self::$checkData['rest'] = $i->status && $i->tracking_key !== '' && $i->rest_key !== '' && $i->customer_id !== '';
         }
 
         return self::$checkData['rest'];
@@ -382,7 +388,7 @@ class Config
                 return (bool) $value;
             case 'object':
             case 'array':
-                return unserialize($value);
+                return call_user_func('unserialize', $value);
             case 'json':
                 return json_decode($value, true);
             case 'date':
@@ -412,7 +418,7 @@ class Config
                 return (int) $value;
             case 'object':
             case 'array':
-                return serialize($value);
+                return call_user_func('serialize', $value);
             case 'json':
                 return json_encode($value, true);
             case 'date':

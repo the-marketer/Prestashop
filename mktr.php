@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 if (!defined('_PS_VERSION_')) {
@@ -36,7 +39,7 @@ if (!defined('MKTR_APP')) {
 
 class Mktr extends Module
 {
-    private static $i = null;
+    private static $i;
     private static $update = true;
     private static $included = [];
     private static $displayLoad = [
@@ -52,7 +55,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.0.7';
+        $this->version = '1.0.8';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -67,12 +70,12 @@ class Mktr extends Module
 
         spl_autoload_register([$this, 'load'], true, true);
 
-        \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
 
         if (self::$update) {
             self::preConfig();
         } else {
-            \Mktr\Helper\Session::getUid();
+            Mktr\Helper\Session::getUid();
         }
 
         // $this->registerHook('actionDispatcher');
@@ -85,7 +88,7 @@ class Mktr extends Module
 
     public static function correctUpdate($filePath, $from, $to)
     {
-        $content = \Tools::file_get_contents($filePath, true);
+        $content = Tools::file_get_contents($filePath, true);
         $newContent = str_replace($from, $to, $content);
 
         $file = fopen($filePath, 'w+');
@@ -98,7 +101,7 @@ class Mktr extends Module
         if (self::$update) {
             if (file_exists(MKTR_APP . 'mktr.php')) {
                 self::$update = false;
-                \Mktr\Route\refreshJS::loadJs();
+                Mktr\Route\refreshJS::loadJs();
 
                 self::correctUpdate(
                     MKTR_APP . 'mktr.php',
@@ -140,7 +143,7 @@ class Mktr extends Module
             $hook[] = 'displayFooter';
         }
 
-        \Mktr\Helper\Setup::install();
+        Mktr\Helper\Setup::install();
 
         if (parent::install() && $this->registerHook($hook)) {
             return true;
@@ -153,7 +156,7 @@ class Mktr extends Module
 
     public function uninstall()
     {
-        \Mktr\Helper\Setup::uninstall();
+        Mktr\Helper\Setup::uninstall();
 
         if (parent::uninstall()) {
             return true;
@@ -166,7 +169,7 @@ class Mktr extends Module
 
     public function getContent()
     {
-        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
+        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
 
         return null;
     }
@@ -245,7 +248,7 @@ class Mktr extends Module
                     $pId = Mktr\Helper\Valid::getParam('id_product', null);
                     $pGrup = Mktr\Helper\Valid::getParam('group', null);
                     if ($pGrup !== null) {
-                        $pAttr = (int) \Product::getIdProductAttributeByIdAttributes($pId, $pGrup, true);
+                        $pAttr = (int) Product::getIdProductAttributeByIdAttributes($pId, $pGrup, true);
                     }
                     $qty = Mktr\Helper\Valid::getParam('qty', null);
                 }
@@ -343,19 +346,19 @@ class Mktr extends Module
                         $list[] = ['id' => $order, 'is_order' => true];
                     }
 
-                    \Mktr\Helper\Session::set('save_order', $list);
-                    \Mktr\Helper\Session::save();
+                    Mktr\Helper\Session::set('save_order', $list);
+                    Mktr\Helper\Session::save();
                 } elseif (Mktr\Helper\Valid::getParam('update_orders') !== null) {
                     $orders = explode(',', Mktr\Helper\Valid::getParam('update_orders'));
                     $list = [];
                     foreach ($orders as $order) {
-                        $temp = \Mktr\Model\Orders::getByID($order);
+                        $temp = Mktr\Model\Orders::getByID($order);
                         $send = [
                             'order_number' => $temp->number,
                             'order_status' => $temp->order_status,
                         ];
 
-                        \Mktr\Helper\Api::send('update_order_status', $send, false);
+                        Mktr\Helper\Api::send('update_order_status', $send, false);
                     }
                 }
             }
@@ -370,7 +373,7 @@ class Mktr extends Module
                 'order_status' => $newStatus['newOrderStatus']->name,
             ];
 
-            \Mktr\Helper\Api::send('update_order_status', $send, false);
+            Mktr\Helper\Api::send('update_order_status', $send, false);
         }
     }
 
@@ -512,7 +515,8 @@ class Mktr extends Module
                 $data = Mktr\Helper\Valid::toJson($data);
             }
             $main = '';
-            $events[] = '<script type="text/javascript"> window.mktr = window.mktr || {}; ';
+            $events[] = html_entity_decode('&lt;script type=&quot;text/javascript&quot;&gt;');
+            $events[] = 'window.mktr = window.mktr || {}; ';
             $events[] = 'window.mktr.toLoad = window.mktr.toLoad || [];';
             /*
             $events[] = 'window.mktr.action = "' . Mktr\Helper\Valid::getParam('controller', null) . '";';
@@ -582,7 +586,7 @@ class Mktr extends Module
             return call_user_func_array([$this, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
+                throw new Exception("Method {$name} does not exist.");
             }
 
             return null;
@@ -599,7 +603,7 @@ class Mktr extends Module
             return call_user_func_array([self::$i, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new \Exception("Static method {$name} does not exist.");
+                throw new Exception("Static method {$name} does not exist.");
             }
 
             return null;

@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Helper;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 abstract class DataBase
 {
@@ -31,13 +38,13 @@ abstract class DataBase
     protected $ref = [];
     protected $functions = [];
     protected $vars = [];
-    protected $orderBy = null;
+    protected $orderBy;
     protected $direction = 'ASC';
     protected $limit = 250;
     protected $hide = [];
     protected $dateFormat = 'Y-m-d H:i';
-    protected $data = null;
-    protected $list = null;
+    protected $data;
+    protected $list;
 
     public function __call($name, $arguments)
     {
@@ -74,7 +81,14 @@ abstract class DataBase
                 if (!in_array($key, $this->hide)) {
                     $value = $this->{$key};
                     if ($value !== null && array_key_exists($key, $this->cast) && in_array($this->cast[$key], ['date', 'datetime'])) {
-                        $list[$key] = $value->format($this->dateFormat);
+                        if ($value === null) {
+                            $list[$key] = null;
+                        } else {
+                            $list[$key] = $value->format($this->dateFormat);
+                            if ($list[$key] === '-0001-11-30 00:00') {
+                                $list[$key] = '2000-01-01 00:00';
+                            }
+                        }
                     } else {
                         if ($if !== null && in_array($key, $if)) {
                             if (!empty($value)) {
@@ -140,11 +154,15 @@ abstract class DataBase
                 return (bool) $value;
             case 'object':
             case 'array':
-                return unserialize($value);
+                return call_user_func('unserialize', $value);
             case 'json':
                 return json_decode($value, true);
             case 'date':
             case 'datetime':
+                if ($value === null) {
+                    return null;
+                }
+
                 return new \DateTime($value);
             case 'timestamp':
                 return $value;
@@ -170,7 +188,7 @@ abstract class DataBase
                 return (int) $value;
             case 'object':
             case 'array':
-                return serialize($value);
+                return call_user_func('serialize', $value);
             case 'json':
                 return json_encode($value, true);
             case 'date':
