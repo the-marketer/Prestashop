@@ -27,6 +27,21 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+if (_PS_VERSION_ < 1.6) {
+    if (!defined('MKTR_ROOT')) {
+        define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));
+    }
+
+    if (!defined('MKTR_APP')) {
+        $d = MKTR_ROOT . 'modules/mktr/';
+        define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
+    }
+
+    if (!class_exists('Mktr')) {
+        require_once MKTR_APP . 'mktr.php';
+    }
+}
+
 class MktrController extends AdminController
 {
     const Docs = 'https://themarketer.com/resources/api';
@@ -52,6 +67,9 @@ class MktrController extends AdminController
     {
         parent::__construct();
         self::$i = $this;
+        if (!Mktr::$init) {
+            new Mktr();
+        }
     }
 
     public static function i()
@@ -172,14 +190,34 @@ class MktrController extends AdminController
                 'type' => $value['type'],
                 'label' => '<b>' . $value['label'] . '</b>',
             ];
+            if (_PS_VERSION_ >= 1.6) {
+                if ($value['type'] === 'switch') {
+                    $n['is_bool'] = true;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
+                }
+            } else {
+                if ($value['type'] === 'switch') {
+                    $n['type'] = 'radio';
+                    $n['class'] = 't';
+                    $n['is_bool'] = true;
 
-            if ($value['type'] === 'switch') {
-                $n['is_bool'] = true;
-                $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
+
+                    foreach ($value['values'] as $kkk => $vvv) {
+                        if (isset($vvv['value'])) {
+                            $value['values'][$kkk]['value'] = (int) $value['values'][$kkk]['value'];
+                        }
+                        if (isset($vvv['id'])) {
+                            $value['values'][$kkk]['id'] = $value['values'][$kkk]['id'] . '_' . $key;
+                        }
+                    }
+                }
             }
+
             if (array_key_exists('options', $value)) {
                 $n['options'] = $value['options'];
             }
+
             if (array_key_exists('values', $value)) {
                 $n['values'] = $value['values'];
                 foreach ($value['values'] as $key1 => $value1) {
@@ -194,7 +232,10 @@ class MktrController extends AdminController
             if (array_key_exists('multiple', $value)) {
                 $n['multiple'] = $value['multiple'];
             }
-            $n['value'] = '';
+
+            if (_PS_VERSION_ >= 1.6) {
+                $n['value'] = '';
+            }
 
             $new[] = $n;
         }
@@ -218,7 +259,15 @@ class MktrController extends AdminController
         $list = [];
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
-            $list[$key] = self::$config->asString($key);
+            if (_PS_VERSION_ >= 1.6) {
+                $list[$key] = self::$config->asString($key);
+            } else {
+                if ($value['type'] == 'switch') {
+                    $list[$key] = (int) self::$config->asString($key);
+                } else {
+                    $list[$key] = self::$config->asString($key);
+                }
+            }
         }
 
         return $list;

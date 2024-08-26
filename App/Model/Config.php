@@ -54,6 +54,28 @@ class Config
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
     ];
 
+    const CONFIG_DATA_PS15 = [
+        'status' => ['key' => 'MKTR_TRACKER_STATUS', 'default' => 0, 'type' => 'int'],
+        'tracking_key' => ['key' => 'MKTR_TRACKER_TRACKING_KEY', 'default' => '', 'type' => 'string'],
+        'rest_key' => ['key' => 'MKTR_TRACKER_REST_KEY', 'default' => '', 'type' => 'string'],
+        'customer_id' => ['key' => 'MKTR_TRACKER_CUSTOMER_ID', 'default' => '', 'type' => 'string'],
+        'js_file' => ['key' => 'MKTR_TRACKER_JS_FILe', 'default' => '', 'type' => 'string'],
+        'cron_feed' => ['key' => 'MKTR_TRACKER_CRON_FEED', 'default' => 1, 'type' => 'int'],
+        'update_feed' => ['key' => 'MKTR_TRACKER_UPDATE_FEED', 'default' => 4, 'type' => 'int'],
+        'cron_review' => ['key' => 'MKTR_TRACKER_CRON_REVIEW', 'default' => 0, 'type' => 'int'],
+        'update_review' => ['key' => 'MKTR_TRACKER_UPDATE_REVIEW', 'default' => 4, 'type' => 'int'],
+        'opt_in' => ['key' => 'MKTR_TRACKER_OPT_IN', 'default' => 0, 'type' => 'int'],
+        'push_status' => ['key' => 'MKTR_TRACKER_PUSH_STATUS', 'default' => 0, 'type' => 'int'],
+        'default_stock' => ['key' => 'MKTR_TRACKER_DEFAULT_STOCK', 'default' => 0, 'type' => 'int'],
+        'allow_export' => ['key' => 'MKTR_TRACKER_ALLOW_EXPORT', 'default' => 1, 'type' => 'int'],
+        'selectors' => ['key' => 'MKTR_TRACKER_SELECTORS', 'default' => '', 'type' => 'string'],
+        'brand' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_BRAND', 'default' => ['brand'], 'type' => 'array'],
+        'color' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_COLOR', 'default' => ['color'], 'type' => 'array'],
+        'size' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_SIZE', 'default' => ['size'], 'type' => 'array'],
+        'google_status' => ['key' => 'MKTR_GOOGLE_GOOGLE_STATUS', 'default' => 0, 'type' => 'int'],
+        'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
+    ];
+
     const DEFAULT_VALUES = [
         [
             'id' => 'active_on',
@@ -100,6 +122,7 @@ class Config
     private static $context;
     private static $shop;
     private static $db;
+    private static $CFG_DATA;
 
     private static $checkData = [
         'showJs' => null,
@@ -133,10 +156,24 @@ class Config
     public static function i($new = false)
     {
         if (self::$i === null || $new === true) {
+            self::CFG();
             self::$i = new static();
         }
 
         return self::$i;
+    }
+
+    public static function CFG()
+    {
+        if (!self::$CFG_DATA) {
+            if (_PS_VERSION_ >= 1.6) {
+                self::$CFG_DATA = self::CONFIG_DATA;
+            } else {
+                self::$CFG_DATA = self::CONFIG_DATA_PS15;
+            }
+        }
+
+        return self::$CFG_DATA;
     }
 
     public function __call($name, $arguments)
@@ -172,11 +209,11 @@ class Config
     private function toArray()
     {
         $list = [];
-
-        foreach (self::CONFIG_DATA as $key => $value) {
+        self::CFG();
+        foreach (self::$CFG_DATA as $key => $value) {
             if (!in_array($key, $this->hide)) {
                 $value = $this->{$key};
-                if (null !== self::CONFIG_DATA[$key]['type'] && in_array(self::CONFIG_DATA[$key]['type'], ['date', 'datetime'])) {
+                if (null !== self::$CFG_DATA[$key]['type'] && in_array(self::$CFG_DATA[$key]['type'], ['date', 'datetime'])) {
                     $list[$key] = $value->format(self::$dateFormat);
                 } else {
                     $list[$key] = $value;
@@ -189,10 +226,11 @@ class Config
 
     public function __get($name)
     {
+        self::CFG();
         if ($this->attributes[$name] === null) {
-            $this->attributes[$name] = \Configuration::get(self::CONFIG_DATA[$name]['key']);
-            if (!in_array(self::CONFIG_DATA[$name]['type'], ['bool', 'boolean']) && $this->attributes[$name] === false) {
-                $this->attributes[$name] = self::CONFIG_DATA[$name]['default'];
+            $this->attributes[$name] = \Configuration::get(self::$CFG_DATA[$name]['key']);
+            if (!in_array(self::$CFG_DATA[$name]['type'], ['bool', 'boolean']) && $this->attributes[$name] === false) {
+                $this->attributes[$name] = self::$CFG_DATA[$name]['default'];
             } else {
                 $this->attributes[$name] = $this->cast($name, $this->attributes[$name]);
             }
@@ -280,7 +318,8 @@ class Config
     {
         $value = $this->{$name};
 
-        if (self::CONFIG_DATA[$name]['type'] === 'array' && $value !== null) {
+        self::CFG();
+        if (self::$CFG_DATA[$name]['type'] === 'array' && $value !== null) {
             $value = implode('|', $value);
         }
 
@@ -290,8 +329,8 @@ class Config
     public static function AddDefault()
     {
         $i = self::i();
-
-        foreach (self::CONFIG_DATA as $key => $v) {
+        self::CFG();
+        foreach (self::$CFG_DATA as $key => $v) {
             $i->{$key} = $v['default'];
         }
 
@@ -330,21 +369,23 @@ class Config
 
     public static function delete($name = null)
     {
+        self::CFG();
         if ($name === null) {
-            foreach (self::CONFIG_DATA as $key => $v) {
+            foreach (self::$CFG_DATA as $key => $v) {
                 \Configuration::deleteByName($v['key']);
             }
 
             \Configuration::deleteByName('MKTR_TRACKER_CONFIRMATION');
             \Configuration::deleteByName('MKTR_TRACKER_NOTIFICATION');
         } else {
-            \Configuration::deleteByName(self::CONFIG_DATA[$name]['key']);
+            \Configuration::deleteByName(self::$CFG_DATA[$name]['key']);
         }
     }
 
     public function update($name, $value)
     {
-        if (self::CONFIG_DATA[$name]['type'] === 'array' && $value !== null) {
+        self::CFG();
+        if (self::$CFG_DATA[$name]['type'] === 'array' && $value !== null) {
             if (in_array($name, ['brand', 'color', 'size'])) {
                 $value = strtolower($value);
             }
@@ -363,9 +404,11 @@ class Config
             foreach ($this->load as $key => $value) {
                 $value1 = $this->attributes[$key];
                 if ($value1 !== null) {
-                    \Configuration::updateValue(self::CONFIG_DATA[$key]['key'], $this->unCast($key, $value1), true);
+                    \Configuration::updateValue(self::$CFG_DATA[$key]['key'], $this->unCast($key, $value1), true);
+                // if (in_array($key, ['brand', 'color', 'size'])) { var_dump($key, $value1,$this->unCast($key, $value1), \Configuration::updateValue(self::$CFG_DATA[$key]['key'], $this->unCast($key, $value1), true));die(); }
+                // var_dump(self::$CFG_DATA[$key]['key'], $key, $value1); die();
                 } else {
-                    \Configuration::updateValue(self::CONFIG_DATA[$key]['key'], null);
+                    \Configuration::updateValue(self::$CFG_DATA[$key]['key'], null);
                 }
             }
         }
@@ -373,7 +416,7 @@ class Config
 
     protected function cast($key, $value)
     {
-        switch (self::CONFIG_DATA[$key]['type']) {
+        switch (self::$CFG_DATA[$key]['type']) {
             case 'int':
             case 'integer':
                 return (int) $value;
@@ -403,7 +446,7 @@ class Config
 
     protected function unCast($key, $value)
     {
-        switch (self::CONFIG_DATA[$key]['type']) {
+        switch (self::$CFG_DATA[$key]['type']) {
             case 'int':
             case 'integer':
                 return (int) $value;

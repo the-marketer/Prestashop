@@ -194,7 +194,11 @@ class Orders extends DataBase
     {
         if ($new || !array_key_exists($id, self::$d)) {
             self::$d[$id] = new static();
-            self::$d[$id]->data = new \Order($id, Config::getLang(), Config::shop());
+            if (_PS_VERSION_ >= 1.6) {
+                self::$d[$id]->data = new \Order($id, Config::getLang(), Config::shop());
+            } else {
+                self::$d[$id]->data = new \Order($id);
+            }
         }
 
         self::$curent = self::$d[$id];

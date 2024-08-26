@@ -32,13 +32,13 @@ if (!defined('MKTR_ROOT')) {
 }
 
 if (!defined('MKTR_APP')) {
-    // define("MKTR_APP", __DIR__ . (substr(__DIR__, -1) === "/" ? "" : "/"));
     $d = MKTR_ROOT . 'modules/mktr/';
     define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
 }
 
 class Mktr extends Module
 {
+    public static $init = false;
     private static $i;
     private static $update = true;
     private static $included = [];
@@ -65,8 +65,9 @@ class Mktr extends Module
         $this->displayName = 'TheMarketer';
         $this->description = 'TheMarketer - PrestaShop Version';
         $this->confirmUninstall = 'Are you sure you want to uninstall this module?';
-        $this->ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
+        $this->ps_versions_compliancy = ['min' => '1.5', 'max' => _PS_VERSION_];
         self::$i = $this;
+        self::$init = true;
 
         spl_autoload_register([$this, 'load'], true, true);
 
@@ -119,23 +120,51 @@ class Mktr extends Module
                         '',
                     ]
                 );
+                self::correctUpdate(
+                    MKTR_APP . 'controllers/admin/MktrController.php',
+                    [
+                        implode('', ['private static $update ', '= true;']),
+                        "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
+                        "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
+                        "
+        \$d = MKTR_ROOT . 'modules/mktr/';",
+                    ],
+                    [
+                        'private static $update = false;',
+                        "define('MKTR_ROOT', '" . MKTR_ROOT . "');",
+                        "define('MKTR_APP', '" . MKTR_APP . "');",
+                        '',
+                    ]
+                );
             }
         }
     }
 
     public function install()
     {
-        $hook = [
-            /* Front */
-            'displayHeader',
-            'moduleRoutes',
-            'actionDispatcher',
-            'displayFooterAfter',
-            'displayFooterBefore',
-            /* Admin */
-            'displayBackOfficeHeader',
-            'actionOrderStatusUpdate',
-        ];
+        if (_PS_VERSION_ >= 1.6) {
+            $hook = [
+                /* Front */
+                'displayHeader',
+                'moduleRoutes',
+                'actionDispatcher',
+                'displayFooterAfter',
+                'displayFooterBefore',
+                /* Admin */
+                'displayBackOfficeHeader',
+                'actionOrderStatusUpdate',
+            ];
+        } else {
+            $hook = [
+                /* Front */
+                'displayHeader',
+                'moduleRoutes',
+                'actionDispatcher',
+                /* Admin */
+                'displayBackOfficeHeader',
+                'actionOrderStatusUpdate',
+            ];
+        }
 
         if (_PS_VERSION_ >= 1.7) {
             $hook[] = 'displayBeforeBodyClosingTag';
@@ -144,13 +173,30 @@ class Mktr extends Module
         }
 
         Mktr\Helper\Setup::install();
+        if (_PS_VERSION_ >= 1.6) {
+            if (parent::install() && $this->registerHook($hook)) {
+                return true;
+            } else {
+                $this->_errors[] = 'There was an error during the Install procces.';
 
-        if (parent::install() && $this->registerHook($hook)) {
-            return true;
+                return false;
+            }
         } else {
-            $this->_errors[] = 'There was an error during the Install procces.';
+            if (!parent::install()) {
+                $this->_errors[] = 'There was an error during the Install procces.';
 
-            return false;
+                return false;
+            }
+
+            foreach ($hook as $kk => $vv) {
+                if (!$this->registerHook($vv)) {
+                    $this->_errors[] = 'There was an error during the Install procces.';
+
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
