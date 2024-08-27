@@ -597,8 +597,8 @@ class Mktr extends Module
             foreach ($evList as $key => $value) {
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
-                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=Api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
-                    /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
+                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+                    /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
                 }
             }
 
