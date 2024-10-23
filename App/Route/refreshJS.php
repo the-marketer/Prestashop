@@ -69,14 +69,15 @@ importScripts("https://t.themarketer.com/firebase.js");';
     {
         if (\Mktr\Model\Config::showJs(true)) {
             $c = 'window.mktr = window.mktr || {};
-window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";
-window.mktr.MKTR_VERSION = "' . \Mktr::i()->version . '";
-window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
-window.mktr.ready = false;
-window.mktr.pending = window.mktr.pending || [];
-window.mktr.toLoad = window.mktr.toLoad || [];
-window.mktr.retryCount = 0;
-window.mktr.loading = true;
+if (typeof window.mktr.PS_VERSION == "undefined") {
+    window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";
+    window.mktr.MKTR_VERSION = "' . \Mktr::i()->version . '";
+    window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
+    window.mktr.ready = false;
+    window.mktr.pending = window.mktr.pending || [];
+    window.mktr.toLoad = window.mktr.toLoad || [];
+    window.mktr.retryCount = 0;
+    window.mktr.loading = true;
 
 ';
 
@@ -105,122 +106,148 @@ j.src = "https://t.themarketer.com/t/j/" + i; f.parentNode.insertBefore(j, f);
 window.mktr.ready = true;
 })(document, "script", "' . self::c()->tracking_key . '");
 
-window.mktr.base = ' . $base . '
-window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";
+    window.mktr.base = ' . $base . '
+    window.mktr.base = window.mktr.base.substr(window.mktr.base.length - 1) === "/" ? window.mktr.base : window.mktr.base+"/";
 
-window.mktr.setEmail = true;
-window.mktr.saveOrder = true;
-window.mktr.selectors = "' . addslashes(self::c()->selectors) . '";
-window.mktr.apiScript = {
-    set_email : "setEmail",
-    set_phone : "setEmail",
-    save_order : "saveOrder"
-};
+    window.mktr.setEmail = true;
+    window.mktr.saveOrder = true;
+    window.mktr.selectors = "' . addslashes(self::c()->selectors) . '";
+    window.mktr.apiScript = {
+        set_email : "setEmail",
+        set_phone : "setEmail",
+        save_order : "saveOrder"
+    };
 
-window.mktr.eventsName = {
-    "home_page":"__sm__view_homepage",
-    "category":"__sm__view_category",
-    "brand":"__sm__view_brand",
-    "product":"__sm__view_product",
-    "add_to_cart":"__sm__add_to_cart",
-    "remove_from_cart":"__sm__remove_from_cart",
-    "add_to_wish_list":"__sm__add_to_wishlist",
-    "remove_from_wishlist":"__sm__remove_from_wishlist",
-    "checkout":"__sm__initiate_checkout",
-    "supercheckout":"__sm__initiate_checkout",
-    /* "default":"__sm__initiate_checkout", */
-    "save_order":"__sm__order",
-    "search":"__sm__search",
-    "set_email":"__sm__set_email",
-    "set_phone":"__sm__set_phone"
-};
+    window.mktr.eventsName = {
+        "home_page":"__sm__view_homepage",
+        "category":"__sm__view_category",
+        "brand":"__sm__view_brand",
+        "product":"__sm__view_product",
+        "add_to_cart":"__sm__add_to_cart",
+        "remove_from_cart":"__sm__remove_from_cart",
+        "add_to_wish_list":"__sm__add_to_wishlist",
+        "remove_from_wishlist":"__sm__remove_from_wishlist",
+        "checkout":"__sm__initiate_checkout",
+        "supercheckout":"__sm__initiate_checkout",
+        /* "default":"__sm__initiate_checkout", */
+        "save_order":"__sm__order",
+        "search":"__sm__search",
+        "set_email":"__sm__set_email",
+        "set_phone":"__sm__set_phone"
+    };
 
-window.mktr.buildEvent = function (name = null, data = {}) {
-    if (data === null) { data = {}; }
-    if (name !== null && window.mktr.eventsName.hasOwnProperty(name)) { data.event = window.mktr.eventsName[name]; }
-    ' . (_PS_MODE_DEV_ ? 'if (!window.mktr.eventsName.hasOwnProperty(name)){ data.event = name; data.type = "notListed"; }' : '') . '
-    if (typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
-        dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . '
-        /*if (window.mktr.apiScript.hasOwnProperty(name) && window.mktr[window.mktr.apiScript[name]]) {
-            window.mktr[window.mktr.apiScript[name]] = false; window.mktr.loadScript(window.mktr.apiScript[name]);
-        }*/
-    } else {
-        window.mktr.pending.push(data); setTimeout(window.mktr.retry, 2000);
-    }
-}
-
-window.mktr.retry = function () {
-    if (typeof dataLayer != "undefined" && window.mktr.ready) {
-        for (let data of window.mktr.pending) { if (data.event != "undefined") { dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . ' } }        
-    } else if (window.mktr.retryCount < 6) {
-        window.mktr.retryCount++; setTimeout(window.mktr.retry, 2000);
-    }
-};
-
-window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
-    /*
-    jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/api/GetEvents?' : '?fc=module&module=mktr&controller=api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
-        for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
-    });
-    */
-    jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
-        for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
-    });
-};
-
-window.mktr.loadScript = function (scriptName = null) {
-    if (scriptName !== null) {
-        (function(d, s, i) { var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
-        /* j.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/"+i+"?' : '?fc=module&module=mktr&controller=api&pg="+i+"&') . 'mktr_time="+(new Date()).getTime(); */
-        j.src = window.mktr.base + "?fc=module&module=mktr&controller=api&pg="+i+"&mktr_time="+(new Date()).getTime();
-        f.parentNode.insertBefore(j, f); })(document, "script", scriptName);
-    }
-};
-
-window.mktr.LoadMktr = window.mktr.retry;
-window.mktr.ajax = $.ajax;
-window.mktr.fetch = fetch;
-window.mktr.toCheck = function (data = null, d = null) {
-    if (data != null && window.mktr.loading) {
-        if (typeof data === "string") {
-            ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data", data, d);' : '') . '
-            if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 &&
-                data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
-                window.mktr.loading = false;
-                setTimeout(window.mktr.loadEvents, 2000);
-            } else if(data.search("subscription") != -1) {
-                window.mktr.loading = false;
-                setTimeout(function () {
-                    window.mktr.loading = true; let time = (new Date()).getTime(); let add = document.createElement("script"); add.async = true;
-                    /* add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=api&pg=setEmail&') . 'mktr_time="+time; */
-                    add.src = window.mktr.base + "?fc=module&module=mktr&controller=api&pg=setEmail&mktr_time="+time;
-                    let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s);
-                }, 2000);
-            }
+    window.mktr.buildEvent = function (name = null, data = {}) {
+        if (data === null) { data = {}; }
+        if (name !== null && window.mktr.eventsName.hasOwnProperty(name)) { data.event = window.mktr.eventsName[name]; }
+        ' . (_PS_MODE_DEV_ ? 'if (!window.mktr.eventsName.hasOwnProperty(name)){ data.event = name; data.type = "notListed"; }' : '') . '
+        if (typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
+            dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . '
+            /*if (window.mktr.apiScript.hasOwnProperty(name) && window.mktr[window.mktr.apiScript[name]]) {
+                window.mktr[window.mktr.apiScript[name]] = false; window.mktr.loadScript(window.mktr.apiScript[name]);
+            }*/
+        } else {
+            window.mktr.pending.push(data); setTimeout(window.mktr.retry, 2000);
         }
     }
-};
 
-if (typeof prestashop === "object") {
-    prestashop.on("updateCart", function (event) {
-        if(window.mktr.loading && typeof event === "object" && typeof event.reason === "object" && event.reason.hasOwnProperty("linkAction")) {
-            if (event.reason.linkAction === "add-to-cart" || event.reason.linkAction === "delete-from-cart") {
-                window.mktr.loading = false;
-                setTimeout(window.mktr.loadEvents, 2000);
+    window.mktr.retry = function () {
+        if (typeof dataLayer != "undefined" && window.mktr.ready) {
+            for (let data of window.mktr.pending) { if (data.event != "undefined") { dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . ' } }        
+        } else if (window.mktr.retryCount < 6) {
+            window.mktr.retryCount++; setTimeout(window.mktr.retry, 2000);
+        }
+    };
+
+    window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
+        /*
+        jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/api/GetEvents?' : '?fc=module&module=mktr&controller=api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
+            for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
+        });
+        */
+        jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
+            for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
+        });
+    };
+
+    window.mktr.loadScript = function (scriptName = null) {
+        if (scriptName !== null) {
+            (function(d, s, i) { var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
+            /* j.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/"+i+"?' : '?fc=module&module=mktr&controller=api&pg="+i+"&') . 'mktr_time="+(new Date()).getTime(); */
+            j.src = window.mktr.base + "?fc=module&module=mktr&controller=api&pg="+i+"&mktr_time="+(new Date()).getTime();
+            f.parentNode.insertBefore(j, f); })(document, "script", scriptName);
+        }
+    };
+
+    window.mktr.LoadMktr = window.mktr.retry;
+    window.mktr.toCheck = function (data = null, d = null) {
+        if (data != null && window.mktr.loading) {
+            if (typeof data === "string") {
+                ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data", data, d);' : '') . '
+                if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 &&
+                    data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
+                    window.mktr.loading = false;
+                    setTimeout(window.mktr.loadEvents, 2000);
+                } else if(data.search("subscription") != -1) {
+                    window.mktr.loading = false;
+                    setTimeout(function () {
+                        window.mktr.loading = true; let time = (new Date()).getTime(); let add = document.createElement("script"); add.async = true;
+                        /* add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=api&pg=setEmail&') . 'mktr_time="+time; */
+                        add.src = window.mktr.base + "?fc=module&module=mktr&controller=api&pg=setEmail&mktr_time="+time;
+                        let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s);
+                    }, 2000);
+                }
             }
         }
-    });
+    };
+
+    if (typeof prestashop === "object") {
+        prestashop.on("updateCart", function (event) {
+            if(window.mktr.loading && typeof event === "object" && typeof event.reason === "object" && event.reason.hasOwnProperty("linkAction")) {
+                if (event.reason.linkAction === "add-to-cart" || event.reason.linkAction === "delete-from-cart") {
+                    window.mktr.loading = false;
+                    setTimeout(window.mktr.loadEvents, 2000);
+                }
+            }
+        });
+    }
+
+    document.addEventListener("click", function(event){ if (window.mktr.selectors.length !== 0 && (event.target.matches(window.mktr.selectors) || event.target.closest(window.mktr.selectors))) { setTimeout(window.mktr.loadEvents, 2000); } });
+
+    if (typeof window.mktr.setStatus == "undefined") {
+        window.mktr.setStatus = {
+            Ajax: false,
+            Fetch: false
+        };
+    }
+        
+    window.mktr.setAjax = function () {
+        if (window.mktr.setStatus.Ajax == false && typeof $.ajax == "function") {
+            window.mktr.ajax = $.ajax;
+            window.mktr.setStatus.Ajax = true;
+            window.$.ajax = function (data) {
+                let ret = window.mktr.ajax.apply(this, arguments);
+                window.mktr.toCheck(arguments[0].url, arguments[0].data); return ret;
+            };
+        } else if(window.mktr.setStatus.Ajax == false) {
+            setTimeout(window.mktr.setAjax, 1000);
+        }
+    }
+        
+    window.mktr.setFetch = function () {
+        if (window.mktr.setStatus.Fetch == false && typeof window.fetch == "function") {
+            window.mktr.setStatus.Fetch = true;
+            window.mktr.fetch = window.fetch;
+            window.fetch = function (data) {
+                let ret = window.mktr.fetch.apply(this, arguments);
+                window.mktr.toCheck(arguments[0]); return ret;
+            };
+        } else if(window.mktr.setStatus.Fetch == false) {
+            setTimeout(window.mktr.setFetch, 1000);
+        }
+    }
+    window.mktr.setAjax();
+    window.mktr.setFetch();
 }
-
-document.addEventListener("click", function(event){ if (window.mktr.selectors.length !== 0 && (event.target.matches(window.mktr.selectors) || event.target.closest(window.mktr.selectors))) { setTimeout(window.mktr.loadEvents, 2000); } });
-
-$.ajax = function (data) {
-    let ret = window.mktr.ajax.apply(this, arguments);
-    window.mktr.toCheck(arguments[0].url, arguments[0].data); return ret; };
-
-fetch = function (data) {
-    let ret = window.mktr.fetch.apply(this, arguments);
-    window.mktr.toCheck(arguments[0]); return ret; };
 ';
             if (self::c()->js_file !== '' && file_exists(MKTR_APP . 'mktr.' . self::c()->js_file . '.js')) {
                 unlink(MKTR_APP . 'mktr.' . self::c()->js_file . '.js');

@@ -286,7 +286,7 @@ class Mktr extends Module
             }
 
             if (_PS_VERSION_ >= 1.7) {
-                self::$checkList['update'] = Mktr\Helper\Valid::getParam('action', null) === 'update';
+                self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos']) || in_array(Mktr\Helper\Valid::getParam('controller', null), ['cart']);
                 self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
                 self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
 
@@ -304,7 +304,7 @@ class Mktr extends Module
                     $pAttr = Mktr\Helper\Valid::getParam('id_product_attribute', null);
                 }
             } else {
-                self::$checkList['update'] = Mktr\Helper\Valid::getParam('controller', null) === 'cart';
+                self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']);
                 self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
                 self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
 
