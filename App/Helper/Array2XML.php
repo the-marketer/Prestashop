@@ -84,7 +84,7 @@ class Array2XML
         $labelAttributes = null,
         $labelCData = null,
         $labelDocType = null,
-        $labelValue = null
+        $labelValue = null,
     ) {
         self::setDomVersion($version);
         self::setEncoding($encoding);
