@@ -114,8 +114,8 @@ class Orders extends DataBase
     protected $orderBy = 'id_order';
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
-
     protected $refund = 0;
+    protected $tmp_names;
 
     private static $i;
     private static $curent;
@@ -238,22 +238,64 @@ class Orders extends DataBase
 
     protected function getFirstName()
     {
-        $customer = self::AdressData($this->id_address_invoice);
-        if ($customer->firstname === null) {
-            $customer = self::CustomerData($this->id_customer);
-        }
+        $n = $this->getLastNameAndFirstName();
 
-        return $customer->firstname;
+        return $n['firstname'];
     }
 
     protected function getLastName()
     {
-        $customer = self::AdressData($this->id_address_invoice);
-        if ($customer->lastname === null) {
-            $customer = self::CustomerData($this->id_customer);
+        $n = $this->getLastNameAndFirstName();
+
+        return $n['lastname'];
+    }
+
+    protected function getLastNameAndFirstName()
+    {
+        if (empty($this->tmp_names)) {
+            $customer = self::AdressData($this->id_address_invoice);
+            $customer1 = null;
+            if ($customer->lastname === null || $customer->firstname === null) {
+                $customer1 = self::CustomerData($this->id_customer);
+            }
+            if ($customer->firstname === null && $customer1->firstname !== null) {
+                $fname = $customer1->firstname;
+            } else {
+                $fname = $customer->firstname;
+            }
+
+            if ($customer->lastname === null && $customer1->lastname !== null) {
+                $lname = $customer1->lastname;
+            } else {
+                $lname = $customer->lastname;
+            }
+
+            if (!empty($fname) && !empty($lname)) {
+                $nn = [$fname, $lname];
+            } elseif (!empty($fname)) {
+                $nn = explode(' ', $fname, 2);
+            } elseif (!empty($lname)) {
+                $nn = explode(' ', $lname, 2);
+            } else {
+                if ($customer1 === null) {
+                    $customer1 = self::CustomerData($this->id_customer);
+                }
+
+                $em = explode('@', $customer1->email);
+                $nn = explode(' ', str_replace('_', ' ', $em[0]), 2);
+            }
+
+            if (!isset($nn[1])) {
+                $nn[1] = '';
+            }
+
+            $this->tmp_names = [
+                'firstname' => $nn[0],
+                'lastname' => $nn[1],
+            ];
         }
 
-        return $customer->lastname;
+        return $this->tmp_names;
     }
 
     protected function getPhone()
