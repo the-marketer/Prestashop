@@ -233,6 +233,18 @@ class Mktr extends Module
                     self::$included[$className] = false;
                 }
             }
+        } elseif (strtolower($className) == 'mktrapimodulefrontcontroller') {
+            $className = 'MktrApiModuleFrontController';
+            if (!array_key_exists($className, self::$included)) {
+                self::$included[$className] = true;
+                $file = MKTR_APP . 'controllers/front/Api.php';
+                if (!file_exists($file)) {
+                    $file = MKTR_APP . 'controllers/front/api.php';
+                }
+                if (file_exists($file)) {
+                    require_once $file;
+                }
+            }
         }
     }
 
@@ -285,12 +297,14 @@ class Mktr extends Module
                 Mktr\Helper\Session::save();
             }
 
-            if (_PS_VERSION_ >= 1.7) {
-                self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos']) || in_array(Mktr\Helper\Valid::getParam('controller', null), ['cart']);
-                self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
-                self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
+            self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']) || in_array(Mktr\Helper\Valid::getParam('controller', null), ['cart']);
+            self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
+            self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
+            $CheckIsAdd = self::$checkList['update'] && self::$checkList['isAdd'];
+            $CheckIsDel = self::$checkList['update'] && self::$checkList['isDel'];
 
-                if (self::$checkList['update'] && self::$checkList['isAdd']) {
+            if (_PS_VERSION_ >= 1.7) {
+                if ($CheckIsAdd) {
                     $pId = Mktr\Helper\Valid::getParam('id_product', null);
                     $pGrup = Mktr\Helper\Valid::getParam('group', null);
                     if ($pGrup !== null) {
@@ -299,22 +313,17 @@ class Mktr extends Module
                     $qty = Mktr\Helper\Valid::getParam('qty', null);
                 }
 
-                if (self::$checkList['update'] && self::$checkList['isDel']) {
+                if ($CheckIsDel) {
                     $pId = Mktr\Helper\Valid::getParam('id_product', null);
                     $pAttr = Mktr\Helper\Valid::getParam('id_product_attribute', null);
                 }
             } else {
-                self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']);
-                self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
-                self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
-
-                if (self::$checkList['update'] && self::$checkList['isAdd']) {
+                if ($CheckIsAdd) {
                     $pId = Mktr\Helper\Valid::getParam('id_product', null);
                     $pAttr = Mktr\Helper\Valid::getParam('ipa', null);
                     $qty = Mktr\Helper\Valid::getParam('qty', null);
                 }
-
-                if (self::$checkList['update'] && self::$checkList['isDel']) {
+                if ($CheckIsDel) {
                     $pId = Mktr\Helper\Valid::getParam('id_product', null);
                     $pAttr = Mktr\Helper\Valid::getParam('ipa', null);
                 }
@@ -597,8 +606,8 @@ class Mktr extends Module
             foreach ($evList as $key => $value) {
                 if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
-                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
-                    /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/api/' . $value . '?' : '?fc=module&module=mktr&controller=api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
+                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=Api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
+                    /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/Api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
                 }
             }
 
@@ -609,18 +618,23 @@ class Mktr extends Module
     public function hookModuleRoutes()
     {
         return [
-            'mktr-api' => [
-                'rule' => 'mktr/api/{pg}',
+            'mktr-api-new' => [
+                'rule' => 'mktr/{api}/{pg}',
                 'keywords' => [
                     'pg' => [
                         'regexp' => '.*',
                         'param' => 'pg',
+                    ],
+                    'api' => [
+                        'regexp' => 'Api|api',
+                        'param' => 'Api',
                     ],
                 ],
                 'controller' => 'Api',
                 'params' => [
                     'fc' => 'module',
                     'module' => 'mktr',
+                    'controller' => 'Api',
                 ],
             ],
         ];

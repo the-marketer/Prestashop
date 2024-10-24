@@ -160,11 +160,11 @@ window.mktr.ready = true;
 
     window.mktr.loadEvents = function () { let time = (new Date()).getTime(); window.mktr.loading = true;
         /*
-        jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/api/GetEvents?' : '?fc=module&module=mktr&controller=api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
+        jQuery.get(window.mktr.base + "' . ($rewrite ? 'mktr/Api/GetEvents?' : '?fc=module&module=mktr&controller=Api&pg=GetEvents&') . 'mktr_time="+time, {}, function( data ) {
             for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
         });
         */
-        jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
+        jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=Api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
             for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
         });
     };
@@ -172,8 +172,8 @@ window.mktr.ready = true;
     window.mktr.loadScript = function (scriptName = null) {
         if (scriptName !== null) {
             (function(d, s, i) { var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
-            /* j.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/"+i+"?' : '?fc=module&module=mktr&controller=api&pg="+i+"&') . 'mktr_time="+(new Date()).getTime(); */
-            j.src = window.mktr.base + "?fc=module&module=mktr&controller=api&pg="+i+"&mktr_time="+(new Date()).getTime();
+            /* j.src = window.mktr.base + "' . ($rewrite ? 'mktr/Api/"+i+"?' : '?fc=module&module=mktr&controller=Api&pg="+i+"&') . 'mktr_time="+(new Date()).getTime(); */
+            j.src = window.mktr.base + "?fc=module&module=mktr&controller=Api&pg="+i+"&mktr_time="+(new Date()).getTime();
             f.parentNode.insertBefore(j, f); })(document, "script", scriptName);
         }
     };
@@ -191,8 +191,8 @@ window.mktr.ready = true;
                     window.mktr.loading = false;
                     setTimeout(function () {
                         window.mktr.loading = true; let time = (new Date()).getTime(); let add = document.createElement("script"); add.async = true;
-                        /* add.src = window.mktr.base + "' . ($rewrite ? 'mktr/api/setEmail?' : '?fc=module&module=mktr&controller=api&pg=setEmail&') . 'mktr_time="+time; */
-                        add.src = window.mktr.base + "?fc=module&module=mktr&controller=api&pg=setEmail&mktr_time="+time;
+                        /* add.src = window.mktr.base + "' . ($rewrite ? 'mktr/Api/setEmail?' : '?fc=module&module=mktr&controller=Api&pg=setEmail&') . 'mktr_time="+time; */
+                        add.src = window.mktr.base + "?fc=module&module=mktr&controller=Api&pg=setEmail&mktr_time="+time;
                         let s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(add,s);
                     }, 2000);
                 }

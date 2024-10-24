@@ -76,16 +76,19 @@ class Array2XML
 
     private static $nodeAdd = false;
 
-    public static function init(
-        $version = null,
-        $encoding = null,
-        $standalone = null,
-        $format_output = null,
-        $labelAttributes = null,
-        $labelCData = null,
-        $labelDocType = null,
-        $labelValue = null,
-    ) {
+    public static function init()
+    {
+        $def = ['version', 'encoding', 'standalone', 'format_output', 'labelAttributes', 'labelCData', 'labelDocType', 'labelValue'];
+        $args = func_get_args();
+
+        foreach ($def as $k => $v) {
+            if (isset($args[$k])) {
+                $$v = $args[$k];
+            } else {
+                $$v = null;
+            }
+        }
+
         self::setDomVersion($version);
         self::setEncoding($encoding);
         self::setStandalone($standalone);
