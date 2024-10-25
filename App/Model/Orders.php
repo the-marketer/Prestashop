@@ -255,26 +255,27 @@ class Orders extends DataBase
         if (empty($this->tmp_names)) {
             $customer = self::AdressData($this->id_address_invoice);
             $customer1 = null;
-            if ($customer->lastname === null || $customer->firstname === null) {
+            if ($customer->lastname === null || $customer->firstname === null || $customer->firstname == ' ' || $customer->lastname == ' ') {
                 $customer1 = self::CustomerData($this->id_customer);
             }
-            if ($customer->firstname === null && $customer1->firstname !== null) {
+
+            if (($customer->firstname === null || $customer->firstname == ' ') && $customer1->firstname !== null) {
                 $fname = $customer1->firstname;
             } else {
                 $fname = $customer->firstname;
             }
 
-            if ($customer->lastname === null && $customer1->lastname !== null) {
+            if (($customer->lastname === null || $customer->lastname == ' ') && $customer1->lastname !== null) {
                 $lname = $customer1->lastname;
             } else {
                 $lname = $customer->lastname;
             }
 
-            if (!empty($fname) && !empty($lname)) {
+            if (!empty($fname) && !empty($lname) && $fname != ' ' && $lname != ' ') {
                 $nn = [$fname, $lname];
-            } elseif (!empty($fname)) {
+            } elseif (!empty($fname) && $fname != ' ') {
                 $nn = explode(' ', $fname, 2);
-            } elseif (!empty($lname)) {
+            } elseif (!empty($lname) && $lname != ' ') {
                 $nn = explode(' ', $lname, 2);
             } else {
                 if ($customer1 === null) {
@@ -286,7 +287,7 @@ class Orders extends DataBase
             }
 
             if (!isset($nn[1])) {
-                $nn[1] = '';
+                $nn[1] = ' ';
             }
 
             $this->tmp_names = [
