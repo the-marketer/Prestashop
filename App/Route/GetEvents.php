@@ -41,7 +41,6 @@ class GetEvents
             'remove_from_wishlist' => '__sm__remove_from_wishlist',
             'save_order' => '__sm__order',
             'set_email' => '__sm__set_email',
-            'set_phone' => '__sm__set_phone',
         ];
         $events = [];
 
@@ -98,13 +97,17 @@ class GetEvents
                                 }
                             }
                         }
-                    } elseif (in_array($event, ['set_email', 'set_phone'])) {
+                    } elseif (in_array($event, ['set_email'])) {
                         $v = null;
+                        $phone = null;
                         $remove = false;
 
                         if (is_array($value1)) {
                             $remove = $value1[1];
                             $value1 = $value1[0];
+                            if (isset($value1[2])) {
+                                $phone = $value1[2];
+                            }
                         }
 
                         if ($event === 'set_email') {
@@ -122,11 +125,9 @@ class GetEvents
                                     $value1['lastname'] = $v->lastname;
                                 }
                             }
-                        } elseif ($event === 'set_phone') {
-                            $value1 = [
-                                'phone' => \Mktr\Helper\Valid::validateTelephone($value1),
-                            ];
-                            $toClean[] = $key;
+                            if ($phone !== null) {
+                                $value1['phone'] = \Mktr\Helper\Valid::validateTelephone($phone);
+                            }
                         }
 
                         $events[] = [$event, $value1];
@@ -151,6 +152,8 @@ class GetEvents
 
                                 if ($v->phone !== null) {
                                     $info['phone'] = $v->phone;
+                                } elseif ($phone !== null) {
+                                    $info['phone'] = $phone;
                                 }
 
                                 \Mktr\Helper\Api::send('add_subscriber', $info);

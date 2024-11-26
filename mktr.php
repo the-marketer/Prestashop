@@ -55,7 +55,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.0.9';
+        $this->version = '1.1.0';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -288,12 +288,11 @@ class Mktr extends Module
                     // var_dump($newsletter);
                     // die();
                 }
-                Mktr\Helper\Session::setEmail([$email, $remove]);
-                Mktr\Helper\Session::save();
-            }
-
-            if ($phone !== null && !empty($phone) || $phone1 !== null && !empty($phone1)) {
-                Mktr\Helper\Session::setPhone($phone !== null ? $phone : $phone1);
+                $toAdd = [$email, $remove];
+                if ($phone !== null && !empty($phone) || $phone1 !== null && !empty($phone1)) {
+                    $toAdd[] = ($phone !== null ? $phone : $phone1);
+                }
+                Mktr\Helper\Session::setEmail($toAdd);
                 Mktr\Helper\Session::save();
             }
 
@@ -589,7 +588,6 @@ class Mktr extends Module
 
             $evList = [
                 'set_email' => 'setEmail',
-                'set_phone' => 'setEmail',
                 'save_order' => 'saveOrder',
             ];
             $add = [

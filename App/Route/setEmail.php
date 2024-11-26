@@ -36,7 +36,6 @@ class setEmail
     {
         $evList = [
             'set_email' => '__sm__set_email',
-            'set_phone' => '__sm__set_phone',
         ];
         $events = [];
         $allGood = true;
@@ -45,14 +44,18 @@ class setEmail
             $list = \Mktr\Helper\Session::get($event);
             if (!empty($list)) {
                 foreach ($list as $ey => $value1) {
+                    $v = null;
+                    $phone = null;
                     $remove = false;
 
                     if (is_array($value1)) {
                         $remove = $value1[1];
                         $value1 = $value1[0];
+                        if (isset($value1[2])) {
+                            $phone = $value1[2];
+                        }
                     }
 
-                    $v = null;
                     if ($event === 'set_email') {
                         $v = \Mktr\Model\Subscription::getByEmail($value1);
                         $value1 = [
@@ -68,10 +71,9 @@ class setEmail
                                 $value1['lastname'] = $v->lastname;
                             }
                         }
-                    } elseif ($event === 'set_phone') {
-                        $value1 = [
-                            'phone' => \Mktr\Helper\Valid::validateTelephone($value1),
-                        ];
+                        if ($phone !== null) {
+                            $value1['phone'] = \Mktr\Helper\Valid::validateTelephone($phone);
+                        }
                     }
 
                     $events[] = "window.mktr.buildEvent('" . $event . "', " . \Mktr\Helper\Valid::toJson($value1) . ');';
@@ -95,6 +97,8 @@ class setEmail
 
                             if ($v->phone !== null) {
                                 $info['phone'] = $v->phone;
+                            } elseif ($phone !== null) {
+                                $info['phone'] = $phone;
                             }
 
                             \Mktr\Helper\Api::send('add_subscriber', $info);

@@ -114,7 +114,6 @@ window.mktr.ready = true;
     window.mktr.selectors = "' . addslashes(self::c()->selectors) . '";
     window.mktr.apiScript = {
         set_email : "setEmail",
-        set_phone : "setEmail",
         save_order : "saveOrder"
     };
 
@@ -132,8 +131,7 @@ window.mktr.ready = true;
         /* "default":"__sm__initiate_checkout", */
         "save_order":"__sm__order",
         "search":"__sm__search",
-        "set_email":"__sm__set_email",
-        "set_phone":"__sm__set_phone"
+        "set_email":"__sm__set_email"
     };
 
     window.mktr.buildEvent = function (name = null, data = {}) {

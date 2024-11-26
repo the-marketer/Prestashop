@@ -230,11 +230,6 @@ class Session
         self::set('set_email', [$email]);
     }
 
-    public static function setPhone($phone)
-    {
-        self::set('set_phone', [$phone]);
-    }
-
     public static function sessionSet($name, $data, $key = null)
     {
         $add = self::get($name);
