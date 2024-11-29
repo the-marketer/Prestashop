@@ -301,13 +301,23 @@ class Orders extends DataBase
 
     protected function getPhone()
     {
+        $phone = null;
         $customer = self::AdressData($this->id_address_invoice);
-
-        if (empty($customer->phone) || $customer->phone === ' ') {
+        if (isset($customer->phone)) {
+            if (!empty($customer->phone) && $customer->phone !== ' ') {
+                $phone = $customer->phone;
+            }
+        }
+        if ($phone === null && isset($customer->phone_mobile)) {
+            if (!empty($customer->phone_mobile) && $customer->phone_mobile !== ' ') {
+                $phone = $customer->phone_mobile;
+            }
+        }
+        if ($phone === null) {
             return '';
         }
 
-        return $customer->phone;
+        return $phone;
     }
 
     protected function getCity()
