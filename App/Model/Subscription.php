@@ -166,10 +166,22 @@ class Subscription extends DataBase
     protected function getPhone()
     {
         if ($this->is === 'customer') {
-            return \Mktr\Helper\Valid::validateTelephone($this->AdressData()->phone);
-        } else {
-            return null;
+            $phone = null;
+            if (isset($this->AdressData()->phone)) {
+                if (!empty($this->AdressData()->phone) && $this->AdressData()->phone !== ' ') {
+                    $phone = $this->AdressData()->phone;
+                }
+            }
+            if ($phone === null && isset($this->AdressData()->phone_mobile)) {
+                if (!empty($this->AdressData()->phone_mobile) && $this->AdressData()->phone_mobile !== ' ') {
+                    $phone = $this->AdressData()->phone_mobile;
+                }
+            }
+            if ($phone !== null) {
+                return \Mktr\Helper\Valid::validateTelephone($phone);
+            }
         }
+        return null;
     }
 
     protected function getSubscribed()
