@@ -27,11 +27,11 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class MktrGoogleController extends AdminController
+class MktrGoogleController extends \AdminController
 {
     public function __construct()
     {
         parent::__construct();
-        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true) . '&page=google&t=' . time());
+        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true) . '&page=google&t=' . time());
     }
 }

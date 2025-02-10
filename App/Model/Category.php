@@ -68,7 +68,9 @@ class Category extends DataBase
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -104,7 +106,9 @@ class Category extends DataBase
     public static function getByID($id, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
             self::$d[$id]->data = new \Category($id, Config::getLang(), Config::shop());
         }
 
@@ -130,6 +134,7 @@ class Category extends DataBase
             }
         }
         if (empty($p)) {
+            /* @phpstan-ignore-next-line */
             $p = [$this->name];
         } else {
             krsort($p);

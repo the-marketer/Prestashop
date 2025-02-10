@@ -27,11 +27,11 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class MktrTrackerController extends AdminController
+class MktrTrackerController extends \AdminController
 {
     public function __construct()
     {
         parent::__construct();
-        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true) . '&page=tracker&t=' . time());
+        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true) . '&page=tracker&t=' . time());
     }
 }

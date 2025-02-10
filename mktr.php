@@ -36,8 +36,9 @@ if (!defined('MKTR_APP')) {
     define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
 }
 
-class Mktr extends Module
+class Mktr extends \Module
 {
+    public static $expire = 172800; // seconds
     public static $init = false;
     private static $i;
     private static $update = true;
@@ -55,7 +56,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.0';
+        $this->version = '1.1.1';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -70,13 +71,13 @@ class Mktr extends Module
         self::$init = true;
 
         spl_autoload_register([$this, 'load'], true, true);
-
-        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        /* @phpstan-ignore-next-line */
+        \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
 
         if (self::$update) {
             self::preConfig();
         } else {
-            Mktr\Helper\Session::getUid();
+            \Mktr\Helper\Session::getUid();
         }
 
         // $this->registerHook('actionDispatcher');
@@ -89,7 +90,7 @@ class Mktr extends Module
 
     public static function correctUpdate($filePath, $from, $to)
     {
-        $content = Tools::file_get_contents($filePath, true);
+        $content = \Tools::file_get_contents($filePath, true);
         $newContent = str_replace($from, $to, $content);
 
         $file = fopen($filePath, 'w+');
@@ -102,7 +103,7 @@ class Mktr extends Module
         if (self::$update) {
             if (file_exists(MKTR_APP . 'mktr.php')) {
                 self::$update = false;
-                Mktr\Route\refreshJS::loadJs();
+                \Mktr\Route\refreshJS::loadJs();
 
                 self::correctUpdate(
                     MKTR_APP . 'mktr.php',
@@ -172,7 +173,7 @@ class Mktr extends Module
             $hook[] = 'displayFooter';
         }
 
-        Mktr\Helper\Setup::install();
+        \Mktr\Helper\Setup::install();
         if (_PS_VERSION_ >= 1.6) {
             if (parent::install() && $this->registerHook($hook)) {
                 return true;
@@ -202,7 +203,7 @@ class Mktr extends Module
 
     public function uninstall()
     {
-        Mktr\Helper\Setup::uninstall();
+        \Mktr\Helper\Setup::uninstall();
 
         if (parent::uninstall()) {
             return true;
@@ -215,7 +216,7 @@ class Mktr extends Module
 
     public function getContent()
     {
-        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
+        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
 
         return null;
     }
@@ -254,15 +255,20 @@ class Mktr extends Module
         'isDel' => false,
     ];
 
+    public static function getExpire()
+    {
+        return time() + self::$expire;
+    }
+
     public function hookactionDispatcher()
     {
-        $cont = Mktr\Helper\Valid::getParam('controller', null);
+        $cont = \Mktr\Helper\Valid::getParam('controller', null);
 
         if (_PS_VERSION_ < 1.7 && $cont !== null && strpos($cont, 'Admin') !== false && strpos($cont, 'admin') !== false) {
             return true;
         }
 
-        if (self::$displayLoad['dispatcher'] === true && Mktr\Model\Config::showJS()) {
+        if (self::$displayLoad['dispatcher'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['dispatcher'] = false;
 
             // \Mktr\Helper\Session::init();
@@ -271,69 +277,62 @@ class Mktr extends Module
             $pAttr = null;
             $qty = null;
 
-            $email = Mktr\Helper\Valid::getParam('email', null);
-            $phone = Mktr\Helper\Valid::getParam('phone', null);
-            $phone1 = Mktr\Helper\Valid::getParam('phone_mobile', null);
+            $email = \Mktr\Helper\Valid::getParam('email', null);
+            $phone = \Mktr\Helper\Valid::getParam('phone', null);
+            $phone1 = \Mktr\Helper\Valid::getParam('phone_mobile', null);
 
             if ($email !== null) {
                 $remove = false;
-                /*
-                $newsletter = Mktr\Helper\Valid::getParam('newsletter', null);
-                $newsletter !== null ||
-                 || Mktr\Helper\Valid::getParam('create_account', null) !== null
-                 , 'order'
-                */
-                if (in_array(Mktr\Helper\Valid::getParam('controller', null), ['identity'])) {
+
+                if (in_array(\Mktr\Helper\Valid::getParam('controller', null), ['identity'])) {
                     $remove = true;
-                    // var_dump($newsletter);
-                    // die();
                 }
                 $toAdd = [$email, $remove];
                 if ($phone !== null && !empty($phone) || $phone1 !== null && !empty($phone1)) {
                     $toAdd[] = ($phone !== null ? $phone : $phone1);
                 }
-                Mktr\Helper\Session::setEmail($toAdd);
-                Mktr\Helper\Session::save();
+                \Mktr\Helper\Session::setEmail($toAdd);
+                \Mktr\Helper\Session::save();
             }
 
-            self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']) || in_array(Mktr\Helper\Valid::getParam('controller', null), ['cart']);
-            self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
-            self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
+            self::$checkList['update'] = in_array(\Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']) || in_array(\Mktr\Helper\Valid::getParam('controller', null), ['cart']);
+            self::$checkList['isAdd'] = self::$checkList['update'] && \Mktr\Helper\Valid::getParam('add', null) !== null;
+            self::$checkList['isDel'] = self::$checkList['update'] && \Mktr\Helper\Valid::getParam('delete', null) !== null;
             $CheckIsAdd = self::$checkList['update'] && self::$checkList['isAdd'];
             $CheckIsDel = self::$checkList['update'] && self::$checkList['isDel'];
-
+            $action = \Mktr\Helper\Valid::getParam('action', null);
             if (_PS_VERSION_ >= 1.7) {
                 if ($CheckIsAdd) {
-                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
-                    $pGrup = Mktr\Helper\Valid::getParam('group', null);
+                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
+                    $pGrup = \Mktr\Helper\Valid::getParam('group', null);
                     if ($pGrup !== null) {
-                        $pAttr = (int) Product::getIdProductAttributeByIdAttributes($pId, $pGrup, true);
+                        $pAttr = (int) \Product::getIdProductAttributeByIdAttributes($pId, $pGrup, true);
                     }
-                    $qty = Mktr\Helper\Valid::getParam('qty', null);
+                    $qty = \Mktr\Helper\Valid::getParam('qty', null);
                 }
 
                 if ($CheckIsDel) {
-                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
-                    $pAttr = Mktr\Helper\Valid::getParam('id_product_attribute', null);
+                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
+                    $pAttr = \Mktr\Helper\Valid::getParam('id_product_attribute', null);
                 }
             } else {
                 if ($CheckIsAdd) {
-                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
-                    $pAttr = Mktr\Helper\Valid::getParam('ipa', null);
-                    $qty = Mktr\Helper\Valid::getParam('qty', null);
+                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
+                    $pAttr = \Mktr\Helper\Valid::getParam('ipa', null);
+                    $qty = \Mktr\Helper\Valid::getParam('qty', null);
                 }
                 if ($CheckIsDel) {
-                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
-                    $pAttr = Mktr\Helper\Valid::getParam('ipa', null);
+                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
+                    $pAttr = \Mktr\Helper\Valid::getParam('ipa', null);
                 }
             }
 
             if (self::$checkList['update'] && self::$checkList['isAdd']) {
-                Mktr\Helper\Session::addToCart($pId, $pAttr, $qty);
-                Mktr\Helper\Session::save();
+                \Mktr\Helper\Session::addToCart($pId, $pAttr, $qty);
+                \Mktr\Helper\Session::save();
             } elseif (self::$checkList['update'] && self::$checkList['isDel']) {
-                $cartId = Mktr\Helper\Session::get('cartID', null);
-                $list = Mktr\Model\Product::getQty($pId, $pAttr, $cartId);
+                $cartId = \Mktr\Helper\Session::get('cartID', null);
+                $list = \Mktr\Model\Product::getQty($pId, $pAttr, $cartId);
 
                 foreach ($list as $value) {
                     if ($value['id_product_attribute'] === $pAttr && $value['id_product'] === $pId) {
@@ -341,78 +340,123 @@ class Mktr extends Module
                         break;
                     }
                 }
-                Mktr\Helper\Session::removeFromCart($pId, $pAttr, (int) $qty);
-                Mktr\Helper\Session::save();
-            } elseif (_PS_VERSION_ >= 1.7 && Mktr\Helper\Valid::getParam('action', null) !== null) {
-                if (Mktr\Helper\Valid::getParam('action', null) === 'addProductToWishlist') {
-                    $p = Mktr\Helper\Valid::getParam('params', null);
-                    Mktr\Helper\Session::addToWishlist($p['id_product'], $p['id_product_attribute']);
-                    Mktr\Helper\Session::save();
-                } elseif (Mktr\Helper\Valid::getParam('action', null) === 'deleteProductFromWishlist') {
-                    $p = Mktr\Helper\Valid::getParam('params', null);
-                    Mktr\Helper\Session::removeFromWishlist($p['id_product'], $p['id_product_attribute']);
-                    Mktr\Helper\Session::save();
+                \Mktr\Helper\Session::removeFromCart($pId, $pAttr, (int) $qty);
+                \Mktr\Helper\Session::save();
+            } elseif (_PS_VERSION_ >= 1.7 && $action !== null) {
+                if ($action === 'addProductToWishlist') {
+                    $p = \Mktr\Helper\Valid::getParam('params', null);
+                    \Mktr\Helper\Session::addToWishlist($p['id_product'], $p['id_product_attribute']);
+                    \Mktr\Helper\Session::save();
+                } elseif ($action === 'deleteProductFromWishlist') {
+                    $p = \Mktr\Helper\Valid::getParam('params', null);
+                    \Mktr\Helper\Session::removeFromWishlist($p['id_product'], $p['id_product_attribute']);
+                    \Mktr\Helper\Session::save();
+                } elseif (in_array($action, ['addFavoriteProduct', 'removeFavoriteProduct'])) {
+                    $id_product = \Mktr\Helper\Valid::getParam('id_product', null);
+                    $id_product_attribute = \Mktr\Helper\Valid::getParam('id_product_attribute', null);
+
+                    if ($action === 'addFavoriteProduct') {
+                        \Mktr\Helper\Session::addToWishlist($id_product, $id_product_attribute);
+                        \Mktr\Helper\Session::save();
+                    } else {
+                        \Mktr\Helper\Session::removeFromWishlist($id_product, $id_product_attribute);
+                        \Mktr\Helper\Session::save();
+                    }
                 }
             } else {
-                if (Mktr\Helper\Valid::getParam('process', null) === 'add') {
-                    $p = Mktr\Helper\Valid::getParam('id_product', null);
+                if (\Mktr\Helper\Valid::getParam('process', null) === 'add') {
+                    $p = \Mktr\Helper\Valid::getParam('id_product', null);
                     if ($p !== null) {
-                        Mktr\Helper\Session::addToWishlist($p, 0);
-                        Mktr\Helper\Session::save();
+                        \Mktr\Helper\Session::addToWishlist($p, 0);
+                        \Mktr\Helper\Session::save();
                     }
-                } elseif (Mktr\Helper\Valid::getParam('process', null) === 'remove') {
-                    $p = Mktr\Helper\Valid::getParam('id_product', null);
+                } elseif (\Mktr\Helper\Valid::getParam('process', null) === 'remove') {
+                    $p = \Mktr\Helper\Valid::getParam('id_product', null);
                     if ($p !== null) {
-                        Mktr\Helper\Session::removeFromWishlist($p, 0);
-                        Mktr\Helper\Session::save();
+                        \Mktr\Helper\Session::removeFromWishlist($p, 0);
+                        \Mktr\Helper\Session::save();
                     }
                 }
             }
 
-            $cont = Mktr\Helper\Valid::getParam('controller', null);
+            $cont = \Mktr\Helper\Valid::getParam('controller', null);
             if (in_array($cont, ['order-confirmation', 'thank_you_page', 'orderconfirmation', 'confirmare-comanda'])) {
-                $id_order = Mktr\Helper\Valid::getParam('id_order', null);
+                $svOrder = \Mktr\Helper\Session::get('save_order');
+                $id_order = \Mktr\Helper\Valid::getParam('id_order', null);
+                $expire = self::getExpire();
 
                 if ($id_order === null) {
-                    $cartId = Mktr\Helper\Valid::getParam('id_cart', null);
+                    $cartId = \Mktr\Helper\Valid::getParam('id_cart', null);
 
                     if ($cartId === null) {
-                        $cartId = Mktr\Helper\Valid::getParam('orderId', null);
+                        $cartId = \Mktr\Helper\Valid::getParam('orderId', null);
                         $cartId = explode('%', $cartId);
                         $cartId = $cartId[0];
                     }
 
                     if ($cartId !== null) {
-                        Mktr\Helper\Session::set('save_order', [['id' => $cartId, 'is_order' => false]]);
-                        Mktr\Helper\Session::save();
+                        $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
+                        \Mktr\Helper\Session::set('save_order', $svOrder);
+                        \Mktr\Helper\Session::save();
                     }
                 } else {
-                    Mktr\Helper\Session::set('save_order', [['id' => $id_order, 'is_order' => true]]);
-                    Mktr\Helper\Session::save();
+                    $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
+                    \Mktr\Helper\Session::set('save_order', $svOrder);
+                    \Mktr\Helper\Session::save();
                 }
             }
+
+            if (in_array($cont, ['success']) && \Mktr\Helper\Valid::getParam('module') == 'vivawalletsmartcheckout') {
+                if (method_exists('\VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
+                    $svOrder = \Mktr\Helper\Session::get('save_order');
+                    $vivaWallet = \Mktr\Helper\Valid::getParam('s', null);
+                    $expire = self::getExpire();
+                    /* @phpstan-ignore-next-line */
+                    $id_order = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, false);
+                    $cartId = null;
+
+                    if (empty($id_order)) {
+                        /* @phpstan-ignore-next-line */
+                        $cartId = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, true);
+                        $id_order = null;
+                    }
+
+                    if ($id_order === null) {
+                        if ($cartId !== null) {
+                            $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
+                            \Mktr\Helper\Session::set('save_order', $svOrder);
+                            \Mktr\Helper\Session::save();
+                        }
+                    } else {
+                        $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
+                        \Mktr\Helper\Session::set('save_order', $svOrder);
+                        \Mktr\Helper\Session::save();
+                    }
+                }
+            }
+
             if (isset($_COOKIE['EAX'])) {
-                if (Mktr\Helper\Valid::getParam('orders') !== null) {
-                    $orders = explode(',', Mktr\Helper\Valid::getParam('orders'));
+                if (\Mktr\Helper\Valid::getParam('orders') !== null) {
+                    $orders = explode(',', \Mktr\Helper\Valid::getParam('orders'));
                     $list = [];
 
                     foreach ($orders as $order) {
                         $list[] = ['id' => $order, 'is_order' => true];
                     }
 
-                    Mktr\Helper\Session::set('save_order', $list);
-                    Mktr\Helper\Session::save();
-                } elseif (Mktr\Helper\Valid::getParam('update_orders') !== null) {
-                    $orders = explode(',', Mktr\Helper\Valid::getParam('update_orders'));
+                    \Mktr\Helper\Session::set('save_order', $list);
+                    \Mktr\Helper\Session::save();
+                } elseif (\Mktr\Helper\Valid::getParam('update_orders') !== null) {
+                    $orders = explode(',', \Mktr\Helper\Valid::getParam('update_orders'));
                     $list = [];
                     foreach ($orders as $order) {
-                        $temp = Mktr\Model\Orders::getByID($order);
+                        $temp = \Mktr\Model\Orders::getByID($order);
                         $send = [
                             'order_number' => $temp->number,
                             'order_status' => $temp->order_status,
                         ];
 
-                        Mktr\Helper\Api::send('update_order_status', $send, false);
+                        \Mktr\Helper\Api::send('update_order_status', $send, false);
                     }
                 }
             }
@@ -421,13 +465,13 @@ class Mktr extends Module
 
     public function hookactionOrderStatusUpdate($newStatus = null)
     {
-        if ($newStatus !== null && Mktr\Model\Config::rest()) {
+        if ($newStatus !== null && \Mktr\Model\Config::rest()) {
             $send = [
                 'order_number' => $newStatus['id_order'],
                 'order_status' => $newStatus['newOrderStatus']->name,
             ];
 
-            Mktr\Helper\Api::send('update_order_status', $send, false);
+            \Mktr\Helper\Api::send('update_order_status', $send, false);
         }
     }
 
@@ -438,13 +482,13 @@ class Mktr extends Module
 
     public function hookDisplayHeader($params)
     {
-        if (self::$displayLoad['header'] === true && Mktr\Model\Config::showJS()) {
+        if (self::$displayLoad['header'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['header'] = false;
-            $js = Mktr\Model\Config::i()->js_file;
+            $js = \Mktr\Model\Config::i()->js_file;
             if ($js !== '') {
-                if (Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
-                    Mktr\Helper\Session::set('cartID', $this->context->cart->id);
-                    Mktr\Helper\Session::save();
+                if (\Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
+                    \Mktr\Helper\Session::set('cartID', $this->context->cart->id);
+                    \Mktr\Helper\Session::save();
                 }
                 $this->context->controller->addJS($this->_path . 'mktr.' . $js . '.js');
             }
@@ -473,12 +517,12 @@ class Mktr extends Module
 
     public function script()
     {
-        if (self::$displayLoad['footer'] === true && Mktr\Model\Config::showJS()) {
+        if (self::$displayLoad['footer'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['footer'] = false;
 
             $data = null;
             $events = [];
-            $action = Mktr\Helper\Valid::getParam('controller', null);
+            $action = \Mktr\Helper\Valid::getParam('controller', null);
             // $listCheck = [];
             switch ($action) {
                 case '':
@@ -487,34 +531,34 @@ class Mktr extends Module
                     break;
                 case 'category':
                     $action = 'category';
-                    $data = Mktr\Helper\Valid::toJson(['category' => Mktr\Model\Category::getByID(Mktr\Helper\Valid::getParam('id_category'))->hierarchy]);
+                    $data = \Mktr\Helper\Valid::toJson(['category' => \Mktr\Model\Category::getByID(\Mktr\Helper\Valid::getParam('id_category'))->hierarchy]);
                     break;
                 case 'manufacturer':
                     $action = 'brand';
-                    $data = ['name' => Mktr\Model\Brand::getByID(Mktr\Helper\Valid::getParam('id_manufacturer'))->name];
+                    $data = ['name' => \Mktr\Model\Brand::getByID(\Mktr\Helper\Valid::getParam('id_manufacturer'))->name];
                     break;
                 case 'search':
                     $action = 'search';
-                    $data = ['search_term' => Mktr\Helper\Valid::getParam(_PS_VERSION_ >= 1.7 ? 's' : 'search_query')];
+                    $data = ['search_term' => \Mktr\Helper\Valid::getParam(_PS_VERSION_ >= 1.7 ? 's' : 'search_query')];
                     break;
                 case 'product':
                     $action = 'product';
-                    $data = ['product_id' => Mktr\Helper\Valid::getParam('id_product')];
+                    $data = ['product_id' => \Mktr\Helper\Valid::getParam('id_product')];
                     break;
                 case 'order':
                     // case 'cart':
                     $data = 0;
                     $action = 'checkout';
-                    if ($this->context->controller instanceof OrderController) {
+                    if ($this->context->controller instanceof \OrderController) {
                         if (method_exists($this->context->controller, 'getCheckoutProcess')) {
                             $checkoutSteps = $this->context->controller->getCheckoutProcess()->getSteps();
                         } elseif (_PS_VERSION_ >= 1.7) {
-                            $reflectedObject = (new ReflectionObject($this->context->controller))->getProperty('checkoutProcess');
+                            $reflectedObject = (new \ReflectionObject($this->context->controller))->getProperty('checkoutProcess');
                             $reflectedObject->setAccessible(true);
                             $checkoutProcessClass = $reflectedObject->getValue($this->context->controller);
                             $checkoutSteps = $checkoutProcessClass->getSteps();
                         } else {
-                            $checkOUT = Mktr\Helper\Valid::getParam('checkout');
+                            $checkOUT = \Mktr\Helper\Valid::getParam('checkout');
 
                             if ($checkOUT !== null && $checkOUT == 1) {
                                 $checkoutSteps = [];
@@ -532,7 +576,7 @@ class Mktr extends Module
                         } else {
                             $data = 0;
                             foreach ($checkoutSteps as $stepObject) {
-                                if ($data === 0 && ($stepObject instanceof CheckoutPersonalInformationStep || $stepObject instanceof CheckoutAddressesStep)) {
+                                if ($data === 0 && ($stepObject instanceof \CheckoutPersonalInformationStep || $stepObject instanceof \CheckoutAddressesStep)) {
                                     $data = (int) $stepObject->isCurrent();
                                 }
                                 // $listCheck[] = $stepObject->getTitle();
@@ -540,7 +584,7 @@ class Mktr extends Module
                         }
 
                         if ($data == 0) {
-                            $checkOUT = Mktr\Helper\Valid::getParam('checkout');
+                            $checkOUT = \Mktr\Helper\Valid::getParam('checkout');
                             if ($checkOUT !== null && $checkOUT == 1) {
                                 $checkoutSteps = [];
                                 $action = 'checkout';
@@ -566,10 +610,11 @@ class Mktr extends Module
             if ($data === null) {
                 $data = 'null';
             } elseif (is_array($data)) {
-                $data = Mktr\Helper\Valid::toJson($data);
+                $data = \Mktr\Helper\Valid::toJson($data);
             }
             $main = '';
             $events[] = html_entity_decode('&lt;script type=&quot;text/javascript&quot;&gt;');
+            $events[] = '(function(window) {';
             $events[] = 'window.mktr = window.mktr || {}; ';
             $events[] = 'window.mktr.toLoad = window.mktr.toLoad || [];';
             /*
@@ -594,6 +639,7 @@ class Mktr extends Module
                 'setEmail' => false,
                 'saveOrder' => false,
             ];
+            $events[] = '})(window);';
             $events[] = ' </script>';
             /*
                         // $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
@@ -602,7 +648,7 @@ class Mktr extends Module
                         //$linkPath = $linkPath . (substr($linkPath, -1) === '/' ? '' : '/');
             */
             foreach ($evList as $key => $value) {
-                if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
+                if (!empty(\Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     $add[$value] = true;
                     $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=Api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
                     /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/Api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
@@ -644,7 +690,7 @@ class Mktr extends Module
             return call_user_func_array([$this, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new Exception("Method {$name} does not exist.");
+                throw new \Exception("Method {$name} does not exist.");
             }
 
             return null;
@@ -654,14 +700,16 @@ class Mktr extends Module
     public static function __callStatic($name, $arguments)
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         if (method_exists(self::$i, $name)) {
             return call_user_func_array([self::$i, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new Exception("Static method {$name} does not exist.");
+                throw new \Exception("Static method {$name} does not exist.");
             }
 
             return null;

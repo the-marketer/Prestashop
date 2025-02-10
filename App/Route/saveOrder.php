@@ -43,10 +43,17 @@ class saveOrder
         if (!empty($Order)) {
             foreach ($Order as $sOrderData) {
                 if (array_key_exists('is_order', $sOrderData) && $sOrderData['is_order'] == false) {
-                    if (is_array($value1) && method_exists('\Order', 'getIdByCartId')) {
+                    if (is_array($sOrderData) && method_exists('\Order', 'getIdByCartId')) {
                         $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
                     } elseif (method_exists('\Order', 'getOrderByCartId')) {
                         $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
+                    }
+                    if (is_array($sOrderData)) {
+                        if (method_exists('\Order', 'getIdByCartId')) {
+                            $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
+                        } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                            $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
+                        }
                     }
                     if ($sOrderData['id'] == false) {
                         \Mktr\Helper\Session::set('save_order', []);

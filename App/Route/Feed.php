@@ -56,7 +56,7 @@ class Feed
             foreach ($cPage as $val) {
                 $product = Product::getByID($val['id'], true);
 
-                if (0 >= $product->getPrice() || 0 >= $product->getSalePrice()) {
+                if (0 >= $product->getPrice() && 0 >= $product->getSalePrice()) {
                     continue;
                 }
 

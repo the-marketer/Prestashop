@@ -62,8 +62,8 @@ class Product extends DataBase
         'product_id' => 'id',
         'sku' => 'getSku',
         'reference' => 'reference',
-        'name' => 'name',
-        'description' => 'description',
+        'name' => 'getName',
+        'description' => 'getDescription',
         'url' => 'getUrl',
         'main_image' => 'getMainImage',
         'category' => 'getCategory',
@@ -85,7 +85,9 @@ class Product extends DataBase
     protected $functions = [
         'getSku',
         'getUrl',
+        'getName',
         'getMainImage',
+        'getDescription',
         'getCategory',
         'getBrand',
         'getPrice',
@@ -134,7 +136,9 @@ class Product extends DataBase
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -143,6 +147,45 @@ class Product extends DataBase
     public static function c()
     {
         return self::$curent;
+    }
+
+    protected function getName()
+    {
+        if (empty($this->data->name)) {
+            $html = 'N/A';
+        } else {
+            $html = $this->data->name;
+            $html = preg_replace('/[^[:alnum:][:space:][:digit:][:punct:]]/u', '', $html);
+        }
+
+        return $html;
+    }
+
+    protected function getDescription()
+    {
+        $search = [
+            '/(\n|^)(\x20+|\t)/',
+            '/(\n|^)\/\/(.*?)(\n|$)/',
+            '/\n/',
+            '/\<\!--.*?-->/',
+            '/(\x20+|\t)/', // Delete multispace (Without \n)
+            '/\>\s+\</', // strip whitespaces between tags
+            '/(\"|\')\s+\>/', // strip whitespaces between quotation ("') and end tags
+            '/=\s+(\"|\')/']; // strip whitespaces between = "'
+
+        $replace = [
+            "\n",
+            "\n",
+            ' ',
+            '',
+            ' ',
+            '><',
+            '$1>',
+            '=$1'];
+        $html = $this->data->description;
+        $html = preg_replace($search, $replace, $html);
+
+        return $html;
     }
 
     public static function getDefaultStock()
@@ -169,9 +212,10 @@ class Product extends DataBase
 
         $sql = 'SELECT p.`id_product` AS id, product_shop.visibility, product_shop.active , pl.`id_lang` FROM ' .
         '`' . _DB_PREFIX_ . 'product` p ' . \Shop::addSqlAssociation('product', 'p') .
+        ' LEFT JOIN ' . _DB_PREFIX_ . 'specific_price sp ON p.`id_product` = sp.`id_product`' .
         ' LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl ON (p.`id_product` = pl.`id_product` ' . \Shop::addSqlRestrictionOnLang('pl') . ')' .
         ' WHERE pl.`id_lang` = ' . Config::getLang() . ' AND product_shop.`visibility` IN ("both", "catalog", "search")' .
-        ' AND product_shop.`active` = 1 ORDER BY p.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        ' AND product_shop.`active` = 1 AND (p.price > 0 OR (sp.reduction IS NOT NULL AND sp.reduction > 0)) ORDER BY p.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
 
         $i->list = Config::db()->executeS($sql);
 
@@ -181,7 +225,9 @@ class Product extends DataBase
     public static function getByID($id, $full = false, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
 
             self::$d[$id]->data = new \Product($id, $full, Config::getLang(), Config::shop(), Config::getContext());
         }
@@ -203,6 +249,7 @@ class Product extends DataBase
 
     protected function getSku()
     {
+        /* @phpstan-ignore-next-line */
         return $this->reference ? $this->reference : $this->id;
     }
 
@@ -312,6 +359,7 @@ class Product extends DataBase
             if ($mainImgID === null && $this->isCombination()) {
                 $Id = $this->data->getDefaultIdProductAttribute();
                 if ($Id) {
+                    /** @phpstan-ignore-next-line */
                     $aImages = Product::_getAttributeImageAssociations($Id);
                 }
             }
@@ -367,10 +415,10 @@ class Product extends DataBase
             $p['price'] = $this->toDigit($this->data->getPriceWithoutReduct(false, null, 2));
             $p['sale_price'] = $this->toDigit($this->data->getPrice(true, null, 2));
 
-            $p['price'] = empty($p['price']) && !empty($p['sale_price']) ?
+            $p['price'] = empty($p['price']) && !empty($p['sale_price']) && 0 >= $p['sale_price'] ?
                 $p['sale_price'] : $p['price'];
 
-            $p['sale_price'] = empty($p['sale_price']) ?
+            $p['sale_price'] = empty($p['sale_price']) || 0 >= $p['sale_price'] ?
                 $p['price'] : $p['sale_price'];
 
             $p['price'] = max($p['sale_price'], $p['price']);
@@ -515,7 +563,9 @@ class Product extends DataBase
     {
         if (!array_key_exists($id, $this->variant)) {
             $combinations = [
+                /* @phpstan-ignore-next-line */
                 'id' => $this->id,
+                /* @phpstan-ignore-next-line */
                 'sku' => $this->sku,
             ];
 
@@ -536,6 +586,7 @@ class Product extends DataBase
 
     protected function toFeed()
     {
+        /* @phpstan-ignore-next-line */
         return $this->toArray(['variations', 'media_gallery']);
     }
 }

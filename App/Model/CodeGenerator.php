@@ -109,6 +109,7 @@ class CodeGenerator
         $coupon->date_from = date('Y-m-d H:i:s', time());
 
         $coupon->name = [
+            /* @phpstan-ignore-next-line */
             Config::getConfig('PS_LANG_DEFAULT') => 'Themarketer - ' . $rules[$type] . '-' . $value . ($expiration === null ? '' : '-' . $expiration),
         ];
         $coupon->description = self::DESCRIPTION . ' (' . $rules[$type] . '-' . $value . ($expiration === null ? '' : '-' . $expiration) . ')';

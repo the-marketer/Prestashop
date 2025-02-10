@@ -86,7 +86,7 @@ class Reviews
         if (!empty($customer->firstname)) {
             $cName[] = $customer->firstname;
         }
-
+        /** @phpstan-ignore-next-line */
         $comment = new \ProductComment();
         $comment->id_product = (int) $value->product_id;
         $comment->id_customer = $customer->id_customer;

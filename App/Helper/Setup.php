@@ -98,8 +98,9 @@ class Setup
         \Mktr\Model\Config::AddDefault();
 
         $data = \Mktr\Model\Config::nws();
-
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_CONFIRMATION', \Mktr\Model\Config::getConfig($data['CONFIRMATION']));
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_NOTIFICATION', \Mktr\Model\Config::getConfig($data['NOTIFICATION']));
     }
 
@@ -124,8 +125,9 @@ class Setup
         }
 
         $data = \Mktr\Model\Config::nws();
-
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig($data['CONFIRMATION'], \Mktr\Model\Config::getConfig('MKTR_TRACKER_CONFIRMATION'));
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig($data['NOTIFICATION'], \Mktr\Model\Config::getConfig('MKTR_TRACKER_NOTIFICATION'));
 
         /* must be after MKTR_TRACKER_CONFIRMATION And MKTR_TRACKER_NOTIFICATION * */

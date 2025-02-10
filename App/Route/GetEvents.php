@@ -32,6 +32,15 @@ if (!defined('_PS_VERSION_')) {
 
 class GetEvents
 {
+    public static function isExpired($data)
+    {
+        if (array_key_exists('expire', $data)) {
+            return $data['expire'] < time();
+        }
+
+        return true;
+    }
+
     public static function run()
     {
         $evList = [
@@ -55,11 +64,16 @@ class GetEvents
                         if (is_array($value1) && array_key_exists('is_order', $value1) && $value1['is_order'] == false) {
                             if (method_exists('\Order', 'getIdByCartId')) {
                                 $value1['id'] = \Order::getIdByCartId($value1['id']);
-                            } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                            }
+
+                            if ($value1['id'] == false && method_exists('\Order', 'getOrderByCartId')) {
                                 $value1['id'] = \Order::getOrderByCartId($value1['id']);
                             }
-                            if ($value1['id'] == false) {
-                                $toClean[] = $key;
+
+                            if (empty($value1['id'])) {
+                                if (self::isExpired($value1)) {
+                                    $toClean[] = $key;
+                                }
                                 continue;
                             }
                         } elseif (!is_array($value1) || !array_key_exists('is_order', $value1)) {
@@ -74,7 +88,7 @@ class GetEvents
                             $events[] = [$event, $temp->toEvent()];
                             \Mktr\Helper\Api::send('save_order', $sOrder);
 
-                            if (\Mktr\Helper\Api::getStatus() == 200) {
+                            if (\Mktr\Helper\Api::getStatus() == 200 || self::isExpired($value1)) {
                                 $toClean[] = $key;
                             }
 

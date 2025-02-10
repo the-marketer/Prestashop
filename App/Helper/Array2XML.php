@@ -78,27 +78,30 @@ class Array2XML
 
     public static function init()
     {
-        $def = ['version', 'encoding', 'standalone', 'format_output', 'labelAttributes', 'labelCData', 'labelDocType', 'labelValue'];
+        // $def = ['version', 'encoding', 'standalone', 'format_output', 'labelAttributes', 'labelCData', 'labelDocType', 'labelValue'];
+        $def2 = ['setDomVersion', 'setEncoding', 'setStandalone', 'setFormatOutput', 'setLabelAttributes', 'setLabelCData', 'setLabelDocType', 'setLabelValue'];
         $args = func_get_args();
 
-        foreach ($def as $k => $v) {
+        foreach ($def2 as $k => $v) {
             if (isset($args[$k])) {
-                $$v = $args[$k];
+                // $$v = $args[$k];
+                self::$v($args[$k]);
             } else {
-                $$v = null;
+                self::$v(null);
+                // $$v = null;
             }
         }
+        /*
+                self::setDomVersion($version);
+                self::setEncoding($encoding);
+                self::setStandalone($standalone);
+                self::setFormatOutput($format_output);
 
-        self::setDomVersion($version);
-        self::setEncoding($encoding);
-        self::setStandalone($standalone);
-        self::setFormatOutput($format_output);
-
-        self::setLabelAttributes($labelAttributes);
-        self::setLabelCData($labelCData);
-        self::setLabelDocType($labelDocType);
-        self::setLabelValue($labelValue);
-
+                self::setLabelAttributes($labelAttributes);
+                self::setLabelCData($labelCData);
+                self::setLabelDocType($labelDocType);
+                self::setLabelValue($labelValue);
+        */
         self::$xml = new \DOMDocument(self::getDomVersion(), self::getEncoding());
 
         // self::$xml->xmlStandalone = self::isStandalone();
@@ -345,7 +348,7 @@ class Array2XML
             self::$xml = null;
 
             return self::$last_xml;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return self::$xml;
         }
     }

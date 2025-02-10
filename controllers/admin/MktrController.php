@@ -42,7 +42,7 @@ if (_PS_VERSION_ < 1.6) {
     }
 }
 
-class MktrController extends AdminController
+class MktrController extends \AdminController
 {
     const Docs = 'https://themarketer.com/resources/api';
     const LogIn = 'https://app.themarketer.com/login';
@@ -67,8 +67,8 @@ class MktrController extends AdminController
     {
         parent::__construct();
         self::$i = $this;
-        if (!Mktr::$init) {
-            new Mktr();
+        if (!\Mktr::$init) {
+            new \Mktr();
         }
     }
 
@@ -193,7 +193,7 @@ class MktrController extends AdminController
             if (_PS_VERSION_ >= 1.6) {
                 if ($value['type'] === 'switch') {
                     $n['is_bool'] = true;
-                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : \Mktr\Model\Config::DEFAULT_VALUES;
                 }
             } else {
                 if ($value['type'] === 'switch') {
@@ -201,7 +201,7 @@ class MktrController extends AdminController
                     $n['class'] = 't';
                     $n['is_bool'] = true;
 
-                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : \Mktr\Model\Config::DEFAULT_VALUES;
 
                     foreach ($value['values'] as $kkk => $vvv) {
                         if (isset($vvv['value'])) {
@@ -279,14 +279,14 @@ class MktrController extends AdminController
 
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
-            $vv = Tools::getValue($key);
+            $vv = \Tools::getValue($key);
 
             if (in_array($key, ['rest_key', 'tracking_key', 'customer_id']) && empty($vv)) {
                 self::$err['log'][] = self::$err['msg'][$key];
             }
 
             if (self::$config->{$key} != $vv) {
-                self::$config->update($key, Tools::getValue($key));
+                self::$config->update($key, \Tools::getValue($key));
                 $proccess[] = $key;
             }
         }
@@ -302,45 +302,52 @@ class MktrController extends AdminController
                     $this->updateOptIn();
                     break;
                 case 'push_status':
-                    Mktr\Route\refreshJS::updatePushStatus();
+                    \Mktr\Route\refreshJS::updatePushStatus();
                     break;
             }
         }
 
-        Mktr\Route\refreshJS::loadJs();
+        \Mktr\Route\refreshJS::loadJs();
 
         self::$config->save();
     }
 
     private function updateOptIn()
     {
-        $data = Mktr\Model\Config::nws();
+        $data = \Mktr\Model\Config::nws();
 
         if (self::$config->opt_in == 0) {
-            Mktr\Model\Config::setConfig($data['CONFIRMATION'], true);
-            Mktr\Model\Config::setConfig($data['NOTIFICATION'], true);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['CONFIRMATION'], true);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['NOTIFICATION'], true);
         } else {
-            Mktr\Model\Config::setConfig($data['CONFIRMATION'], false);
-            Mktr\Model\Config::setConfig($data['NOTIFICATION'], false);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['CONFIRMATION'], false);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['NOTIFICATION'], false);
         }
     }
 
     private function outPut()
     {
-        $helper = new HelperForm();
+        $helper = new \HelperForm();
         $helper->show_toolbar = true;
         $helper->toolbar_scroll = true;
-        $helper->default_form_language = Mktr\Model\Config::getLang();
+        $helper->default_form_language = \Mktr\Model\Config::getLang();
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitMktrModule';
         $helper->token = $this->token;
-
+        $helper->dni_required = null;
         $helper->currentIndex = self::$currentIndex . '&page=' . self::$page;
-
+        $values = $this->getConfigFormValues();
+        $values['dni'] = 0;
+        $values['first_call'] = false;
+        $helper->first_call = false;
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFormValues(),
             'languages' => $this->context->controller->getLanguages(),
-            'id_language' => Mktr\Model\Config::getLang(),
+            'id_language' => \Mktr\Model\Config::getLang(),
         ];
 
         $out = '';
@@ -356,7 +363,7 @@ class MktrController extends AdminController
         }
 
         if (!empty(self::$err['log'])) {
-            $out .= Mktr::i()->displayError(implode('<br />', self::$err['log']));
+            $out .= \Mktr::i()->displayError(implode('<br />', self::$err['log']));
         }
 
         return $out . $helper->generateForm($this->getConfigForm());
@@ -373,18 +380,19 @@ class MktrController extends AdminController
 
     public function initContent()
     {
-        self::$config = Mktr\Model\Config::setLang($this->context->language->id);
+        /* @phpstan-ignore-next-line */
+        self::$config = \Mktr\Model\Config::setLang($this->context->language->id);
 
-        self::$page = Mktr\Helper\Valid::getParam('page', self::$page);
+        self::$page = \Mktr\Helper\Valid::getParam('page', self::$page);
 
-        if (((bool) Tools::isSubmit('submitMktrModule')) == true) {
+        if (((bool) \Tools::isSubmit('submitMktrModule')) == true) {
             $this->post();
         }
 
         if (!in_array(self::$page, ['google', 'tracker'])) {
             self::$page = 'tracker';
         }
-
+        /* @phpstan-ignore-next-line */
         $this->title = 'TheMarketer - ' . ucfirst(self::$page);
         $this->toolbar_btn = $this->getToolbarBtn();
         $this->show_page_header_toolbar = true;

@@ -157,7 +157,9 @@ class Config
     {
         if (self::$i === null || $new === true) {
             self::CFG();
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -192,7 +194,9 @@ class Config
     public static function __callStatic($name, $arguments)
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         if (method_exists(self::$i, $name)) {

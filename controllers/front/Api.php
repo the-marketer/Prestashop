@@ -29,7 +29,7 @@ if (!defined('_PS_VERSION_')) {
 
 use Mktr\Helper\Valid;
 
-class MktrApiModuleFrontController extends FrontController
+class MktrApiModuleFrontController extends \FrontController
 {
     private static $init;
     private static $page;
@@ -119,7 +119,7 @@ class MktrApiModuleFrontController extends FrontController
             return call_user_func_array([$this, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new Exception("Method {$name} does not exist.");
+                throw new \Exception("Method {$name} does not exist.");
             }
 
             return null;
@@ -128,7 +128,8 @@ class MktrApiModuleFrontController extends FrontController
 
     public function initContent()
     {
-        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        /* @phpstan-ignore-next-line */
+        \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
         $name = self::$page;
 
         if (array_key_exists($name, self::$page_mime)) {

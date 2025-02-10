@@ -66,7 +66,9 @@ class Brand extends DataBase
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -102,7 +104,10 @@ class Brand extends DataBase
     public static function getByID($id, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
+            /* @phpstan-ignore-next-line */
             self::$d[$id]->data = new \Manufacturer($id, Config::getLang(), Config::shop());
         }
 
@@ -113,11 +118,13 @@ class Brand extends DataBase
 
     protected function getUrl()
     {
+        /* @phpstan-ignore-next-line */
         return Config::getContext()->link->getManufacturerLink($this->id);
     }
 
     protected function getImage()
     {
+        /* @phpstan-ignore-next-line */
         return Config::getContext()->link->getImageLink($this->id, 'img/m', null);
     }
 }

@@ -35,35 +35,35 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-$module = new Mktr();
-if (Mktr\Model\Config::showJS()) {
-    $data = Mktr\Helper\Data::init();
+$module = new \Mktr();
+if (\Mktr\Model\Config::showJS()) {
+    $data = \Mktr\Helper\Data::init();
 
     $upFeed = $data->update_feed;
     $upReview = $data->update_review;
-    if (Mktr\Model\Config::i()->cron_feed && $upFeed < time()) {
+    if (\Mktr\Model\Config::i()->cron_feed && $upFeed < time()) {
         $currentPage = 1;
         $limit = null;
         $d = [];
         do {
-            $cPage = Mktr\Model\Product::getPage($currentPage, $limit);
+            $cPage = \Mktr\Model\Product::getPage($currentPage, $limit);
             $pages = count($cPage);
 
             foreach ($cPage as $val) {
-                $d[] = Mktr\Model\Product::getByID($val['id'], true)->toArray();
+                $d[] = \Mktr\Model\Product::getByID($val['id'], true)->toArray();
             }
 
             ++$currentPage;
         } while (0 < $pages);
 
-        Mktr\Helper\Array2XML::setCDataValues(['name', 'description', 'category', 'brand', 'size', 'color', 'hierarchy']);
-        Mktr\Helper\Array2XML::$noNull = true;
+        \Mktr\Helper\Array2XML::setCDataValues(['name', 'description', 'category', 'brand', 'size', 'color', 'hierarchy']);
+        \Mktr\Helper\Array2XML::$noNull = true;
 
-        $XML = Mktr\Helper\Array2XML::cXML('products', ['product' => $d])->saveXML();
+        $XML = \Mktr\Helper\Array2XML::cXML('products', ['product' => $d])->saveXML();
 
-        Mktr\Helper\Data::writeFile('feed.xml', $XML);
+        \Mktr\Helper\Data::writeFile('feed.xml', $XML);
 
-        $add = Mktr\Model\Config::i()->update_feed;
+        $add = \Mktr\Model\Config::i()->update_feed;
 
         $data->update_feed = strtotime('+' . (empty($add) ? 4 : $add) . ' hour');
     }

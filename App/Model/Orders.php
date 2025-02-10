@@ -128,7 +128,9 @@ class Orders extends DataBase
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -193,8 +195,11 @@ class Orders extends DataBase
     public static function getByID($id, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
             if (_PS_VERSION_ >= 1.6) {
+                /* @phpstan-ignore-next-line */
                 self::$d[$id]->data = new \Order($id, Config::getLang(), Config::shop());
             } else {
                 self::$d[$id]->data = new \Order($id);
@@ -208,6 +213,7 @@ class Orders extends DataBase
 
     protected function getStatus()
     {
+        /* @phpstan-ignore-next-line */
         return self::orderState($this->current_state);
     }
 
@@ -231,6 +237,7 @@ class Orders extends DataBase
 
     protected function getEmail()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::CustomerData($this->id_customer);
 
         return $customer->email;
@@ -253,21 +260,28 @@ class Orders extends DataBase
     protected function getLastNameAndFirstName()
     {
         if (empty($this->tmp_names)) {
+            /** @phpstan-ignore-next-line */
             $customer = self::AdressData($this->id_address_invoice);
             $customer1 = null;
+            /* @phpstan-ignore-next-line */
             if ($customer->lastname === null || $customer->firstname === null || $customer->firstname == ' ' || $customer->lastname == ' ') {
+                /** @phpstan-ignore-next-line */
                 $customer1 = self::CustomerData($this->id_customer);
             }
-
+            /* @phpstan-ignore-next-line */
             if (($customer->firstname === null || $customer->firstname == ' ') && $customer1->firstname !== null) {
+                /** @phpstan-ignore-next-line */
                 $fname = $customer1->firstname;
             } else {
+                /** @phpstan-ignore-next-line */
                 $fname = $customer->firstname;
             }
-
+            /* @phpstan-ignore-line */
             if (($customer->lastname === null || $customer->lastname == ' ') && $customer1->lastname !== null) {
+                /** @phpstan-ignore-next-line */
                 $lname = $customer1->lastname;
             } else {
+                /** @phpstan-ignore-next-line */
                 $lname = $customer->lastname;
             }
 
@@ -279,9 +293,10 @@ class Orders extends DataBase
                 $nn = explode(' ', $lname, 2);
             } else {
                 if ($customer1 === null) {
+                    /** @phpstan-ignore-next-line */
                     $customer1 = self::CustomerData($this->id_customer);
                 }
-
+                /** @phpstan-ignore-next-line */
                 $em = explode('@', $customer1->email);
                 $nn = explode(' ', str_replace('_', ' ', $em[0]), 2);
             }
@@ -302,6 +317,7 @@ class Orders extends DataBase
     protected function getPhone()
     {
         $phone = null;
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
         if (isset($customer->phone)) {
             if (!empty($customer->phone) && $customer->phone !== ' ') {
@@ -322,6 +338,7 @@ class Orders extends DataBase
 
     protected function getCity()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
 
         return $customer->city;
@@ -329,6 +346,7 @@ class Orders extends DataBase
 
     protected function getCounty()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
 
         return $customer->country;
@@ -336,6 +354,7 @@ class Orders extends DataBase
 
     protected function getAddress()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
         $adr = [];
         if (!empty($customer->address1)) {
@@ -363,6 +382,7 @@ class Orders extends DataBase
 
     protected function getTax()
     {
+        /* @phpstan-ignore-next-line */
         return $this->total_paid_tax_incl - $this->total_paid_tax_excl;
     }
 
@@ -446,8 +466,10 @@ class Orders extends DataBase
             'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
         ] as $v) {
             if ($v === 'products_api') {
+                /* @phpstan-ignore-next-line */
                 $out['products'] = $this->{$v};
             } else {
+                /* @phpstan-ignore-next-line */
                 $out[$v] = $this->{$v};
             }
         }
@@ -464,8 +486,10 @@ class Orders extends DataBase
             'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
         ] as $v) {
             if ($v === 'products_api') {
+                /* @phpstan-ignore-next-line */
                 $out['products'] = $this->{$v};
             } else {
+                /* @phpstan-ignore-next-line */
                 $out[$v] = $this->{$v};
             }
         }

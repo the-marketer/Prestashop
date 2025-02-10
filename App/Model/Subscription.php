@@ -78,7 +78,9 @@ class Subscription extends DataBase
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -92,6 +94,7 @@ class Subscription extends DataBase
     public static function getByEmail($email, $new = false)
     {
         if ($new || !array_key_exists($email, self::$d)) {
+            /* @phpstan-ignore-next-line */
             self::$d[$email] = new static();
             self::$d[$email]->tmp = $email;
             $retrun = \Customer::getCustomersByEmail($email);
@@ -122,6 +125,7 @@ class Subscription extends DataBase
     protected function getName($w = null)
     {
         if ($this->name === null) {
+            /** @phpstan-ignore-next-line */
             $split = explode('@', $this->email);
             if (!array_key_exists(1, $split)) {
                 $split[1] = null;
@@ -181,6 +185,7 @@ class Subscription extends DataBase
                 return \Mktr\Helper\Valid::validateTelephone($phone);
             }
         }
+
         return null;
     }
 

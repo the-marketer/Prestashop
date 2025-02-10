@@ -70,6 +70,7 @@ importScripts("https://t.themarketer.com/firebase.js");';
         if (\Mktr\Model\Config::showJs(true)) {
             $c = 'window.mktr = window.mktr || {};
 if (typeof window.mktr.PS_VERSION == "undefined") {
+    window.dataLayer = window.dataLayer || [];
     window.mktr.PS_VERSION = "' . _PS_VERSION_ . '";
     window.mktr.MKTR_VERSION = "' . \Mktr::i()->version . '";
     window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
@@ -98,7 +99,7 @@ j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNo
             } else {
                 $base = 'baseUri';
             }
-
+            /** @phpstan-ignore-next-line */
             $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
             $c = $c . '(function(d, s, i) {
 var f = d.getElementsByTagName(s)[0], j = d.createElement(s);j.async = true;
@@ -181,8 +182,9 @@ window.mktr.ready = true;
         if (data != null && window.mktr.loading) {
             if (typeof data === "string") {
                 ' . (_PS_MODE_DEV_ ? ' console.log("mktr_data", data, d);' : '') . '
-                if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 &&
-                    data.search("getAllWishlist") == -1 || d !== null && typeof d == "string" && d.search("cart") != -1) {
+                if (data.search("cart") != -1 || data.search("cos") != -1 || data.search("wishlist") != -1 || data.search("addFavoriteProduct") != -1 || data.search("removeFavoriteProduct") != -1 &&
+                    data.search("getAllWishlist") == -1 || d !== null &&
+                    typeof d == "string" && (d.search("cart") != -1 || d.search("addFavoriteProduct") != -1 || d.search("removeFavoriteProduct") != -1 )) {
                     window.mktr.loading = false;
                     setTimeout(window.mktr.loadEvents, 2000);
                 } else if(data.search("subscription") != -1) {

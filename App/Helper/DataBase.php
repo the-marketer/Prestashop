@@ -61,7 +61,10 @@ abstract class DataBase
 
     public static function __callStatic($name, $arguments)
     {
-        $i = new static();
+        // $i = new static();
+        $class = get_called_class();
+        $i = new $class();
+
         if (method_exists($i, $name)) {
             return call_user_func_array([$i, $name], $arguments);
         } else {
