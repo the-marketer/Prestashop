@@ -629,6 +629,7 @@ class Mktr extends \Module
                 if (typeof window.mktr.tryLoad == "undefined") { window.mktr.tryLoad = 0; }
                 if (window.mktr.tryLoad <= 5 && typeof window.mktr.buildEvent == "function") { ' . $main . ' window.mktr.loadEvents(); } else if(window.mktr.tryLoad <= 5) { window.mktr.tryLoad++; setTimeout(window.mktr.runEvents, 1500); }
             }';
+
             $events[] = 'window.mktr.runEvents();';
 
             $evList = [

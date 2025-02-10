@@ -34,6 +34,7 @@ class Logs
 {
     private static $init;
 
+
     private static $data;
 
     public function __construct()

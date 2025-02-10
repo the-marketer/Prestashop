@@ -79,7 +79,6 @@ if (typeof window.mktr.PS_VERSION == "undefined") {
     window.mktr.toLoad = window.mktr.toLoad || [];
     window.mktr.retryCount = 0;
     window.mktr.loading = true;
-
 ';
 
             if (\Mktr\Model\Config::showGoogle()) {
