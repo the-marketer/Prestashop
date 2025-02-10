@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Route;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class setEmail
 {
@@ -29,7 +36,6 @@ class setEmail
     {
         $evList = [
             'set_email' => '__sm__set_email',
-            'set_phone' => '__sm__set_phone',
         ];
         $events = [];
         $allGood = true;
@@ -39,6 +45,17 @@ class setEmail
             if (!empty($list)) {
                 foreach ($list as $ey => $value1) {
                     $v = null;
+                    $phone = null;
+                    $remove = false;
+
+                    if (is_array($value1)) {
+                        $remove = $value1[1];
+                        $value1 = $value1[0];
+                        if (isset($value1[2])) {
+                            $phone = $value1[2];
+                        }
+                    }
+
                     if ($event === 'set_email') {
                         $v = \Mktr\Model\Subscription::getByEmail($value1);
                         $value1 = [
@@ -54,10 +71,9 @@ class setEmail
                                 $value1['lastname'] = $v->lastname;
                             }
                         }
-                    } elseif ($event === 'set_phone') {
-                        $value1 = [
-                            'phone' => \Mktr\Helper\Valid::validateTelephone($value1),
-                        ];
+                        if ($phone !== null) {
+                            $value1['phone'] = \Mktr\Helper\Valid::validateTelephone($phone);
+                        }
                     }
 
                     $events[] = "window.mktr.buildEvent('" . $event . "', " . \Mktr\Helper\Valid::toJson($value1) . ');';
@@ -81,10 +97,12 @@ class setEmail
 
                             if ($v->phone !== null) {
                                 $info['phone'] = $v->phone;
+                            } elseif ($phone !== null) {
+                                $info['phone'] = $phone;
                             }
 
                             \Mktr\Helper\Api::send('add_subscriber', $info);
-                        } else {
+                        } elseif ($remove) {
                             \Mktr\Helper\Api::send('remove_subscriber', $info);
                         }
 

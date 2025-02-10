@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Helper;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class Setup
 {
@@ -91,8 +98,9 @@ class Setup
         \Mktr\Model\Config::AddDefault();
 
         $data = \Mktr\Model\Config::nws();
-
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_CONFIRMATION', \Mktr\Model\Config::getConfig($data['CONFIRMATION']));
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_NOTIFICATION', \Mktr\Model\Config::getConfig($data['NOTIFICATION']));
     }
 
@@ -117,8 +125,9 @@ class Setup
         }
 
         $data = \Mktr\Model\Config::nws();
-
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig($data['CONFIRMATION'], \Mktr\Model\Config::getConfig('MKTR_TRACKER_CONFIRMATION'));
+        /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig($data['NOTIFICATION'], \Mktr\Model\Config::getConfig('MKTR_TRACKER_NOTIFICATION'));
 
         /* must be after MKTR_TRACKER_CONFIRMATION And MKTR_TRACKER_NOTIFICATION * */

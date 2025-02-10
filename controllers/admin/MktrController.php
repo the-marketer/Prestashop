@@ -16,24 +16,42 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class MktrController extends AdminController
+if (_PS_VERSION_ < 1.6) {
+    if (!defined('MKTR_ROOT')) {
+        define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));
+    }
+
+    if (!defined('MKTR_APP')) {
+        $d = MKTR_ROOT . 'modules/mktr/';
+        define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
+    }
+
+    if (!class_exists('Mktr')) {
+        require_once MKTR_APP . 'mktr.php';
+    }
+}
+
+class MktrController extends \AdminController
 {
     const Docs = 'https://themarketer.com/resources/api';
     const LogIn = 'https://app.themarketer.com/login';
     const Register = 'https://app.themarketer.com/register';
 
     private static $page = 'tracker';
-    private static $i = null;
-    private static $t = null;
-    private static $config = null;
+    private static $i;
+    private static $t;
+    private static $config;
     private static $jsRefresh = true;
 
     private static $err = [
@@ -49,16 +67,8 @@ class MktrController extends AdminController
     {
         parent::__construct();
         self::$i = $this;
-
-        if (self::$jsRefresh) {
-            Mktr\Route\refreshJS::loadJs();
-            $bind = ['private static $jsRefresh ', '= true;'];
-            $filePath = MKTR_APP . 'controllers/admin/MktrController.php';
-            $content = Tools::file_get_contents($filePath, true);
-            $newContent = str_replace(implode('', $bind), 'private static $jsRefresh = false;', $content);
-            $file = fopen($filePath, 'w+');
-            fwrite($file, $newContent);
-            fclose($file);
+        if (!\Mktr::$init) {
+            new \Mktr();
         }
     }
 
@@ -75,7 +85,7 @@ class MktrController extends AdminController
                 'tracking_key' => ['type' => 'text', 'label' => 'Tracking API Key *'],
                 'rest_key' => ['type' => 'text', 'label' => 'REST API Key *'],
                 'customer_id' => ['type' => 'text', 'label' => 'Customer ID *'],
-                'cron_feed' => ['type' => 'switch', 'label' => 'Activate Cron Feed', 'desc' => implode('', ['<b>If Enable, Please Add this to your server Cron Jobs</b>', '<br /><code>0 */1 * * * /usr/bin/php ' . MKTR_APP . 'cron.php > /dev/null 2>&1</code>'])],
+                'cron_feed' => ['type' => 'switch', 'label' => 'Activate Cron Feed', 'desc' => implode('', ['<b>If Enable, Please Add this to your server Cron Jobs</b>', '<br /><code>0 * * * * /usr/bin/php ' . MKTR_APP . 'cron.php > /dev/null 2>&1</code>'])],
                 'update_feed' => ['type' => 'text', 'label' => 'Cron Update feed every (hours)'],
                 'cron_review' => ['type' => 'switch', 'label' => 'Activate Cron Review'],
                 'update_review' => ['type' => 'text', 'label' => 'Cron Update Review every (hours)'],
@@ -180,14 +190,34 @@ class MktrController extends AdminController
                 'type' => $value['type'],
                 'label' => '<b>' . $value['label'] . '</b>',
             ];
+            if (_PS_VERSION_ >= 1.6) {
+                if ($value['type'] === 'switch') {
+                    $n['is_bool'] = true;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : \Mktr\Model\Config::DEFAULT_VALUES;
+                }
+            } else {
+                if ($value['type'] === 'switch') {
+                    $n['type'] = 'radio';
+                    $n['class'] = 't';
+                    $n['is_bool'] = true;
 
-            if ($value['type'] === 'switch') {
-                $n['is_bool'] = true;
-                $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : \Mktr\Model\Config::DEFAULT_VALUES;
+
+                    foreach ($value['values'] as $kkk => $vvv) {
+                        if (isset($vvv['value'])) {
+                            $value['values'][$kkk]['value'] = (int) $value['values'][$kkk]['value'];
+                        }
+                        if (isset($vvv['id'])) {
+                            $value['values'][$kkk]['id'] = $value['values'][$kkk]['id'] . '_' . $key;
+                        }
+                    }
+                }
             }
+
             if (array_key_exists('options', $value)) {
                 $n['options'] = $value['options'];
             }
+
             if (array_key_exists('values', $value)) {
                 $n['values'] = $value['values'];
                 foreach ($value['values'] as $key1 => $value1) {
@@ -202,7 +232,10 @@ class MktrController extends AdminController
             if (array_key_exists('multiple', $value)) {
                 $n['multiple'] = $value['multiple'];
             }
-            $n['value'] = '';
+
+            if (_PS_VERSION_ >= 1.6) {
+                $n['value'] = '';
+            }
 
             $new[] = $n;
         }
@@ -226,7 +259,15 @@ class MktrController extends AdminController
         $list = [];
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
-            $list[$key] = self::$config->asString($key);
+            if (_PS_VERSION_ >= 1.6) {
+                $list[$key] = self::$config->asString($key);
+            } else {
+                if ($value['type'] == 'switch') {
+                    $list[$key] = (int) self::$config->asString($key);
+                } else {
+                    $list[$key] = self::$config->asString($key);
+                }
+            }
         }
 
         return $list;
@@ -238,14 +279,14 @@ class MktrController extends AdminController
 
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
-            $vv = Tools::getValue($key);
+            $vv = \Tools::getValue($key);
 
             if (in_array($key, ['rest_key', 'tracking_key', 'customer_id']) && empty($vv)) {
                 self::$err['log'][] = self::$err['msg'][$key];
             }
 
             if (self::$config->{$key} != $vv) {
-                self::$config->update($key, Tools::getValue($key));
+                self::$config->update($key, \Tools::getValue($key));
                 $proccess[] = $key;
             }
         }
@@ -261,46 +302,54 @@ class MktrController extends AdminController
                     $this->updateOptIn();
                     break;
                 case 'push_status':
-                    Mktr\Route\refreshJS::updatePushStatus();
+                    \Mktr\Route\refreshJS::updatePushStatus();
                     break;
             }
         }
 
-        Mktr\Route\refreshJS::loadJs();
+        \Mktr\Route\refreshJS::loadJs();
 
         self::$config->save();
     }
 
     private function updateOptIn()
     {
-        $data = Mktr\Model\Config::nws();
+        $data = \Mktr\Model\Config::nws();
 
         if (self::$config->opt_in == 0) {
-            Mktr\Model\Config::setConfig($data['CONFIRMATION'], true);
-            Mktr\Model\Config::setConfig($data['NOTIFICATION'], true);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['CONFIRMATION'], true);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['NOTIFICATION'], true);
         } else {
-            Mktr\Model\Config::setConfig($data['CONFIRMATION'], false);
-            Mktr\Model\Config::setConfig($data['NOTIFICATION'], false);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['CONFIRMATION'], false);
+            /* @phpstan-ignore-next-line */
+            \Mktr\Model\Config::setConfig($data['NOTIFICATION'], false);
         }
     }
 
     private function outPut()
     {
-        $helper = new HelperForm();
+        $helper = new \HelperForm();
         $helper->show_toolbar = true;
         $helper->toolbar_scroll = true;
-        $helper->default_form_language = Mktr\Model\Config::getLang();
+        $helper->default_form_language = \Mktr\Model\Config::getLang();
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitMktrModule';
         $helper->token = $this->token;
-
+        $helper->dni_required = null;
         $helper->currentIndex = self::$currentIndex . '&page=' . self::$page;
-
+        $values = $this->getConfigFormValues();
+        $values['dni'] = 0;
+        $values['first_call'] = false;
+        $helper->first_call = false;
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFormValues(),
             'languages' => $this->context->controller->getLanguages(),
-            'id_language' => Mktr\Model\Config::getLang(),
+            'id_language' => \Mktr\Model\Config::getLang(),
         ];
+
         $out = '';
 
         if (self::$config->tracking_key === '') {
@@ -314,7 +363,7 @@ class MktrController extends AdminController
         }
 
         if (!empty(self::$err['log'])) {
-            $out .= Mktr::i()->displayError(implode('<br />', self::$err['log']));
+            $out .= \Mktr::i()->displayError(implode('<br />', self::$err['log']));
         }
 
         return $out . $helper->generateForm($this->getConfigForm());
@@ -331,18 +380,19 @@ class MktrController extends AdminController
 
     public function initContent()
     {
-        self::$config = Mktr\Model\Config::setLang($this->context->language->id);
+        /* @phpstan-ignore-next-line */
+        self::$config = \Mktr\Model\Config::setLang($this->context->language->id);
 
-        self::$page = Mktr\Helper\Valid::getParam('page', self::$page);
+        self::$page = \Mktr\Helper\Valid::getParam('page', self::$page);
 
-        if (((bool) Tools::isSubmit('submitMktrModule')) == true) {
+        if (((bool) \Tools::isSubmit('submitMktrModule')) == true) {
             $this->post();
         }
 
         if (!in_array(self::$page, ['google', 'tracker'])) {
             self::$page = 'tracker';
         }
-
+        /* @phpstan-ignore-next-line */
         $this->title = 'TheMarketer - ' . ucfirst(self::$page);
         $this->toolbar_btn = $this->getToolbarBtn();
         $this->show_page_header_toolbar = true;
@@ -358,16 +408,19 @@ class MktrController extends AdminController
                         'name' => 'Modules',
                         'href' => $this->context->link->getAdminLink('AdminModules', true),
                         'icon' => '',
+                        'id_parent' => 0,
                     ],
                     'tab' => [
                         'name' => 'TheMarketer',
                         'href' => self::$currentIndex . '&' . $this->token(),
                         'icon' => '',
+                        'id_parent' => 0,
                     ],
                     'action' => [
                         'name' => '',
                         'href' => '',
                         'icon' => '',
+                        'id_parent' => 0,
                     ],
                 ],
                 'content' => $this->outPut(),

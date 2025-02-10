@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Helper;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Model\Config;
 
@@ -35,10 +42,10 @@ class Valid
     ];
     const def_mime = 'xml';
 
-    private static $init = null;
+    private static $init;
     private static $params = [];
-    private static $error = null;
-    private static $getOut = null;
+    private static $error;
+    private static $getOut;
 
     public static function init()
     {
@@ -130,11 +137,11 @@ class Valid
                                 break;
 
                             case 'DateCheckDiscount':
-                                if (self::getParam($k) !== null && !self::validateDate(self::getParam($k), Config::$dateFormat)) {
+                                if (self::getParam($k) !== null && !self::validateDate(self::getParam($k), Config::$dateFormatParam)) {
                                     self::$error = 'Incorrect Date ' .
                                         $k . ' - ' .
                                         self::getParam($k) . ' - ' .
-                                        Config::$dateFormat;
+                                        Config::$dateFormatParam;
                                 }
                                 break;
                             case 'StartDate':
@@ -218,7 +225,7 @@ class Valid
                     } catch (\DOMException $e) {
                         self::$getOut = Array2XML::errors();
                     }
-                break;
+                    break;
                 case 'json':
                     if ($data1 !== null) {
                         $data = [$data => $data1];

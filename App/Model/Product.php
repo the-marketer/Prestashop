@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -55,8 +62,8 @@ class Product extends DataBase
         'product_id' => 'id',
         'sku' => 'getSku',
         'reference' => 'reference',
-        'name' => 'name',
-        'description' => 'description',
+        'name' => 'getName',
+        'description' => 'getDescription',
         'url' => 'getUrl',
         'main_image' => 'getMainImage',
         'category' => 'getCategory',
@@ -78,7 +85,9 @@ class Product extends DataBase
     protected $functions = [
         'getSku',
         'getUrl',
+        'getName',
         'getMainImage',
+        'getDescription',
         'getCategory',
         'getBrand',
         'getPrice',
@@ -105,29 +114,31 @@ class Product extends DataBase
     protected $orderBy = 'id_product';
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
-    protected $hide = ['variation'];
+    protected $hide = ['variation', 'regular_price'];
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
 
     protected $realStock = 0;
-    protected $isCombination = null;
-    protected $img = null;
-    protected $prices = null;
-    protected $pricesDate = null;
-    protected $reference = null;
-    protected $var = null;
+    protected $isCombination;
+    protected $img;
+    protected $prices;
+    protected $pricesDate;
+    protected $reference;
+    protected $var;
     protected $variant = [];
 
     const TYPE_COMBINATION = 'combinations';
-    private static $defStock = null;
-    private static $att = null;
+    private static $defStock;
+    private static $att;
 
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -136,6 +147,45 @@ class Product extends DataBase
     public static function c()
     {
         return self::$curent;
+    }
+
+    protected function getName()
+    {
+        if (empty($this->data->name)) {
+            $html = 'N/A';
+        } else {
+            $html = $this->data->name;
+            $html = preg_replace('/[^[:alnum:][:space:][:digit:][:punct:]]/u', '', $html);
+        }
+
+        return $html;
+    }
+
+    protected function getDescription()
+    {
+        $search = [
+            '/(\n|^)(\x20+|\t)/',
+            '/(\n|^)\/\/(.*?)(\n|$)/',
+            '/\n/',
+            '/\<\!--.*?-->/',
+            '/(\x20+|\t)/', // Delete multispace (Without \n)
+            '/\>\s+\</', // strip whitespaces between tags
+            '/(\"|\')\s+\>/', // strip whitespaces between quotation ("') and end tags
+            '/=\s+(\"|\')/']; // strip whitespaces between = "'
+
+        $replace = [
+            "\n",
+            "\n",
+            ' ',
+            '',
+            ' ',
+            '><',
+            '$1>',
+            '=$1'];
+        $html = $this->data->description;
+        $html = preg_replace($search, $replace, $html);
+
+        return $html;
     }
 
     public static function getDefaultStock()
@@ -162,9 +212,10 @@ class Product extends DataBase
 
         $sql = 'SELECT p.`id_product` AS id, product_shop.visibility, product_shop.active , pl.`id_lang` FROM ' .
         '`' . _DB_PREFIX_ . 'product` p ' . \Shop::addSqlAssociation('product', 'p') .
+        ' LEFT JOIN ' . _DB_PREFIX_ . 'specific_price sp ON p.`id_product` = sp.`id_product`' .
         ' LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl ON (p.`id_product` = pl.`id_product` ' . \Shop::addSqlRestrictionOnLang('pl') . ')' .
-        ' WHERE pl.`id_lang` = ' . Config::getLang() . ' AND product_shop.`visibility` IN ("both", "catalog")' .
-        ' AND product_shop.`active` = 1 ORDER BY p.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        ' WHERE pl.`id_lang` = ' . Config::getLang() . ' AND product_shop.`visibility` IN ("both", "catalog", "search")' .
+        ' AND product_shop.`active` = 1 AND (p.price > 0 OR (sp.reduction IS NOT NULL AND sp.reduction > 0)) ORDER BY p.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
 
         $i->list = Config::db()->executeS($sql);
 
@@ -174,7 +225,9 @@ class Product extends DataBase
     public static function getByID($id, $full = false, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
 
             self::$d[$id]->data = new \Product($id, $full, Config::getLang(), Config::shop(), Config::getContext());
         }
@@ -196,6 +249,7 @@ class Product extends DataBase
 
     protected function getSku()
     {
+        /* @phpstan-ignore-next-line */
         return $this->reference ? $this->reference : $this->id;
     }
 
@@ -248,17 +302,24 @@ class Product extends DataBase
 
     protected function getCategory()
     {
-        $cat = new \Category($this->data->id_category_default, Config::getLang());
-        $parents = $cat->getParentsCategories(Config::getLang());
-        $p = [];
-        foreach ($parents as $ch) {
-            if (isset($ch['name'])) {
-                $p[] = $ch['name'];
+        $new = [];
+        $categoryes = $this->data->getCategories();
+        foreach ($categoryes as $cID) {
+            $p = [];
+            $cat = new \Category($cID, Config::getLang());
+            $parents = $cat->getParentsCategories(Config::getLang());
+            foreach ($parents as $ch) {
+                if (isset($ch['name'])) {
+                    $p[] = $ch['name'];
+                }
+            }
+            krsort($p);
+            if (!empty($p)) {
+                $new[] = implode('|', $p);
             }
         }
-        krsort($p);
 
-        return implode('|', $p);
+        return empty($new) ? 'N/A' : implode('||', $new);
     }
 
     protected function getBrand()
@@ -298,6 +359,7 @@ class Product extends DataBase
             if ($mainImgID === null && $this->isCombination()) {
                 $Id = $this->data->getDefaultIdProductAttribute();
                 if ($Id) {
+                    /** @phpstan-ignore-next-line */
                     $aImages = Product::_getAttributeImageAssociations($Id);
                 }
             }
@@ -353,10 +415,10 @@ class Product extends DataBase
             $p['price'] = $this->toDigit($this->data->getPriceWithoutReduct(false, null, 2));
             $p['sale_price'] = $this->toDigit($this->data->getPrice(true, null, 2));
 
-            $p['price'] = empty($p['price']) && !empty($p['sale_price']) ?
+            $p['price'] = empty($p['price']) && !empty($p['sale_price']) && 0 >= $p['sale_price'] ?
                 $p['sale_price'] : $p['price'];
 
-            $p['sale_price'] = empty($p['sale_price']) ?
+            $p['sale_price'] = empty($p['sale_price']) || 0 >= $p['sale_price'] ?
                 $p['price'] : $p['sale_price'];
 
             $p['price'] = max($p['sale_price'], $p['price']);
@@ -416,8 +478,12 @@ class Product extends DataBase
         if ($qty < 0) {
             $availability = self::getDefaultStock();
         } elseif ($qty == 0) {
-            /** @noinspection PhpUnnecessaryBoolCastInspection */
-            $availability = (bool) $this->data->available_for_order ? 2 : 0;
+            if ($this->data->out_of_stock !== null) {
+                $av = $this->data->out_of_stock;
+            } else {
+                $av = $this->data->available_for_order;
+            }
+            $availability = $av == 1 ? 2 : 0;
         } else {
             $availability = 1;
         }
@@ -444,6 +510,15 @@ class Product extends DataBase
                 if (!isset($combinations[$combination['id_product_attribute']])) {
                     $price = self::getPrice();
                     $sale_price = empty((float) $combination['price']) ? $this->getSalePrice() : $this->toDigit($combination['price']);
+
+                    if (0 >= $price || 0 >= $sale_price) {
+                        continue;
+                    }
+
+                    if (0 >= $combination['quantity']) {
+                        $combination['quantity'] = self::getDefaultStock();
+                    }
+
                     $combinations[$combination['id_product_attribute']] = [
                         'id' => [
                             $this->data->id,
@@ -488,7 +563,9 @@ class Product extends DataBase
     {
         if (!array_key_exists($id, $this->variant)) {
             $combinations = [
+                /* @phpstan-ignore-next-line */
                 'id' => $this->id,
+                /* @phpstan-ignore-next-line */
                 'sku' => $this->sku,
             ];
 
@@ -509,6 +586,7 @@ class Product extends DataBase
 
     protected function toFeed()
     {
+        /* @phpstan-ignore-next-line */
         return $this->toArray(['variations', 'media_gallery']);
     }
 }

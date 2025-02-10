@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Route;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\Valid;
 use Mktr\Model\Product;
@@ -47,7 +54,13 @@ class Feed
             $pages = $stop ? 0 : count($cPage);
 
             foreach ($cPage as $val) {
-                $data[] = Product::getByID($val['id'], true)->toArray();
+                $product = Product::getByID($val['id'], true);
+
+                if (0 >= $product->getPrice() && 0 >= $product->getSalePrice()) {
+                    continue;
+                }
+
+                $data[] = $product->toArray();
             }
 
             ++$currentPage;

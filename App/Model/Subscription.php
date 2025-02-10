@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -55,23 +62,25 @@ class Subscription extends DataBase
         'subscribed' => 'bool',
     ];
 
-    protected $is = null; /* newsletter | customer */
-    protected $name = null;
-    protected $adressData = null;
-    protected $tmp = null;
+    protected $is; /* newsletter | customer */
+    protected $name;
+    protected $adressData;
+    protected $tmp;
 
     protected $orderBy = 'id_manufacturer';
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
 
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -85,6 +94,7 @@ class Subscription extends DataBase
     public static function getByEmail($email, $new = false)
     {
         if ($new || !array_key_exists($email, self::$d)) {
+            /* @phpstan-ignore-next-line */
             self::$d[$email] = new static();
             self::$d[$email]->tmp = $email;
             $retrun = \Customer::getCustomersByEmail($email);
@@ -115,6 +125,7 @@ class Subscription extends DataBase
     protected function getName($w = null)
     {
         if ($this->name === null) {
+            /** @phpstan-ignore-next-line */
             $split = explode('@', $this->email);
             if (!array_key_exists(1, $split)) {
                 $split[1] = null;
@@ -159,10 +170,23 @@ class Subscription extends DataBase
     protected function getPhone()
     {
         if ($this->is === 'customer') {
-            return \Mktr\Helper\Valid::validateTelephone($this->AdressData()->phone);
-        } else {
-            return null;
+            $phone = null;
+            if (isset($this->AdressData()->phone)) {
+                if (!empty($this->AdressData()->phone) && $this->AdressData()->phone !== ' ') {
+                    $phone = $this->AdressData()->phone;
+                }
+            }
+            if ($phone === null && isset($this->AdressData()->phone_mobile)) {
+                if (!empty($this->AdressData()->phone_mobile) && $this->AdressData()->phone_mobile !== ' ') {
+                    $phone = $this->AdressData()->phone_mobile;
+                }
+            }
+            if ($phone !== null) {
+                return \Mktr\Helper\Valid::validateTelephone($phone);
+            }
         }
+
+        return null;
     }
 
     protected function getSubscribed()

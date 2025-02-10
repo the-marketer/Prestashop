@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -52,16 +59,18 @@ class Category extends DataBase
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
 
-    private static $shop = null;
+    private static $shop;
 
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -97,7 +106,9 @@ class Category extends DataBase
     public static function getByID($id, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
             self::$d[$id]->data = new \Category($id, Config::getLang(), Config::shop());
         }
 
@@ -108,7 +119,7 @@ class Category extends DataBase
 
     protected function getUrl()
     {
-        return Config::getContext()->link->getCategoryLink($this->id);
+        return Config::getContext()->link->getCategoryLink($this->data->id);
     }
 
     protected function getParent()
@@ -123,6 +134,7 @@ class Category extends DataBase
             }
         }
         if (empty($p)) {
+            /* @phpstan-ignore-next-line */
             $p = [$this->name];
         } else {
             krsort($p);

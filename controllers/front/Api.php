@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 if (!defined('_PS_VERSION_')) {
@@ -26,10 +29,10 @@ if (!defined('_PS_VERSION_')) {
 
 use Mktr\Helper\Valid;
 
-class MktrApiModuleFrontController extends FrontController
+class MktrApiModuleFrontController extends \FrontController
 {
-    private static $init = null;
-    private static $page = null;
+    private static $init;
+    private static $page;
     private static $check = [
         'orders' => [
             'key' => 'Required|Key|allow_export',
@@ -125,7 +128,8 @@ class MktrApiModuleFrontController extends FrontController
 
     public function initContent()
     {
-        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        /* @phpstan-ignore-next-line */
+        \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
         $name = self::$page;
 
         if (array_key_exists($name, self::$page_mime)) {

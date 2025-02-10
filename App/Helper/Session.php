@@ -16,20 +16,27 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Helper;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Mktr\Model\Config;
 
 class Session
 {
-    private static $init = null;
-    private static $uid = null;
-    private static $MKTR_TABLE = null;
+    private static $init;
+    private static $uid;
+    private static $MKTR_TABLE;
 
     private $data = [];
     private $org = [];
@@ -63,13 +70,21 @@ class Session
     public static function getUid()
     {
         if (self::$uid === null) {
+            // \Context::getContext()->session->__sm__uid = 'test';
+            // var_dump(\Context::getContext()->session->__sm__uid);
+            // \Context::getContext()->session->save();
+            // die();
+            // if (array_key_exists('__sm__uid', $_COOKIE)) {
+            //  setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
+            // } else {
+            //  self::$uid = $_COOKIE['__sm__uid'];
+            // }
             $cookie = \Context::getContext()->cookie;
             if (!isset($cookie->__sm__uid) || $cookie->__sm__uid === false) {
-                // setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
                 self::$uid = uniqid();
                 $cookie->__sm__uid = self::$uid;
+                $cookie->write();
             } else {
-                // self::$uid = $cookie['__sm__uid'];
                 self::$uid = $cookie->__sm__uid;
             }
         }
@@ -82,7 +97,7 @@ class Session
         $uid = self::getUid();
         $data = Config::db()->executeS('SELECT `data` FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
 
-        $this->org = array_key_exists(0, $data) ? unserialize($data[0]['data']) : [];
+        $this->org = array_key_exists(0, $data) ? call_user_func('unserialize', $data[0]['data']) : [];
         $this->data = $this->org;
     }
 
@@ -113,7 +128,7 @@ class Session
             $table_name = self::$MKTR_TABLE;
             if (!empty(self::init()->data)) {
                 $data = [
-                    'data' => serialize(self::init()->data),
+                    'data' => call_user_func('serialize', self::init()->data),
                     'expire' => date('Y-m-d H:i:s', strtotime('+2 day')),
                 ];
 
@@ -152,8 +167,11 @@ class Session
                     Config::db()->query('INSERT INTO `' . self::$MKTR_TABLE . '` (' . $columns . ') VALUES (' . $values . ')');
                     $range_id = (int) Config::db()->Insert_ID();
                 }
+                self::init()->org = self::init()->data;
             } else {
                 Config::db()->query('DELETE FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
+                self::init()->org = [];
+                self::init()->data = [];
             }
 
             self::clearIfExipire();
@@ -185,12 +203,12 @@ class Session
         }
     }
 
-    public static function addToWishlist($pId, $pAttr)
+    public static function addToWishlist($pId, $pAttr = 0)
     {
         self::sessionSet('add_to_wish_list', [$pId, $pAttr]);
     }
 
-    public static function removeFromWishlist($pId, $pAttr)
+    public static function removeFromWishlist($pId, $pAttr = 0)
     {
         self::sessionSet('remove_from_wishlist', [$pId, $pAttr]);
     }
@@ -209,12 +227,7 @@ class Session
 
     public static function setEmail($email)
     {
-        self::sessionSet('set_email', $email);
-    }
-
-    public static function setPhone($phone)
-    {
-        self::sessionSet('set_phone', $phone);
+        self::set('set_email', [$email]);
     }
 
     public static function sessionSet($name, $data, $key = null)

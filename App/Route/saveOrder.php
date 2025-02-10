@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Route;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class saveOrder
 {
@@ -34,13 +41,35 @@ class saveOrder
         $allGood = true;
 
         if (!empty($Order)) {
-            foreach ($Order as $sOrder) {
-                $temp = \Mktr\Model\Orders::getByID($sOrder);
-                $sOrder = $temp->toApi();
+            foreach ($Order as $sOrderData) {
+                if (array_key_exists('is_order', $sOrderData) && $sOrderData['is_order'] == false) {
+                    if (is_array($sOrderData) && method_exists('\Order', 'getIdByCartId')) {
+                        $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
+                    } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                        $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
+                    }
+                    if (is_array($sOrderData)) {
+                        if (method_exists('\Order', 'getIdByCartId')) {
+                            $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
+                        } elseif (method_exists('\Order', 'getOrderByCartId')) {
+                            $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
+                        }
+                    }
+                    if ($sOrderData['id'] == false) {
+                        \Mktr\Helper\Session::set('save_order', []);
+                        \Mktr\Helper\Session::save();
 
-                $dataLogs = \Mktr\Helper\Logs::init();
-                $dataLogs->addTo('saveOrder', $sOrder);
-                $dataLogs->save();
+                        return 'console.log("Clean");';
+                    }
+                } elseif (!array_key_exists('is_order', $sOrderData)) {
+                    \Mktr\Helper\Session::set('save_order', []);
+                    \Mktr\Helper\Session::save();
+
+                    return 'console.log("OLD VERSION");';
+                }
+
+                $temp = \Mktr\Model\Orders::getByID($sOrderData['id']);
+                $sOrder = $temp->toApi();
 
                 if (empty($temp->getProducts())) {
                     ++self::$try;
@@ -51,8 +80,6 @@ class saveOrder
 
                     return 'console.log("Empty Products");';
                 }
-
-                $events[] = 'window.mktr.buildEvent("save_order", ' . $temp->toEvent(true) . ');';
 
                 \Mktr\Helper\Api::send('save_order', $sOrder);
                 if (\Mktr\Helper\Api::getStatus() != 200) {

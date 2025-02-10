@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -107,21 +114,23 @@ class Orders extends DataBase
     protected $orderBy = 'id_order';
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
-
     protected $refund = 0;
+    protected $tmp_names;
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
-    private static $shop = null;
-    private static $orderState = null;
+    private static $shop;
+    private static $orderState;
     private static $customerData = [];
     private static $adressData = [];
 
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -135,7 +144,7 @@ class Orders extends DataBase
     public static function orderState($ID)
     {
         if (self::$orderState === null) {
-            foreach (\OrderState::getOrderStates(\Mktr\Model\Config::getLang()) as $state) {
+            foreach (\OrderState::getOrderStates(Config::getLang()) as $state) {
                 self::$orderState[$state['id_order_state']] = $state;
             }
         }
@@ -186,8 +195,15 @@ class Orders extends DataBase
     public static function getByID($id, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
-            self::$d[$id]->data = new \Order($id, Config::getLang(), Config::shop());
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
+            if (_PS_VERSION_ >= 1.6) {
+                /* @phpstan-ignore-next-line */
+                self::$d[$id]->data = new \Order($id, Config::getLang(), Config::shop());
+            } else {
+                self::$d[$id]->data = new \Order($id);
+            }
         }
 
         self::$curent = self::$d[$id];
@@ -197,6 +213,7 @@ class Orders extends DataBase
 
     protected function getStatus()
     {
+        /* @phpstan-ignore-next-line */
         return self::orderState($this->current_state);
     }
 
@@ -220,6 +237,7 @@ class Orders extends DataBase
 
     protected function getEmail()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::CustomerData($this->id_customer);
 
         return $customer->email;
@@ -227,33 +245,100 @@ class Orders extends DataBase
 
     protected function getFirstName()
     {
-        $customer = self::AdressData($this->id_address_invoice);
-        if ($customer->firstname === null) {
-            $customer = self::CustomerData($this->id_customer);
-        }
+        $n = $this->getLastNameAndFirstName();
 
-        return $customer->firstname;
+        return $n['firstname'];
     }
 
     protected function getLastName()
     {
-        $customer = self::AdressData($this->id_address_invoice);
-        if ($customer->lastname === null) {
-            $customer = self::CustomerData($this->id_customer);
+        $n = $this->getLastNameAndFirstName();
+
+        return $n['lastname'];
+    }
+
+    protected function getLastNameAndFirstName()
+    {
+        if (empty($this->tmp_names)) {
+            /** @phpstan-ignore-next-line */
+            $customer = self::AdressData($this->id_address_invoice);
+            $customer1 = null;
+            /* @phpstan-ignore-next-line */
+            if ($customer->lastname === null || $customer->firstname === null || $customer->firstname == ' ' || $customer->lastname == ' ') {
+                /** @phpstan-ignore-next-line */
+                $customer1 = self::CustomerData($this->id_customer);
+            }
+            /* @phpstan-ignore-next-line */
+            if (($customer->firstname === null || $customer->firstname == ' ') && $customer1->firstname !== null) {
+                /** @phpstan-ignore-next-line */
+                $fname = $customer1->firstname;
+            } else {
+                /** @phpstan-ignore-next-line */
+                $fname = $customer->firstname;
+            }
+            /* @phpstan-ignore-line */
+            if (($customer->lastname === null || $customer->lastname == ' ') && $customer1->lastname !== null) {
+                /** @phpstan-ignore-next-line */
+                $lname = $customer1->lastname;
+            } else {
+                /** @phpstan-ignore-next-line */
+                $lname = $customer->lastname;
+            }
+
+            if (!empty($fname) && !empty($lname) && $fname != ' ' && $lname != ' ') {
+                $nn = [$fname, $lname];
+            } elseif (!empty($fname) && $fname != ' ') {
+                $nn = explode(' ', $fname, 2);
+            } elseif (!empty($lname) && $lname != ' ') {
+                $nn = explode(' ', $lname, 2);
+            } else {
+                if ($customer1 === null) {
+                    /** @phpstan-ignore-next-line */
+                    $customer1 = self::CustomerData($this->id_customer);
+                }
+                /** @phpstan-ignore-next-line */
+                $em = explode('@', $customer1->email);
+                $nn = explode(' ', str_replace('_', ' ', $em[0]), 2);
+            }
+
+            if (!isset($nn[1])) {
+                $nn[1] = ' ';
+            }
+
+            $this->tmp_names = [
+                'firstname' => $nn[0],
+                'lastname' => $nn[1],
+            ];
         }
 
-        return $customer->lastname;
+        return $this->tmp_names;
     }
 
     protected function getPhone()
     {
+        $phone = null;
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
+        if (isset($customer->phone)) {
+            if (!empty($customer->phone) && $customer->phone !== ' ') {
+                $phone = $customer->phone;
+            }
+        }
+        if ($phone === null && isset($customer->phone_mobile)) {
+            if (!empty($customer->phone_mobile) && $customer->phone_mobile !== ' ') {
+                $phone = $customer->phone_mobile;
+            }
+        }
+        if ($phone === null) {
+            return '';
+        }
 
-        return $customer->phone;
+        return $phone;
     }
 
     protected function getCity()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
 
         return $customer->city;
@@ -261,6 +346,7 @@ class Orders extends DataBase
 
     protected function getCounty()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
 
         return $customer->country;
@@ -268,6 +354,7 @@ class Orders extends DataBase
 
     protected function getAddress()
     {
+        /** @phpstan-ignore-next-line */
         $customer = self::AdressData($this->id_address_invoice);
         $adr = [];
         if (!empty($customer->address1)) {
@@ -295,6 +382,7 @@ class Orders extends DataBase
 
     protected function getTax()
     {
+        /* @phpstan-ignore-next-line */
         return $this->total_paid_tax_incl - $this->total_paid_tax_excl;
     }
 
@@ -304,7 +392,9 @@ class Orders extends DataBase
         $products = [];
         foreach ($this->data->getProducts() as $p) {
             $pp = Product::getByID($p['id_product'], true);
-
+            if ($p['unit_price_tax_incl'] <= 0) {
+                continue;
+            }
             $products[$i]['product_id'] = $pp->id;
             $products[$i]['sku'] = $pp->sku;
             $products[$i]['name'] = $pp->name;
@@ -333,6 +423,9 @@ class Orders extends DataBase
         $products = [];
         foreach ($this->data->getProducts() as $p) {
             $pp = Product::getByID($p['id_product'], true);
+            if ($p['unit_price_tax_incl'] <= 0) {
+                continue;
+            }
             $products[$i]['product_id'] = $pp->id;
             $products[$i]['quantity'] = $p['product_quantity'];
 
@@ -373,8 +466,10 @@ class Orders extends DataBase
             'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
         ] as $v) {
             if ($v === 'products_api') {
+                /* @phpstan-ignore-next-line */
                 $out['products'] = $this->{$v};
             } else {
+                /* @phpstan-ignore-next-line */
                 $out[$v] = $this->{$v};
             }
         }
@@ -391,8 +486,10 @@ class Orders extends DataBase
             'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
         ] as $v) {
             if ($v === 'products_api') {
+                /* @phpstan-ignore-next-line */
                 $out['products'] = $this->{$v};
             } else {
+                /* @phpstan-ignore-next-line */
                 $out[$v] = $this->{$v};
             }
         }

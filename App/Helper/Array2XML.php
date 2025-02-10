@@ -16,8 +16,11 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
@@ -27,6 +30,10 @@
  */
 
 namespace Mktr\Helper;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 class Array2XML
 {
@@ -69,26 +76,32 @@ class Array2XML
 
     private static $nodeAdd = false;
 
-    public static function init(
-        $version = null,
-        $encoding = null,
-        $standalone = null,
-        $format_output = null,
-        $labelAttributes = null,
-        $labelCData = null,
-        $labelDocType = null,
-        $labelValue = null
-    ) {
-        self::setDomVersion($version);
-        self::setEncoding($encoding);
-        self::setStandalone($standalone);
-        self::setFormatOutput($format_output);
+    public static function init()
+    {
+        // $def = ['version', 'encoding', 'standalone', 'format_output', 'labelAttributes', 'labelCData', 'labelDocType', 'labelValue'];
+        $def2 = ['setDomVersion', 'setEncoding', 'setStandalone', 'setFormatOutput', 'setLabelAttributes', 'setLabelCData', 'setLabelDocType', 'setLabelValue'];
+        $args = func_get_args();
 
-        self::setLabelAttributes($labelAttributes);
-        self::setLabelCData($labelCData);
-        self::setLabelDocType($labelDocType);
-        self::setLabelValue($labelValue);
+        foreach ($def2 as $k => $v) {
+            if (isset($args[$k])) {
+                // $$v = $args[$k];
+                self::$v($args[$k]);
+            } else {
+                self::$v(null);
+                // $$v = null;
+            }
+        }
+        /*
+                self::setDomVersion($version);
+                self::setEncoding($encoding);
+                self::setStandalone($standalone);
+                self::setFormatOutput($format_output);
 
+                self::setLabelAttributes($labelAttributes);
+                self::setLabelCData($labelCData);
+                self::setLabelDocType($labelDocType);
+                self::setLabelValue($labelValue);
+        */
         self::$xml = new \DOMDocument(self::getDomVersion(), self::getEncoding());
 
         // self::$xml->xmlStandalone = self::isStandalone();
@@ -335,7 +348,7 @@ class Array2XML
             self::$xml = null;
 
             return self::$last_xml;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return self::$xml;
         }
     }

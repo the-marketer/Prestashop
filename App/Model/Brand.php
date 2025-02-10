@@ -16,12 +16,19 @@
  * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
  **/
 
 namespace Mktr\Model;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
 use Mktr\Helper\DataBase;
 
@@ -52,14 +59,16 @@ class Brand extends DataBase
     protected $direction = 'ASC';
     protected $dateFormat = 'Y-m-d H:i';
 
-    private static $i = null;
-    private static $curent = null;
+    private static $i;
+    private static $curent;
     private static $d = [];
 
     public static function i()
     {
         if (self::$i === null) {
-            self::$i = new static();
+            $class = get_called_class();
+            self::$i = new $class();
+            // self::$i = new static();
         }
 
         return self::$i;
@@ -95,7 +104,10 @@ class Brand extends DataBase
     public static function getByID($id, $new = false)
     {
         if ($new || !array_key_exists($id, self::$d)) {
-            self::$d[$id] = new static();
+            $class = get_called_class();
+            self::$d[$id] = new $class();
+            // self::$d[$id] = new static();
+            /* @phpstan-ignore-next-line */
             self::$d[$id]->data = new \Manufacturer($id, Config::getLang(), Config::shop());
         }
 
@@ -106,11 +118,13 @@ class Brand extends DataBase
 
     protected function getUrl()
     {
+        /* @phpstan-ignore-next-line */
         return Config::getContext()->link->getManufacturerLink($this->id);
     }
 
     protected function getImage()
     {
+        /* @phpstan-ignore-next-line */
         return Config::getContext()->link->getImageLink($this->id, 'img/m', null);
     }
 }
