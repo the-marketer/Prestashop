@@ -56,7 +56,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.1';
+        $this->version = '1.1.2';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -148,9 +148,11 @@ class Mktr extends \Module
                 /* Front */
                 'displayHeader',
                 'moduleRoutes',
-                'actionDispatcher',
                 'displayFooterAfter',
                 'displayFooterBefore',
+                'actionDispatcher',
+                'actionDispatcherBefore',
+                'actionControllerInitBefore',
                 /* Admin */
                 'displayBackOfficeHeader',
                 'actionOrderStatusUpdate',
@@ -161,6 +163,8 @@ class Mktr extends \Module
                 'displayHeader',
                 'moduleRoutes',
                 'actionDispatcher',
+                'actionDispatcherBefore',
+                'actionControllerInitBefore',
                 /* Admin */
                 'displayBackOfficeHeader',
                 'actionOrderStatusUpdate',
@@ -175,25 +179,32 @@ class Mktr extends \Module
 
         \Mktr\Helper\Setup::install();
         if (_PS_VERSION_ >= 1.6) {
+            foreach ($hook as $kk => $vv) {
+                if (!(\Hook::getIdByName($vv) > 0)) {
+                    unset($hook[$kk]);
+                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[ERROR] registerHook mktr.php - Line 186 [' . $vv . "]\n", FILE_APPEND);
+                }
+            }
             if (parent::install() && $this->registerHook($hook)) {
                 return true;
             } else {
-                $this->_errors[] = 'There was an error during the Install procces.';
-
-                return false;
+                $this->_errors[] = 'There was an error during registerHook procces.';
             }
         } else {
             if (!parent::install()) {
                 $this->_errors[] = 'There was an error during the Install procces.';
+                file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . "[ERROR] parent::install() mktr.php - Line 190\n", FILE_APPEND);
 
                 return false;
             }
 
             foreach ($hook as $kk => $vv) {
-                if (!$this->registerHook($vv)) {
-                    $this->_errors[] = 'There was an error during the Install procces.';
-
-                    return false;
+                if (\Hook::getIdByName($vv) > 0) {
+                    if (!$this->registerHook($vv)) {
+                        $this->_errors[] = 'There was an error during registerHook procces. [' . $vv . ']';
+                    }
+                } else {
+                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[ERROR] registerHook mktr.php - Line 200 [' . $vv . "]\n", FILE_APPEND);
                 }
             }
 
@@ -262,14 +273,29 @@ class Mktr extends \Module
 
     public function hookactionDispatcher()
     {
-        $cont = \Mktr\Helper\Valid::getParam('controller', null);
+        $this->initDispatcher();
+    }
 
-        if (_PS_VERSION_ < 1.7 && $cont !== null && strpos($cont, 'Admin') !== false && strpos($cont, 'admin') !== false) {
-            return true;
-        }
+    public function hookactionDispatcherBefore()
+    {
+        $this->initDispatcher();
+    }
 
+    public function hookactionControllerInitBefore()
+    {
+        $this->initDispatcher();
+    }
+
+    public function initDispatcher()
+    {
         if (self::$displayLoad['dispatcher'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['dispatcher'] = false;
+
+            $cont = \Mktr\Helper\Valid::getParam('controller', null);
+
+            if (_PS_VERSION_ < 1.7 && $cont !== null && strpos($cont, 'Admin') !== false && strpos($cont, 'admin') !== false) {
+                return true;
+            }
 
             // \Mktr\Helper\Session::init();
 
