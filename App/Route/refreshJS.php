@@ -233,17 +233,22 @@ window.mktr.ready = true;
     }
         
     window.mktr.setFetch = function () {
-        if (window.mktr.setStatus.Fetch == false && typeof window.fetch == "function") {
+        if (!window.mktr.setStatus.Fetch && typeof window.fetch === "function") {
             window.mktr.setStatus.Fetch = true;
             window.mktr.fetch = window.fetch;
-            window.fetch = function (data) {
-                let ret = window.mktr.fetch.apply(this, arguments);
-                window.mktr.toCheck(arguments[0]); return ret;
+
+            window.fetch = function () {
+                window.mktr.toCheck(arguments[0]);
+                return window.mktr.fetch.apply(this, arguments)
+                    .catch(err => {
+                        console.error("Fetch error:", err);
+                        throw err; /* re-throw to maintain behavior */
+                    });
             };
-        } else if(window.mktr.setStatus.Fetch == false) {
+        } else if (!window.mktr.setStatus.Fetch) {
             setTimeout(window.mktr.setFetch, 1000);
         }
-    }
+    };
     window.mktr.setAjax();
     window.mktr.setFetch();
 }

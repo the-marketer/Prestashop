@@ -27,7 +27,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-if (_PS_VERSION_ < 1.6) {
+if (_PS_VERSION_ < 1.7) {
     if (!defined('MKTR_ROOT')) {
         define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));
     }
@@ -67,6 +67,7 @@ class MktrController extends \AdminController
     {
         parent::__construct();
         self::$i = $this;
+        
         if (!\Mktr::$init) {
             new \Mktr();
         }

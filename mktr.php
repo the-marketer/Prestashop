@@ -506,7 +506,7 @@ class Mktr extends \Module
         $this->context->controller->addCSS($this->_path . 'views/css/back.css');
     }
 
-    public function hookDisplayHeader($params)
+    public function hScript()
     {
         if (self::$displayLoad['header'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['header'] = false;
@@ -521,23 +521,33 @@ class Mktr extends \Module
         }
     }
 
+    public function hookDisplayHeader($params)
+    {
+        return $this->hScript();
+    }
+
+    
     public function hookDisplayBeforeBodyClosingTag($params)
     {
+        $this->hScript();
         return $this->script();
     }
 
     public function hookDisplayFooter()
     {
+        $this->hScript();
         return $this->script();
     }
 
     public function hookDisplayFooterBefore($params)
     {
+        $this->hScript();
         return $this->script();
     }
 
     public function hookDisplayFooterAfter()
     {
+        $this->hScript();
         return $this->script();
     }
 
@@ -571,6 +581,10 @@ class Mktr extends \Module
                     $action = 'product';
                     $data = ['product_id' => \Mktr\Helper\Valid::getParam('id_product')];
                     break;
+                case 'orderopc':
+                    $action = 'checkout';
+                    $data = null;
+                break;
                 case 'order':
                     // case 'cart':
                     $data = 0;
@@ -681,8 +695,11 @@ class Mktr extends \Module
                     /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/Api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
                 }
             }
-
-            return PHP_EOL . implode(PHP_EOL, $events);
+            if (_PS_VERSION_ > 1.6) {
+                return PHP_EOL . implode(PHP_EOL, $events);
+            } else {
+                echo PHP_EOL . implode(PHP_EOL, $events);
+            }
         }
     }
 
