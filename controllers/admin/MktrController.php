@@ -67,9 +67,10 @@ class MktrController extends \AdminController
     {
         parent::__construct();
         self::$i = $this;
-        
+
         if (!\Mktr::$init) {
-            new \Mktr();
+            \Module::getInstanceByName('Mktr');
+            // new \Mktr();
         }
     }
 

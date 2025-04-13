@@ -112,10 +112,10 @@ window.mktr.ready = true;
     window.mktr.setEmail = true;
     window.mktr.saveOrder = true;
     window.mktr.selectors = "' . addslashes(self::c()->selectors) . '";
-    window.mktr.apiScript = {
-        set_email : "setEmail",
-        save_order : "saveOrder"
-    };
+    window.mktr.apiScript = { set_email : "setEmail", save_order : "saveOrder" };
+
+    window.mktr.sProductWishlist = window.mktr.sProductWishlist || [];
+    window.mktr.eProductWishlist = window.mktr.eProductWishlist || [];
 
     window.mktr.eventsName = {
         "home_page":"__sm__view_homepage",
@@ -126,6 +126,7 @@ window.mktr.ready = true;
         "remove_from_cart":"__sm__remove_from_cart",
         "add_to_wish_list":"__sm__add_to_wishlist",
         "remove_from_wishlist":"__sm__remove_from_wishlist",
+        "wishlist": "standBy",
         "checkout":"__sm__initiate_checkout",
         "supercheckout":"__sm__initiate_checkout",
         /* "default":"__sm__initiate_checkout", */
@@ -138,7 +139,18 @@ window.mktr.ready = true;
         if (data === null) { data = {}; }
         if (name !== null && window.mktr.eventsName.hasOwnProperty(name)) { data.event = window.mktr.eventsName[name]; }
         ' . (_PS_MODE_DEV_ ? 'if (!window.mktr.eventsName.hasOwnProperty(name)){ data.event = name; data.type = "notListed"; }' : '') . '
-        if (typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
+
+        if (typeof dataLayer !== "undefined" && data.event === "standBy") {
+            window.mktr.eProductWishlist = window.mktr.eProductWishlist.filter(val => {
+                if (val.product_id == data.product_id || val.product_id == data.variation.id) {
+                    data.event = val.event; dataLayer.push(data); return false;
+                }
+                return true;
+            });
+            if (data.event === "standBy") {
+                window.mktr.sProductWishlist.push(data);
+            }
+        } else if(typeof dataLayer != "undefined" && data.event != "undefined" && window.mktr.ready) {
             dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . '
             /*if (window.mktr.apiScript.hasOwnProperty(name) && window.mktr[window.mktr.apiScript[name]]) {
                 window.mktr[window.mktr.apiScript[name]] = false; window.mktr.loadScript(window.mktr.apiScript[name]);
@@ -146,6 +158,33 @@ window.mktr.ready = true;
         } else {
             window.mktr.pending.push(data); setTimeout(window.mktr.retry, 2000);
         }
+    }
+
+    window.mktr.wishList = function (event, product_id) {
+        window.mktr.sProductWishlist = window.mktr.sProductWishlist.filter(val => {
+            if (event !== "found" && (val.product_id == product_id || val.variation.id == product_id)) {
+                val.event = event; dataLayer.push(val); event = "found"; return false;
+            }
+            return true;
+        });
+        if (event !== "found") {
+            window.mktr.eProductWishlist.push({ event, product_id });
+        }
+    };
+
+    if (typeof window.send_add_to_wishlist_event == "function") {
+        window.mktr.originalSendAddToWishlistEvent = window.send_add_to_wishlist_event;
+        window.send_add_to_wishlist_event = function () {
+            window.mktr.wishList("__sm__add_to_wishlist", arguments[0]);
+            return window.mktr.originalSendAddToWishlistEvent(...arguments);
+        };
+    }
+    if (typeof window.send_remove_from_wishlist_event == "function") {
+        window.mktr.originalSendRemoveFromWishlistEvent = window.send_remove_from_wishlist_event;
+        window.send_remove_from_wishlist_event = function () {
+            window.mktr.wishList("__sm__remove_from_wishlist", arguments[0]);
+            window.mktr.originalSendRemoveFromWishlistEvent(...arguments);
+        };
     }
 
     window.mktr.retry = function () {
@@ -199,7 +238,7 @@ window.mktr.ready = true;
         }
     };
 
-    if (typeof prestashop === "object") {
+    if (typeof prestashop === "object" && typeof prestashop.on === "function") {
         prestashop.on("updateCart", function (event) {
             if(window.mktr.loading && typeof event === "object" && typeof event.reason === "object" && event.reason.hasOwnProperty("linkAction")) {
                 if (event.reason.linkAction === "add-to-cart" || event.reason.linkAction === "delete-from-cart") {
@@ -218,37 +257,37 @@ window.mktr.ready = true;
             Fetch: false
         };
     }
-        
-    window.mktr.setAjax = function () {
-        if (window.mktr.setStatus.Ajax == false && typeof $.ajax == "function") {
-            window.mktr.ajax = $.ajax;
-            window.mktr.setStatus.Ajax = true;
-            window.$.ajax = function (data) {
-                let ret = window.mktr.ajax.apply(this, arguments);
-                window.mktr.toCheck(arguments[0].url, arguments[0].data); return ret;
-            };
-        } else if(window.mktr.setStatus.Ajax == false) {
-            setTimeout(window.mktr.setAjax, 1000);
-        }
-    }
-        
-    window.mktr.setFetch = function () {
-        if (!window.mktr.setStatus.Fetch && typeof window.fetch === "function") {
-            window.mktr.setStatus.Fetch = true;
-            window.mktr.fetch = window.fetch;
 
-            window.fetch = function () {
-                window.mktr.toCheck(arguments[0]);
-                return window.mktr.fetch.apply(this, arguments)
-                    .catch(err => {
-                        console.error("Fetch error:", err);
-                        throw err; /* re-throw to maintain behavior */
-                    });
-            };
-        } else if (!window.mktr.setStatus.Fetch) {
-            setTimeout(window.mktr.setFetch, 1000);
+    window.mktr.setAjax = function () {
+        if (window.mktr.setStatus.Ajax || typeof window.$ !== "function" || typeof $.ajax !== "function") {
+            if (!window.mktr.setStatus.Ajax) { setTimeout(window.mktr.setAjax, 1000); }
+            return;
         }
+
+        window.mktr.ajax = $.ajax;
+        window.mktr.setStatus.Ajax = true;
+        $.ajax = function (...args) {
+            const config = (typeof args[0] === "object") ? args[0] : {};
+            if (window.mktr.toCheck && typeof window.mktr.toCheck === "function") {
+                window.mktr.toCheck(config.url, config.data);
+            }
+            return window.mktr.ajax.apply(this, args);
+        };
     };
+    
+    window.mktr.setFetch = function () {
+        if (window.mktr.setStatus.Fetch || typeof window.fetch !== "function") {
+            if (!window.mktr.setStatus.Fetch) { setTimeout(window.mktr.setFetch, 1000); }
+            return;
+        }
+        window.mktr.originalFetch = window.fetch.bind(window);
+        window.mktr.setStatus.Fetch = true;
+        window.fetch = function (...args) {
+            if (window.mktr.toCheck && typeof window.mktr.toCheck === "function") { window.mktr.toCheck(args[0]); }
+            return window.mktr.originalFetch(...args);
+        };
+    };
+
     window.mktr.setAjax();
     window.mktr.setFetch();
 }

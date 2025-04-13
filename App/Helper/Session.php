@@ -213,6 +213,11 @@ class Session
         self::sessionSet('remove_from_wishlist', [$pId, $pAttr]);
     }
 
+    public static function Wishlist($pId, $pAttr = 0)
+    {
+        self::sessionSet('wishlist', [$pId, $pAttr]);
+    }
+
     public static function addToCart($pId, $pAttr, $qty)
     {
         $qty = $qty <= 0 ? 1 : $qty;

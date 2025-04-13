@@ -62,6 +62,9 @@ class MktrApiModuleFrontController extends \FrontController
         'refreshjs' => [
             'key' => 'Required|Key',
         ],
+        'checkhook' => [
+            'key' => 'Required|Key',
+        ],
     ];
 
     private static $page_mime = [
@@ -77,6 +80,7 @@ class MktrApiModuleFrontController extends \FrontController
         'clearevents' => 'js',
         'setemail' => 'js',
         'saveorder' => 'js',
+        'checkhook' => 'json',
     ];
 
     private static $Route = [
@@ -92,6 +96,7 @@ class MktrApiModuleFrontController extends \FrontController
         'clearevents' => 'ClearEvents', // ToDo
         'setemail' => 'setEmail', // ToDo
         'saveorder' => 'saveOrder', // ToDo
+        'checkhook' => 'CheckHook', // ToDo
     ];
 
     public static $page_tree = [

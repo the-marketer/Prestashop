@@ -141,11 +141,17 @@ class Mktr extends \Module
         }
     }
 
+    public function gFile($fn)
+    {
+        return 'mktr/' . explode('mktr/', $fn)[1];
+    }
+
     public function install()
     {
         if (_PS_VERSION_ >= 1.6) {
             $hook = [
                 /* Front */
+                'Header',
                 'displayHeader',
                 'moduleRoutes',
                 'displayFooterAfter',
@@ -178,13 +184,31 @@ class Mktr extends \Module
         }
 
         \Mktr\Helper\Setup::install();
+
         if (_PS_VERSION_ >= 1.6) {
             foreach ($hook as $kk => $vv) {
                 if (!(\Hook::getIdByName($vv) > 0)) {
                     unset($hook[$kk]);
-                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[ERROR] registerHook mktr.php - Line 186 [' . $vv . "]\n", FILE_APPEND);
+                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
                 }
             }
+
+            $exist = [];
+            foreach ($hook as $kk => $vv) {
+                if ($this->isRegisteredInHook($vv)) {
+                    $exist[] = $vv;
+                    unset($hook[$kk]);
+                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[EXIST] ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
+                }
+            }
+
+            if (in_array('displayHeader', $hook) && in_array('Header', $exist)) {
+                $key = array_search('displayHeader', $hook);
+                if ($key !== false) {
+                    unset($hook[$key]);
+                }
+            }
+
             if (parent::install() && $this->registerHook($hook)) {
                 return true;
             } else {
@@ -193,7 +217,7 @@ class Mktr extends \Module
         } else {
             if (!parent::install()) {
                 $this->_errors[] = 'There was an error during the Install procces.';
-                file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . "[ERROR] parent::install() mktr.php - Line 190\n", FILE_APPEND);
+                file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] parent::install() ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . "\n", FILE_APPEND);
 
                 return false;
             }
@@ -204,7 +228,7 @@ class Mktr extends \Module
                         $this->_errors[] = 'There was an error during registerHook procces. [' . $vv . ']';
                     }
                 } else {
-                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[ERROR] registerHook mktr.php - Line 200 [' . $vv . "]\n", FILE_APPEND);
+                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
                 }
             }
 
@@ -402,6 +426,12 @@ class Mktr extends \Module
                         \Mktr\Helper\Session::removeFromWishlist($p, 0);
                         \Mktr\Helper\Session::save();
                     }
+                } elseif ($action === 'toggleProductWishlist') {
+                    $p = \Mktr\Helper\Valid::getParam('id_product', null);
+                    if ($p !== null) {
+                        \Mktr\Helper\Session::Wishlist($p, 0);
+                        \Mktr\Helper\Session::save();
+                    }
                 }
             }
 
@@ -521,33 +551,33 @@ class Mktr extends \Module
         }
     }
 
-    public function hookDisplayHeader($params)
+    public function hookHeader($params = null)
     {
         return $this->hScript();
     }
 
-    
-    public function hookDisplayBeforeBodyClosingTag($params)
+    public function hookDisplayHeader($params = null)
     {
-        $this->hScript();
+        return $this->hScript();
+    }
+
+    public function hookDisplayBeforeBodyClosingTag($params = null)
+    {
         return $this->script();
     }
 
     public function hookDisplayFooter()
     {
-        $this->hScript();
         return $this->script();
     }
 
-    public function hookDisplayFooterBefore($params)
+    public function hookDisplayFooterBefore($params = null)
     {
-        $this->hScript();
         return $this->script();
     }
 
     public function hookDisplayFooterAfter()
     {
-        $this->hScript();
         return $this->script();
     }
 
@@ -584,7 +614,7 @@ class Mktr extends \Module
                 case 'orderopc':
                     $action = 'checkout';
                     $data = null;
-                break;
+                    break;
                 case 'order':
                     // case 'cart':
                     $data = 0;
@@ -695,11 +725,13 @@ class Mktr extends \Module
                     /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/Api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
                 }
             }
+
+            return PHP_EOL . implode(PHP_EOL, $events);
+            /*
             if (_PS_VERSION_ > 1.6) {
-                return PHP_EOL . implode(PHP_EOL, $events);
             } else {
                 echo PHP_EOL . implode(PHP_EOL, $events);
-            }
+            }*/
         }
     }
 
