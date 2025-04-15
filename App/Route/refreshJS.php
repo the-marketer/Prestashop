@@ -75,10 +75,13 @@ if (typeof window.mktr.PS_VERSION == "undefined") {
     window.mktr.MKTR_VERSION = "' . \Mktr::i()->version . '";
     window.mktr.debug = function () { if (typeof dataLayer != "undefined") { for (let i of dataLayer) { console.log("Mktr", "Google", i); } } };
     window.mktr.ready = false;
+    window.mktr.page = null;
+    window.mktr.params = window.mktr.params || new URLSearchParams(window.location.search);
     window.mktr.pending = window.mktr.pending || [];
     window.mktr.toLoad = window.mktr.toLoad || [];
     window.mktr.retryCount = 0;
     window.mktr.loading = true;
+    window.mktr.original = window.mktr.original || {};
 ';
 
             if (\Mktr\Model\Config::showGoogle()) {
@@ -97,6 +100,94 @@ j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNo
                 $base = '"' . \Tools::getShopDomainSsl(true) . '"';
             } else {
                 $base = 'baseUri';
+            }
+            if (self::c()->js_status) {
+                $js_status = '
+    if (typeof window.ajaxCart.add == "function") {
+        window.mktr.original.add = window.ajaxCart.add;
+        window.ajaxCart.add = function () {
+            setTimeout(window.mktr.loadEvents, 2000);
+            window.mktr.original.add(...arguments);
+        };
+    }
+    if (typeof window.ajaxCart.remove == "function") {
+        window.mktr.original.remove = window.ajaxCart.remove;
+        window.ajaxCart.remove = function () {
+            setTimeout(window.mktr.loadEvents, 2000);
+            window.mktr.original.remove(...arguments);
+        };
+    }
+    /* northfinder */
+    if (typeof window.send_add_to_wishlist_event == "function") {
+        window.mktr.original.send_add_to_wishlist_event = window.send_add_to_wishlist_event;
+        window.send_add_to_wishlist_event = function () {
+            window.mktr.wishList("__sm__add_to_wishlist", arguments[0]);
+            return window.mktr.original.send_add_to_wishlist_event(...arguments);
+        };
+    }
+    if (typeof window.send_remove_from_wishlist_event == "function") {
+        window.mktr.original.send_remove_from_wishlist_event = window.send_remove_from_wishlist_event;
+        window.send_remove_from_wishlist_event = function () {
+            window.mktr.wishList("__sm__remove_from_wishlist", arguments[0]);
+            window.mktr.original.send_remove_from_wishlist_event(...arguments);
+        };
+    }
+    if (typeof window.send_newsletter_subscribe_event == "function") {
+        window.mktr.original.send_newsletter_subscribe_event = window.send_newsletter_subscribe_event;
+        window.send_newsletter_subscribe_event = function () {
+            setTimeout(window.mktr.loadEvents, 2000);
+            window.mktr.original.send_newsletter_subscribe_event(...arguments);
+        };
+    }
+    if (typeof window.send_create_account_event == "function") {
+        window.mktr.original.send_create_account_event = window.send_create_account_event;
+        window.send_create_account_event = function () {
+            setTimeout(window.mktr.loadEvents, 2000);
+            window.mktr.original.send_create_account_event(...arguments);
+        };
+    }
+    /* END northfinder */
+
+    setTimeout(function() {
+        switch ($("body").prop("id")) {
+            case "":
+            case "index":
+                window.mktr.page = [ "home_page", null];
+            break;
+            case "category":
+                window.mktr.loadData("category", window.location.pathname.match(/(\d+)-/)[1]);
+            break;
+            case "manufacturer":
+                window.mktr.loadData("brand", window.location.pathname.match(/(\d+)_/)[1]);
+            break;
+            case "search":
+                window.mktr.page = [ "search", { search_term: (window.mktr.params.get("search_query") ?? window.mktr.params.get("s")) } ];
+            break;
+            case "product":
+                if (typeof window.id_product != "undefined") {
+                    window.mktr.page = ["product", {product_id: window.id_product}];
+                }
+            break;
+            case "order-opc":
+                window.mktr.page = [ "checkout", null ];
+            break;
+            case "order":
+                if (window.mktr.params.get("step")) {
+                    window.mktr.page = [ "checkout", null];
+                }          
+            break;
+            default:
+        }
+        if (Array.isArray(window.mktr.page) && window.mktr.page[0]) {
+            window.mktr.buildEvent( window.mktr.page[0],  window.mktr.page[1]);
+        }
+    }, 1000);
+';
+            } else {
+                $js_status = '
+    window.mktr.setAjax();
+    window.mktr.setFetch();
+';
             }
             /** @phpstan-ignore-next-line */
             $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
@@ -172,21 +263,6 @@ window.mktr.ready = true;
         }
     };
 
-    if (typeof window.send_add_to_wishlist_event == "function") {
-        window.mktr.originalSendAddToWishlistEvent = window.send_add_to_wishlist_event;
-        window.send_add_to_wishlist_event = function () {
-            window.mktr.wishList("__sm__add_to_wishlist", arguments[0]);
-            return window.mktr.originalSendAddToWishlistEvent(...arguments);
-        };
-    }
-    if (typeof window.send_remove_from_wishlist_event == "function") {
-        window.mktr.originalSendRemoveFromWishlistEvent = window.send_remove_from_wishlist_event;
-        window.send_remove_from_wishlist_event = function () {
-            window.mktr.wishList("__sm__remove_from_wishlist", arguments[0]);
-            window.mktr.originalSendRemoveFromWishlistEvent(...arguments);
-        };
-    }
-
     window.mktr.retry = function () {
         if (typeof dataLayer != "undefined" && window.mktr.ready) {
             for (let data of window.mktr.pending) { if (data.event != "undefined") { dataLayer.push(data);' . (_PS_MODE_DEV_ ? ' window.mktr.debug();' : '') . ' } }        
@@ -202,7 +278,13 @@ window.mktr.ready = true;
         });
         */
         jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=Api&pg=GetEvents&mktr_time="+time, {}, function( data ) {
-            for (let i of data) { window.mktr.buildEvent(i[0],i[1]); }
+            if (Array.isArray(data)) { for (let i of data) { window.mktr.buildEvent(i[0],i[1]); } }
+        });
+    };
+
+    window.mktr.loadData = function (event, id) { let time = (new Date()).getTime(); window.mktr.loading = true;
+        jQuery.get(window.mktr.base + "?fc=module&module=mktr&controller=Api&pg=loadData&event="+event+"&id="+id+"&mktr_time="+time, {}, function( data ) {
+            if (Array.isArray(data)) { for (let i of data) { window.mktr.buildEvent(i[0],i[1]); } }
         });
     };
 
@@ -283,15 +365,22 @@ window.mktr.ready = true;
         window.mktr.originalFetch = window.fetch.bind(window);
         window.mktr.setStatus.Fetch = true;
         window.fetch = function (...args) {
+            if (typeof args[0] === "string") {
+                let url = args[0]; let currentProtocol = window.location.protocol;
+                if (currentProtocol === "https:" && url.startsWith("http:")) {
+                    args[0] = url.replace(/^http:/, "https:");
+                } else if (currentProtocol === "http:" && url.startsWith("https:")) {
+                    args[0] = url.replace(/^https:/, "http:");
+                }
+            }
             if (window.mktr.toCheck && typeof window.mktr.toCheck === "function") { window.mktr.toCheck(args[0]); }
             return window.mktr.originalFetch(...args);
         };
     };
-
-    window.mktr.setAjax();
-    window.mktr.setFetch();
+    ' . $js_status . '
 }
 ';
+
             if (self::c()->js_file !== '' && file_exists(MKTR_APP . 'mktr.' . self::c()->js_file . '.js')) {
                 unlink(MKTR_APP . 'mktr.' . self::c()->js_file . '.js');
             }

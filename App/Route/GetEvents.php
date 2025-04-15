@@ -50,6 +50,7 @@ class GetEvents
             'remove_from_wishlist' => '__sm__remove_from_wishlist',
             'save_order' => '__sm__order',
             'set_email' => '__sm__set_email',
+            'wishlist' => 'standBy',
         ];
         $events = [];
 
@@ -139,43 +140,48 @@ class GetEvents
                                     $value1['lastname'] = $v->lastname;
                                 }
                             }
-                            if ($phone !== null) {
+                            if ($phone !== null && !empty($phone)) {
                                 $value1['phone'] = \Mktr\Helper\Valid::validateTelephone($phone);
                             }
                         }
 
-                        $events[] = [$event, $value1];
+                        if (empty($value1['phone'])) {
+                            unset($value1['phone']);
+                        }
 
+                        $events[] = [$event, $value1];
                         if ($event === 'set_email') {
                             $info = [
                                 'email' => $v->email_address,
                             ];
+                            if ($v->subscribed || $remove) {
+                                if ($v->subscribed) {
+                                    $name = [];
 
-                            if ($v->subscribed) {
-                                $name = [];
+                                    if ($v->firstname !== null) {
+                                        $name[] = $v->firstname;
+                                    }
 
-                                if ($v->firstname !== null) {
-                                    $name[] = $v->firstname;
+                                    if ($v->lastname !== null) {
+                                        $name[] = $v->lastname;
+                                    }
+
+                                    $info['name'] = implode(' ', $name);
+
+                                    if ($v->phone !== null) {
+                                        $info['phone'] = $v->phone;
+                                    } elseif ($phone !== null) {
+                                        $info['phone'] = $phone;
+                                    }
+                                    if (empty($info['phone'])) {
+                                        unset($info['phone']);
+                                    }
+
+                                    \Mktr\Helper\Api::send('add_subscriber', $info);
+                                } else {
+                                    \Mktr\Helper\Api::send('remove_subscriber', $info);
                                 }
-
-                                if ($v->lastname !== null) {
-                                    $name[] = $v->lastname;
-                                }
-
-                                $info['name'] = implode(' ', $name);
-
-                                if ($v->phone !== null) {
-                                    $info['phone'] = $v->phone;
-                                } elseif ($phone !== null) {
-                                    $info['phone'] = $phone;
-                                }
-
-                                \Mktr\Helper\Api::send('add_subscriber', $info);
-                            } elseif ($remove) {
-                                \Mktr\Helper\Api::send('remove_subscriber', $info);
-                            }
-
-                            if (\Mktr\Helper\Api::getStatus() == 200) {
+                            } else {
                                 $toClean[] = $key;
                             }
                         }

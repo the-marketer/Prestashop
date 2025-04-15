@@ -77,6 +77,7 @@ class MktrApiModuleFrontController extends \FrontController
         'refreshjs' => 'json',
         'loadevents' => 'js',
         'getevents' => 'json',
+        'loaddata' => 'json',
         'clearevents' => 'js',
         'setemail' => 'js',
         'saveorder' => 'js',
@@ -92,6 +93,7 @@ class MktrApiModuleFrontController extends \FrontController
         'orders' => 'Orders',
         'refreshjs' => 'refreshJS',
         'getevents' => 'GetEvents',
+        'loaddata' => 'LoadData',
         'loadevents' => 'LoadEvents', // ToDo
         'clearevents' => 'ClearEvents', // ToDo
         'setemail' => 'setEmail', // ToDo

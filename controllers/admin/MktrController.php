@@ -368,6 +368,13 @@ class MktrController extends \AdminController
             $out .= \Mktr::i()->displayError(implode('<br />', self::$err['log']));
         }
 
+        $js_status = \Tools::getValue('js_status', null);
+
+        if ($js_status !== null) {
+            self::$config->update('js_status', $js_status);
+            self::$config->save();
+        }
+
         return $out . $helper->generateForm($this->getConfigForm());
     }
 

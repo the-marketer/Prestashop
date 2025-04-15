@@ -377,7 +377,14 @@ class Mktr extends \Module
                 }
             }
 
-            if (self::$checkList['update'] && self::$checkList['isAdd']) {
+            if ($action == 'toggleProductWishlist') {
+                $p = \Mktr\Helper\Valid::getParam('id_product', null);
+
+                if ($p !== null) {
+                    \Mktr\Helper\Session::Wishlist($p, 0);
+                    \Mktr\Helper\Session::save();
+                }
+            } elseif (self::$checkList['update'] && self::$checkList['isAdd']) {
                 \Mktr\Helper\Session::addToCart($pId, $pAttr, $qty);
                 \Mktr\Helper\Session::save();
             } elseif (self::$checkList['update'] && self::$checkList['isDel']) {
@@ -390,7 +397,7 @@ class Mktr extends \Module
                         break;
                     }
                 }
-                \Mktr\Helper\Session::removeFromCart($pId, $pAttr, (int) $qty);
+                \Mktr\Helper\Session::removeFromCart($pId, $pAttr, $qty);
                 \Mktr\Helper\Session::save();
             } elseif (_PS_VERSION_ >= 1.7 && $action !== null) {
                 if ($action === 'addProductToWishlist') {
@@ -424,12 +431,6 @@ class Mktr extends \Module
                     $p = \Mktr\Helper\Valid::getParam('id_product', null);
                     if ($p !== null) {
                         \Mktr\Helper\Session::removeFromWishlist($p, 0);
-                        \Mktr\Helper\Session::save();
-                    }
-                } elseif ($action === 'toggleProductWishlist') {
-                    $p = \Mktr\Helper\Valid::getParam('id_product', null);
-                    if ($p !== null) {
-                        \Mktr\Helper\Session::Wishlist($p, 0);
                         \Mktr\Helper\Session::save();
                     }
                 }
@@ -583,6 +584,9 @@ class Mktr extends \Module
 
     public function script()
     {
+        if (\Mktr\Model\Config::showJsOut()) {
+            self::$displayLoad['footer'] = false;
+        }
         if (self::$displayLoad['footer'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['footer'] = false;
 

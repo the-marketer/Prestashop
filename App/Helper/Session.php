@@ -220,13 +220,13 @@ class Session
 
     public static function addToCart($pId, $pAttr, $qty)
     {
-        $qty = $qty <= 0 ? 1 : $qty;
+        $qty = $qty <= 0 ? '1' : $qty;
         self::sessionSet('add_to_cart', [$pId, $pAttr, $qty]);
     }
 
     public static function removeFromCart($pId, $pAttr, $qty)
     {
-        $qty = $qty <= 0 ? 1 : $qty;
+        $qty = $qty <= 0 ? '1' : $qty;
         self::sessionSet('remove_from_cart', [$pId, $pAttr, $qty]);
     }
 

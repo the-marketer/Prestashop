@@ -50,6 +50,7 @@ class Config
         'brand' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_BRAND', 'default' => ['brand'], 'type' => 'array'],
         'color' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_COLOR', 'default' => ['color'], 'type' => 'array'],
         'size' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_SIZE', 'default' => ['size'], 'type' => 'array'],
+        'js_status' => ['key' => 'MKTR_TRACKER_JS_STATUS', 'default' => false, 'type' => 'bool'],
         'google_status' => ['key' => 'MKTR_GOOGLE_GOOGLE_STATUS', 'default' => false, 'type' => 'bool'],
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
     ];
@@ -72,6 +73,7 @@ class Config
         'brand' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_BRAND', 'default' => ['brand'], 'type' => 'array'],
         'color' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_COLOR', 'default' => ['color'], 'type' => 'array'],
         'size' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_SIZE', 'default' => ['size'], 'type' => 'array'],
+        'js_status' => ['key' => 'MKTR_TRACKER_JS_STATUS', 'default' => 0, 'type' => 'int'],
         'google_status' => ['key' => 'MKTR_GOOGLE_GOOGLE_STATUS', 'default' => 0, 'type' => 'int'],
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
     ];
@@ -107,6 +109,7 @@ class Config
         'brand' => null,
         'color' => null,
         'size' => null,
+        'js_status' => null,
         'google_status' => null,
         'google_tagCode' => null,
     ];
@@ -349,6 +352,16 @@ class Config
         }
 
         return self::$checkData['showJs'];
+    }
+
+    public static function showJsOut($new = false)
+    {
+        if ($new === true || self::$checkData['showJsOut'] === null) {
+            $i = self::i();
+            self::$checkData['showJsOut'] = $i->js_status;
+        }
+
+        return self::$checkData['showJsOut'];
     }
 
     public static function rest($new = false)
