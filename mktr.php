@@ -98,6 +98,11 @@ class Mktr extends \Module
         fclose($file);
     }
 
+    public static function viewAccess()
+    {
+        return true;
+    }
+
     public static function preConfig()
     {
         if (self::$update) {

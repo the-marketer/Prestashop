@@ -129,6 +129,7 @@ class Config
 
     private static $checkData = [
         'showJs' => null,
+        'showJsOut' => null,
         'showGoogle' => null,
         'rest' => null,
     ];
