@@ -120,7 +120,6 @@ class Orders extends DataBase
     private static $i;
     private static $curent;
     private static $d = [];
-//    private static $shop;
     private static $orderState;
     private static $customerData = [];
     private static $adressData = [];
@@ -373,6 +372,9 @@ class Orders extends DataBase
             if (_PS_VERSION_ < 1.7 || version_compare(_PS_VERSION_, '1.7.7.0', '<')) {
                 $resume = \OrderSlip::getProductSlipResume($v['id_order_detail']);
                 $v['total_refunded_tax_incl'] = $resume['amount_tax_incl'];
+            } else {
+                $orderDetail = new \OrderDetail($v['id_order_detail']);
+                $v['total_refunded_tax_incl'] = $orderDetail->getRefundedAmount();
             }
             $this->refund += $v['total_refunded_tax_incl'];
         }

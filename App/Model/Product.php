@@ -448,8 +448,8 @@ class Product extends DataBase
             }
 
             if ($pricesDate['sale_price_end_date'] != 0) {
-                $pricesDate['sale_price_start_date'] = \DateTime::createFromFormat('U', (string)$pricesDate['sale_price_start_date']);
-                $pricesDate['sale_price_end_date'] = \DateTime::createFromFormat('U', (string)$pricesDate['sale_price_end_date']);
+                $pricesDate['sale_price_start_date'] = \DateTime::createFromFormat('U', (string) $pricesDate['sale_price_start_date']);
+                $pricesDate['sale_price_end_date'] = \DateTime::createFromFormat('U', (string) $pricesDate['sale_price_end_date']);
             } else {
                 $pricesDate['sale_price_start_date'] = null;
                 $pricesDate['sale_price_end_date'] = null;

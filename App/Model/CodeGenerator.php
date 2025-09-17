@@ -35,10 +35,6 @@ use Mktr\Helper\Valid;
 class CodeGenerator
 {
     private static $init;
-
-//    private static $map = [];
-
-//    private static $ruleType;
     private static $code;
 
     const PREFIX = 'MKTR-';

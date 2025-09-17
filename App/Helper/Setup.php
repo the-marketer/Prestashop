@@ -52,9 +52,8 @@ class Setup
         if (
             version_compare(_PS_VERSION_, '1.7.1.0', '>=')
             && class_exists('\PrestaShop\PrestaShop\Adapter\Tab\TabRepository')
-            && method_exists('\PrestaShop\PrestaShop\Adapter\Tab\TabRepository', 'getInstance')
         ) {
-            $tabRepository = \PrestaShop\PrestaShop\Adapter\Tab\TabRepository::getInstance();
+            $tabRepository = new \PrestaShop\PrestaShop\Adapter\Tab\TabRepository();
             return (int) $tabRepository->findOneIdByClassName($className);
         }
         return (int) \Tab::getIdFromClassName($className);

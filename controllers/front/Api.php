@@ -31,7 +31,6 @@ use Mktr\Helper\Valid;
 
 class MktrApiModuleFrontController extends \FrontController
 {
-//    private static $init;
     private static $page;
     private static $check = [
         'orders' => [
@@ -114,7 +113,6 @@ class MktrApiModuleFrontController extends \FrontController
     public function __construct()
     {
         parent::__construct();
-//        self::$init = $this;
         self::$page = Valid::getParam('pg', false, true);
     }
 

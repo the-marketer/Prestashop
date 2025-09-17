@@ -49,9 +49,6 @@ class Mktr extends \Module
         'dispatcher' => true,
     ];
 
-    //NOT USED
-//    private static $vr = [];
-//    private static $runAction = true;
 
     public function __construct()
     {
@@ -470,8 +467,8 @@ class Mktr extends \Module
                 }
             }
 
-            if (in_array($cont, ['success']) && \Mktr\Helper\Valid::getParam('module') == 'vivawalletsmartcheckout') {
-                if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController') && method_exists('VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
+            if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController')) {
+                if (is_callable(['VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId'])) {
                     $svOrder = \Mktr\Helper\Session::get('save_order');
                     $vivaWallet = \Mktr\Helper\Valid::getParam('s', null);
                     $expire = self::getExpire();

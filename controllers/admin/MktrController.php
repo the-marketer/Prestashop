@@ -339,7 +339,6 @@ class MktrController extends \AdminController
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitMktrModule';
         $helper->token = $this->token;
-//        $helper->dni_required = null;
         $helper->currentIndex = self::$currentIndex . '&page=' . self::$page;
         $values = $this->getConfigFormValues();
         $values['dni'] = 0;

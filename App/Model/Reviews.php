@@ -25,13 +25,17 @@
  **/
 
 namespace Mktr\Model;
+use PrestaShop\PrestaShop\Adapter\Module\ModuleManager;
 
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-if (!defined('MKTR_PS_COMMENTS')) {
-    define('MKTR_PS_COMMENTS', \Module::isEnabled('productcomments'));
+if (class_exists('\PrestaShop\PrestaShop\Adapter\Module\ModuleManager')) {
+    $moduleManager = new ModuleManager();
+    define('MKTR_PS_COMMENTS', $moduleManager->isInstalled('productcomments') && $moduleManager->isEnabled('productcomments'));
+} else {
+    define('MKTR_PS_COMMENTS', false);
 }
 
 if (MKTR_PS_COMMENTS) {
@@ -87,7 +91,7 @@ class Reviews
             $cName[] = $customer->firstname;
         }
         /** @phpstan-ignore-next-line */
-        /** @var \ProductComment $comment */
+        /* @var \ProductComment $comment */
         $comment = new \ProductComment();
         $comment->id_product = (int) $value->product_id;
         $comment->id_customer = $customer->id_customer;
@@ -99,7 +103,7 @@ class Reviews
         $comment->validate = 1;
 
         if ($comment->add()) {
-            /** @var \ProductComment $comment */
+            /* @var \ProductComment $comment */
             $comment->date_add = (new \DateTime($value->review_date))->format('Y-m-d H:i:s');
             $comment->save();
 

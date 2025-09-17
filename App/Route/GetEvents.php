@@ -67,8 +67,11 @@ class GetEvents
                                 $value1['id'] = \Order::getIdByCartId($value1['id']);
                             }
 
-                            if ($value1['id'] == false && method_exists('\Order', 'getOrderByCartId')) {
-                                $value1['id'] = \Order::getOrderByCartId($value1['id']);
+                            if (method_exists('\Order', 'getIdByCartId')) {
+                                $value1['id'] = \Order::getIdByCartId($value1['id']);
+                                if (empty($value1['id']) && method_exists('\Order', 'getOrderByCartId')) {
+                                    $value1['id'] = \Order::getOrderByCartId($value1['id']);
+                                }
                             }
 
                             if (empty($value1['id'])) {

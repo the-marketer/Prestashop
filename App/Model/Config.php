@@ -214,25 +214,6 @@ class Config
         }
     }
 
-    //NOT USED
-//    private function toArray()
-//    {
-//        $list = [];
-//        self::CFG();
-//        foreach (self::$CFG_DATA as $key => $value) {
-//            if (!in_array($key, $this->hide)) {
-//                $value = $this->{$key};
-//                if (null !== self::$CFG_DATA[$key]['type'] && in_array(self::$CFG_DATA[$key]['type'], ['date', 'datetime'])) {
-//                    $list[$key] = $value->format(self::$dateFormat);
-//                } else {
-//                    $list[$key] = $value;
-//                }
-//            }
-//        }
-//
-//        return $list;
-//    }
-
     public function __get($name)
     {
         self::CFG();
@@ -309,18 +290,16 @@ class Config
         return self::$db;
     }
 
-    private function setContext($c)
+    public static function setContext($c)
     {
         self::$context = $c;
-
-        return $this;
+        return self::i();
     }
 
-    private function setLang($lang)
+    public static function setLang($lang)
     {
         self::$lang_id = $lang;
-
-        return $this;
+        return self::i();
     }
 
     public function asString($name)

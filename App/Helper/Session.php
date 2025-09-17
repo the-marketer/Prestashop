@@ -132,7 +132,9 @@ class Session
                     'expire' => date('Y-m-d H:i:s', strtotime('+2 day')),
                 ];
 
-                if (count(self::init()->org) > 0) {
+                /* @var Session $session */
+                $session = self::init();
+                if (count($session->org) > 0) {
                     $sql = 'UPDATE `' . self::$MKTR_TABLE . '` SET ';
                     $updates = [];
 
@@ -167,11 +169,13 @@ class Session
                     Config::db()->query('INSERT INTO `' . self::$MKTR_TABLE . '` (' . $columns . ') VALUES (' . $values . ')');
                     $range_id = (int) Config::db()->Insert_ID();
                 }
-                self::init()->org = self::init()->data;
+                $session->org = $session->data;
             } else {
                 Config::db()->query('DELETE FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
-                self::init()->org = [];
-                self::init()->data = [];
+                /* @var Session $session */
+                $session = self::init();
+                $session->org = [];
+                $session->data = [];
             }
 
             self::clearIfExipire();

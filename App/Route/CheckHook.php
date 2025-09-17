@@ -128,7 +128,6 @@ class CheckHook
 
                 return $send;
             }
-
         } else {
             return file_get_contents(MKTR_APP . 'Storage/install.log');
         }
