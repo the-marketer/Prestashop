@@ -76,21 +76,17 @@ abstract class DataBase
         }
     }
 
-    private function toArray($if = null)
+    public function toArray($if = null)
     {
         $list = [];
         if ($this->attributes) {
             foreach ($this->attributes as $key => $value) {
                 if (!in_array($key, $this->hide)) {
                     $value = $this->{$key};
-                    if ($value !== null && array_key_exists($key, $this->cast) && in_array($this->cast[$key], ['date', 'datetime'])) {
-                        if ($value === null) {
-                            $list[$key] = null;
-                        } else {
-                            $list[$key] = $value->format($this->dateFormat);
-                            if ($list[$key] === '-0001-11-30 00:00') {
-                                $list[$key] = '2000-01-01 00:00';
-                            }
+                    if (array_key_exists($key, $this->cast) && in_array($this->cast[$key], ['date', 'datetime']) && $value !== null) {
+                        $list[$key] = $value->format($this->dateFormat);
+                        if ($list[$key] === '-0001-11-30 00:00') {
+                            $list[$key] = '2000-01-01 00:00';
                         }
                     } else {
                         if ($if !== null && in_array($key, $if)) {
@@ -193,7 +189,7 @@ abstract class DataBase
             case 'array':
                 return call_user_func('serialize', $value);
             case 'json':
-                return json_encode($value, true);
+                return json_encode($value, JSON_PRETTY_PRINT);
             case 'date':
             case 'datetime':
                 return $value->format('c');

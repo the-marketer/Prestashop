@@ -82,7 +82,7 @@ class Session
             $cookie = \Context::getContext()->cookie;
             if (!isset($cookie->__sm__uid) || $cookie->__sm__uid === false) {
                 self::$uid = uniqid();
-                $cookie->__sm__uid = self::$uid;
+                $cookie['__sm__uid'] = self::$uid;
                 $cookie->write();
             } else {
                 self::$uid = $cookie->__sm__uid;

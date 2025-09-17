@@ -214,23 +214,24 @@ class Config
         }
     }
 
-    private function toArray()
-    {
-        $list = [];
-        self::CFG();
-        foreach (self::$CFG_DATA as $key => $value) {
-            if (!in_array($key, $this->hide)) {
-                $value = $this->{$key};
-                if (null !== self::$CFG_DATA[$key]['type'] && in_array(self::$CFG_DATA[$key]['type'], ['date', 'datetime'])) {
-                    $list[$key] = $value->format(self::$dateFormat);
-                } else {
-                    $list[$key] = $value;
-                }
-            }
-        }
-
-        return $list;
-    }
+    //NOT USED
+//    private function toArray()
+//    {
+//        $list = [];
+//        self::CFG();
+//        foreach (self::$CFG_DATA as $key => $value) {
+//            if (!in_array($key, $this->hide)) {
+//                $value = $this->{$key};
+//                if (null !== self::$CFG_DATA[$key]['type'] && in_array(self::$CFG_DATA[$key]['type'], ['date', 'datetime'])) {
+//                    $list[$key] = $value->format(self::$dateFormat);
+//                } else {
+//                    $list[$key] = $value;
+//                }
+//            }
+//        }
+//
+//        return $list;
+//    }
 
     public function __get($name)
     {
@@ -255,7 +256,7 @@ class Config
         $this->load[$name] = true;
     }
 
-    private function getConfig($name)
+    protected function getConfig($name)
     {
         if (!array_key_exists($name, $this->attributes) || $this->attributes[$name] === null) {
             $this->attributes[$name] = \Configuration::get($name);
@@ -264,7 +265,7 @@ class Config
         return $this->attributes[$name];
     }
 
-    private function setConfig($name, $value)
+    protected function setConfig($name, $value)
     {
         \Configuration::updateValue($name, $value);
         $this->attributes[$name] = $value;
@@ -481,7 +482,7 @@ class Config
             case 'array':
                 return call_user_func('serialize', $value);
             case 'json':
-                return json_encode($value, true);
+                return json_encode($value, JSON_PRETTY_PRINT);
             case 'date':
             case 'datetime':
                 return $value->format('c');

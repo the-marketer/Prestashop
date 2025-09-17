@@ -45,15 +45,9 @@ class saveOrder
                 if (array_key_exists('is_order', $sOrderData) && $sOrderData['is_order'] == false) {
                     if (is_array($sOrderData) && method_exists('\Order', 'getIdByCartId')) {
                         $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
-                    } elseif (method_exists('\Order', 'getOrderByCartId')) {
-                        $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
                     }
-                    if (is_array($sOrderData)) {
-                        if (method_exists('\Order', 'getIdByCartId')) {
-                            $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
-                        } elseif (method_exists('\Order', 'getOrderByCartId')) {
-                            $sOrderData['id'] = \Order::getOrderByCartId($sOrderData['id']);
-                        }
+                    if (is_array($sOrderData) && method_exists('\Order', 'getIdByCartId')) {
+                        $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
                     }
                     if ($sOrderData['id'] == false) {
                         \Mktr\Helper\Session::set('save_order', []);
@@ -123,7 +117,7 @@ class saveOrder
             }
         }
 
-        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), true) . ');' . implode('
+        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), JSON_PRETTY_PRINT) . ');' . implode('
 ', $events);
     }
 }

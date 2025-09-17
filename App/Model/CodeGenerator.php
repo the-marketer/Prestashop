@@ -36,9 +36,9 @@ class CodeGenerator
 {
     private static $init;
 
-    private static $map = [];
+//    private static $map = [];
 
-    private static $ruleType;
+//    private static $ruleType;
     private static $code;
 
     const PREFIX = 'MKTR-';
@@ -116,13 +116,13 @@ class CodeGenerator
         $coupon->id_customer = 0;
         $coupon->quantity = 1;
         $coupon->quantity_per_user = 1;
-        $coupon->reduction_tax = 1;
-        $coupon->active = 1;
+        $coupon->reduction_tax = true;
+        $coupon->active = true;
         /*
         if cumulated need to be 0,
         if can't use multiple discount codes need to be 1
         */
-        $coupon->cart_rule_restriction = 0;
+        $coupon->cart_rule_restriction = false;
         $coupon->minimum_amount_currency = $c;
         $coupon->reduction_currency = $c;
         // save the coupon

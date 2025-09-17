@@ -63,7 +63,7 @@ class Category extends DataBase
     private static $curent;
     private static $d = [];
 
-    private static $shop;
+//    private static $shop;
 
     public static function i()
     {

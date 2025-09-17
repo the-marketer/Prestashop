@@ -29,12 +29,11 @@ if (!defined('_PS_VERSION_')) {
 
 if (_PS_VERSION_ < 1.7) {
     if (!defined('MKTR_ROOT')) {
-        define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));
+        define('MKTR_ROOT', rtrim(_PS_ROOT_DIR_, '/') . '/');
     }
 
     if (!defined('MKTR_APP')) {
-        $d = MKTR_ROOT . 'modules/mktr/';
-        define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
+        define('MKTR_APP', rtrim(MKTR_ROOT . 'modules/mktr/', '/') . '/');
     }
 
     if (!class_exists('Mktr')) {
@@ -223,7 +222,7 @@ class MktrController extends \AdminController
             if (array_key_exists('values', $value)) {
                 $n['values'] = $value['values'];
                 foreach ($value['values'] as $key1 => $value1) {
-                    $n['values'][$key1]['label'] = $this->l($value1['label']);
+                    $n['values'][$key1]['label'] = $this->trans($value1['label']);
                 }
             }
 
@@ -249,7 +248,7 @@ class MktrController extends \AdminController
             ],
             'input' => $new,
             'submit' => [
-                'title' => $this->l('Save'),
+                'title' => $this->trans('Save'),
             ],
         ];
 
@@ -340,7 +339,7 @@ class MktrController extends \AdminController
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitMktrModule';
         $helper->token = $this->token;
-        $helper->dni_required = null;
+//        $helper->dni_required = null;
         $helper->currentIndex = self::$currentIndex . '&page=' . self::$page;
         $values = $this->getConfigFormValues();
         $values['dni'] = 0;

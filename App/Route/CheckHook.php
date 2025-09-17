@@ -129,7 +129,6 @@ class CheckHook
                 return $send;
             }
 
-            return ['status' => 'There was an error during registerHook procces.'];
         } else {
             return file_get_contents(MKTR_APP . 'Storage/install.log');
         }

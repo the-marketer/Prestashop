@@ -354,7 +354,7 @@ class Array2XML
     }
 
     /**
-     * @throws Exception
+     * @throws \Exception
      */
     private static function convert($node_name, $arr = [])
     {

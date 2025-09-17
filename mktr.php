@@ -28,12 +28,12 @@ if (!defined('_PS_VERSION_')) {
 }
 
 if (!defined('MKTR_ROOT')) {
-    define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));
+    define('MKTR_ROOT', rtrim(_PS_ROOT_DIR_, '/') . '/');
 }
 
 if (!defined('MKTR_APP')) {
     $d = MKTR_ROOT . 'modules/mktr/';
-    define('MKTR_APP', $d . (substr($d, -1) === '/' ? '' : '/'));
+    define('MKTR_APP', rtrim($d, '/') . '/');
 }
 
 class Mktr extends \Module
@@ -49,8 +49,9 @@ class Mktr extends \Module
         'dispatcher' => true,
     ];
 
-    private static $vr = [];
-    private static $runAction = true;
+    //NOT USED
+//    private static $vr = [];
+//    private static $runAction = true;
 
     public function __construct()
     {
@@ -218,6 +219,7 @@ class Mktr extends \Module
                 return true;
             } else {
                 $this->_errors[] = 'There was an error during registerHook procces.';
+                return false;
             }
         } else {
             if (!parent::install()) {
@@ -469,7 +471,7 @@ class Mktr extends \Module
             }
 
             if (in_array($cont, ['success']) && \Mktr\Helper\Valid::getParam('module') == 'vivawalletsmartcheckout') {
-                if (method_exists('\VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
+                if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController') && method_exists('VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
                     $svOrder = \Mktr\Helper\Session::get('save_order');
                     $vivaWallet = \Mktr\Helper\Valid::getParam('s', null);
                     $expire = self::getExpire();
@@ -643,7 +645,7 @@ class Mktr extends \Module
                                 $checkoutSteps = [];
                                 $action = 'checkout';
                                 $data = 1;
-                            } elseif ($this->context->controller->step == 1) {
+                            } elseif (property_exists($this->context->controller, 'step') && $this->context->controller->step == 1) {
                                 $checkoutSteps = [];
                                 $action = 'checkout';
                                 $data = $this->context->controller->step;

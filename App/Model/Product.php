@@ -326,7 +326,7 @@ class Product extends DataBase
     {
         $brand = new \Manufacturer($this->data->id_manufacturer, Config::getLang());
 
-        return isset($brand->name) ? $brand->name : 'N/A';
+        return !empty($brand->name) ? $brand->name : 'N/A';
     }
 
     protected function isCombination()
@@ -364,7 +364,7 @@ class Product extends DataBase
                 }
             }
 
-            if (!$mainImgID === null && $aImages !== null) {
+            if ($mainImgID !== null && $aImages !== null) {
                 foreach ($aImages as $attrImageId) {
                     if ((int) $attrImageId > 0) {
                         $mainImgID = $attrImageId;
@@ -448,8 +448,8 @@ class Product extends DataBase
             }
 
             if ($pricesDate['sale_price_end_date'] != 0) {
-                $pricesDate['sale_price_start_date'] = \DateTime::createFromFormat('U', $pricesDate['sale_price_start_date']);
-                $pricesDate['sale_price_end_date'] = \DateTime::createFromFormat('U', $pricesDate['sale_price_end_date']);
+                $pricesDate['sale_price_start_date'] = \DateTime::createFromFormat('U', (string)$pricesDate['sale_price_start_date']);
+                $pricesDate['sale_price_end_date'] = \DateTime::createFromFormat('U', (string)$pricesDate['sale_price_end_date']);
             } else {
                 $pricesDate['sale_price_start_date'] = null;
                 $pricesDate['sale_price_end_date'] = null;

@@ -47,6 +47,19 @@ class Setup
         ],
     ];
 
+    private static function getTabId($className)
+    {
+        if (
+            version_compare(_PS_VERSION_, '1.7.1.0', '>=')
+            && class_exists('\PrestaShop\PrestaShop\Adapter\Tab\TabRepository')
+            && method_exists('\PrestaShop\PrestaShop\Adapter\Tab\TabRepository', 'getInstance')
+        ) {
+            $tabRepository = \PrestaShop\PrestaShop\Adapter\Tab\TabRepository::getInstance();
+            return (int) $tabRepository->findOneIdByClassName($className);
+        }
+        return (int) \Tab::getIdFromClassName($className);
+    }
+
     public static function AddTabs()
     {
         $parent = null;
@@ -54,11 +67,11 @@ class Setup
         $mktr = null;
 
         foreach (self::TABS as $key => $value) {
-            if ((int) \Tab::getIdFromClassName($key) === 0) {
+            if (self::getTabId($key) === 0) {
                 $tab = new \Tab();
                 $tab->class_name = $key;
                 $tab->module = 'mktr';
-                $tab->active = 1;
+                $tab->active = true;
                 $tab->name[$lang] = $value['name'];
                 if (_PS_VERSION_ >= 1.7) {
                     $tab->icon = $value['ico'];
@@ -66,7 +79,7 @@ class Setup
                     $tab->wording_domain = 'Admin.Navigation.Menu';
                 }
                 if ($key !== 'Mktr' && $parent === null) {
-                    $parent = (int) \Tab::getIdFromClassName('Mktr');
+                    $parent = self::getTabId('Mktr');
                 }
                 $tab->id_parent = $key === 'Mktr' ? 0 : $parent;
                 $tab->add();
@@ -117,7 +130,7 @@ class Setup
         }
 
         foreach (self::TABS as $key => $value) {
-            $id_tab = (int) \Tab::getIdFromClassName($key);
+            $id_tab = self::getTabId($key);
             if ($id_tab) {
                 $tab = new \Tab($id_tab);
                 $tab->delete();
