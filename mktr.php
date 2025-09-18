@@ -55,6 +55,11 @@ class Mktr extends \Module
         'dispatcher' => true,
     ];
 
+    public static $checkList = [
+        'update' => false,
+        'isAdd' => false,
+        'isDel' => false,
+    ];
 
     public function __construct()
     {
@@ -484,6 +489,11 @@ class Mktr extends \Module
                     \Mktr\Helper\Session::set('save_order', $svOrder);
                     \Mktr\Helper\Session::save();
                 }
+            }
+
+            $vivaController = PS_MODULE_DIR . 'vivawallet/controllers/front/smartcheckout/success.php';
+            if (file_exists($vivaController)) {
+                require_once $vivaController;
             }
 
             if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController')) {

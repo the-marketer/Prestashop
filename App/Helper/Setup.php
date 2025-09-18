@@ -49,8 +49,7 @@ class Setup
 
     private static function getTabId($className)
     {
-            $tabRepository = new \PrestaShop\PrestaShop\Adapter\Tab\TabRepository();
-            return (int) $tabRepository->findOneIdByClassName($className);
+        return (int) \Tab::getIdFromClassName($className);
     }
 
     public static function AddTabs()
