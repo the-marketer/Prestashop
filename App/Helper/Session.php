@@ -39,7 +39,8 @@ class Session
     private static $MKTR_TABLE;
 
     private $data = [];
-    private $org = [];
+
+    protected $org = [];
 
     private $isDirty = false;
 
@@ -139,7 +140,7 @@ class Session
                     $updates = [];
 
                     foreach ($data as $key => $value) {
-                        if ($value !== null) {
+                        if (!empty($value)) {
                             $updates[] = "`$key` = '" . Config::db()->escape($value) . "'";
                         } else {
                             $updates[] = "`$key` = null";
@@ -155,7 +156,7 @@ class Session
                     $values[] = "'$uid'";
                     foreach ($data as $key => $value) {
                         $columns[] = "`$key`";
-                        if ($value !== null) {
+                        if (!empty($value)) {
                             $values[] = "'" . Config::db()->escape($value) . "'";
                         } else {
                             $values[] = 'null';

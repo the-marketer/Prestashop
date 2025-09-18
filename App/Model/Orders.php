@@ -112,16 +112,25 @@ class Orders extends DataBase
     protected $vars = [];
 
     protected $orderBy = 'id_order';
+
     protected $direction = 'ASC';
+
     protected $dateFormat = 'Y-m-d H:i';
+
     protected $refund = 0;
+
     protected $tmp_names;
 
     private static $i;
+
     private static $curent;
+
     private static $d = [];
+
     private static $orderState;
+
     private static $customerData = [];
+
     private static $adressData = [];
 
     public static function i()
@@ -365,23 +374,6 @@ class Orders extends DataBase
 
         return implode(' ', $adr);
     }
-
-    protected function getRefund()
-    {
-        foreach ($this->data->getOrderDetailList() as $v) {
-            if (_PS_VERSION_ < 1.7 || version_compare(_PS_VERSION_, '1.7.7.0', '<')) {
-                $resume = \OrderSlip::getProductSlipResume($v['id_order_detail']);
-                $v['total_refunded_tax_incl'] = $resume['amount_tax_incl'];
-            } else {
-                $orderDetail = new \OrderDetail($v['id_order_detail']);
-                $v['total_refunded_tax_incl'] = $orderDetail->getRefundedAmount();
-            }
-            $this->refund += $v['total_refunded_tax_incl'];
-        }
-
-        return $this->refund;
-    }
-
 
     protected function getTax()
     {

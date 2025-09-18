@@ -49,14 +49,8 @@ class Setup
 
     private static function getTabId($className)
     {
-        if (
-            version_compare(_PS_VERSION_, '1.7.1.0', '>=')
-            && class_exists('\PrestaShop\PrestaShop\Adapter\Tab\TabRepository')
-        ) {
             $tabRepository = new \PrestaShop\PrestaShop\Adapter\Tab\TabRepository();
             return (int) $tabRepository->findOneIdByClassName($className);
-        }
-        return (int) \Tab::getIdFromClassName($className);
     }
 
     public static function AddTabs()

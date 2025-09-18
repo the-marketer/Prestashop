@@ -40,6 +40,7 @@ class Category extends DataBase
         'url' => null,
         'hierarchy' => null,
     ];
+
     protected $ref = [
         'id' => 'id_category',
         'name' => 'name',
@@ -53,16 +54,20 @@ class Category extends DataBase
     ];
 
     protected $vars = [];
+
     protected $cast = [];
 
     protected $orderBy = 'id_category';
+
     protected $direction = 'ASC';
+
     protected $dateFormat = 'Y-m-d H:i';
 
     private static $i;
-    private static $curent;
-    private static $d = [];
 
+    private static $curent;
+
+    private static $d = [];
 
     public static function i()
     {
