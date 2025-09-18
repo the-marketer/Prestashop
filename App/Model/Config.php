@@ -26,6 +26,9 @@
 
 namespace Mktr\Model;
 
+use PrestaShop\PrestaShop\Core\Context\ShopContext;
+use PrestaShop\PrestaShop\Core\Context\LanguageContext;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -135,6 +138,23 @@ class Config
     ];
 
     private $hide = [];
+
+    /** @var ShopContext|null */
+    private static $shopContext;
+    /** @var LanguageContext|null */
+    private static $languageContext;
+
+    public static function setShopContext(ShopContext $shopContext)
+    {
+        self::$shopContext = $shopContext;
+        self::$shop = null;
+    }
+
+    public static function setLanguageContext(LanguageContext $languageContext)
+    {
+        self::$languageContext = $languageContext;
+        self::$lang_id = null;
+    }
 
     public static function nws()
     {
@@ -257,7 +277,11 @@ class Config
     public static function shop()
     {
         if (self::$shop === null) {
-            self::$shop = self::getContext()->shop->id;
+            if (self::$shopContext instanceof ShopContext) {
+                self::$shop = (int) self::$shopContext->getContextShopId();
+            } else {
+                self::$shop = (int) self::getLegacyContext()->shop->id;
+            }
         }
 
         return self::$shop;
@@ -266,13 +290,26 @@ class Config
     public static function getLang()
     {
         if (self::$lang_id === null) {
-            self::$lang_id = self::getContext()->language->id;
+            if (self::$languageContext instanceof LanguageContext) {
+                self::$lang_id = (int) self::$languageContext->getId();
+            } else {
+                self::$lang_id = (int) self::getLegacyContext()->language->id;
+            }
         }
 
         return self::$lang_id;
     }
 
+    /**
+     * @deprecated Kept only for legacy fallback.
+     * Avoid using directly; prefer the split context services.
+     */
     public static function getContext()
+    {
+        return self::getLegacyContext();
+    }
+
+    private static function getLegacyContext()
     {
         if (self::$context === null) {
             self::$context = \Context::getContext();

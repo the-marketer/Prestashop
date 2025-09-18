@@ -135,7 +135,7 @@ class Session
 
                 /* @var Session $session */
                 $session = self::init();
-                if (count($session->org) > 0) {
+                if (isset($session->org) && count($session->org) > 0) {
                     $sql = 'UPDATE `' . self::$MKTR_TABLE . '` SET ';
                     $updates = [];
 
