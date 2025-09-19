@@ -71,15 +71,6 @@ class Session
     public static function getUid()
     {
         if (self::$uid === null) {
-            // \Context::getContext()->session->__sm__uid = 'test';
-            // var_dump(\Context::getContext()->session->__sm__uid);
-            // \Context::getContext()->session->save();
-            // die();
-            // if (array_key_exists('__sm__uid', $_COOKIE)) {
-            //  setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
-            // } else {
-            //  self::$uid = $_COOKIE['__sm__uid'];
-            // }
             if (!isset($_COOKIE['__sm__uid']) || $_COOKIE['__sm__uid'] === false) {
                 self::$uid = uniqid();
                 setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
