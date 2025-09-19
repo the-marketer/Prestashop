@@ -490,7 +490,7 @@ class Mktr extends \Module
                 }
             }
 
-            $vivaController = _PS_MODULE_DIR . 'vivawallet/controllers/front/smartcheckout/success.php';
+            $vivaController = _PS_MODULE_DIR_ . 'vivawallet/controllers/front/smartcheckout/success.php';
             if (file_exists($vivaController)) {
                 require_once $vivaController;
             }

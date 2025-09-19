@@ -27,6 +27,7 @@
 namespace Mktr\Model;
 
 use PrestaShop\PrestaShop\Core\Context\ShopContext;
+
 use PrestaShop\PrestaShop\Core\Context\LanguageContext;
 
 if (!defined('_PS_VERSION_')) {
@@ -278,7 +279,7 @@ class Config
     {
         if (self::$shop === null) {
             if (self::$shopContext instanceof ShopContext) {
-                self::$shop = (int) self::$shopContext->getContextShopId();
+                self::$shop = (int) self::$shopContext->getContextShopID();
             } else {
                 self::$shop = (int) self::getLegacyContext()->shop->id;
             }
