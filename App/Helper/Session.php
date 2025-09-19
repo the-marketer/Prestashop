@@ -80,12 +80,11 @@ class Session
             // } else {
             //  self::$uid = $_COOKIE['__sm__uid'];
             // }
-            //$cookie = \Context::getContext()->cookie;
-            if (!isset($_COOKIE["__sm__uid"]) || $_COOKIE["__sm__uid"] === false) {
+            if (!isset($_COOKIE['__sm__uid']) || $_COOKIE['__sm__uid'] === false) {
                 self::$uid = uniqid();
                 setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
             } else {
-                self::$uid = $_COOKIE["__sm__uid"];
+                self::$uid = $_COOKIE['__sm__uid'];
             }
         }
 
