@@ -489,42 +489,43 @@ class Mktr extends \Module
                     \Mktr\Helper\Session::save();
                 }
             }
+            /*
+            $vivaController = _PS_MODULE_DIR_ . 'vivawallet/controllers/front/smartcheckout/success.php';
+            if (file_exists($vivaController)) {
+                require_once $vivaController;
+            }
 
-//            $vivaController = _PS_MODULE_DIR_ . 'vivawallet/controllers/front/smartcheckout/success.php';
-//            if (file_exists($vivaController)) {
-//                require_once $vivaController;
-//            }
-//
-//            if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController')) {
-//                if (is_callable(['VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId'])) {
-//                    $svOrder = \Mktr\Helper\Session::get('save_order');
-//                    $vivaWallet = \Mktr\Helper\Valid::getParam('s', null);
-//                    $expire = self::getExpire();
-//                    $id_order = null;
-//                    $cartId = null;
-//
-//                    if (method_exists('VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
-//                        $id_order = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, false);
-//
-//                        if (empty($id_order)) {
-//                            $cartId = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, true);
-//                            $id_order = null;
-//                        }
-//                    }
-//
-//                    if ($id_order === null) {
-//                        if ($cartId !== null) {
-//                            $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
-//                            \Mktr\Helper\Session::set('save_order', $svOrder);
-//                            \Mktr\Helper\Session::save();
-//                        }
-//                    } else {
-//                        $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
-//                        \Mktr\Helper\Session::set('save_order', $svOrder);
-//                        \Mktr\Helper\Session::save();
-//                    }
-//                }
-//            }
+            if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController')) {
+                if (is_callable(['VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId'])) {
+                    $svOrder = \Mktr\Helper\Session::get('save_order');
+                    $vivaWallet = \Mktr\Helper\Valid::getParam('s', null);
+                    $expire = self::getExpire();
+                    $id_order = null;
+                    $cartId = null;
+
+                    if (method_exists('VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
+                        $id_order = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, false);
+
+                        if (empty($id_order)) {
+                            $cartId = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, true);
+                            $id_order = null;
+                        }
+                    }
+
+                    if ($id_order === null) {
+                        if ($cartId !== null) {
+                            $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
+                            \Mktr\Helper\Session::set('save_order', $svOrder);
+                            \Mktr\Helper\Session::save();
+                        }
+                    } else {
+                        $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
+                        \Mktr\Helper\Session::set('save_order', $svOrder);
+                        \Mktr\Helper\Session::save();
+                    }
+                }
+            }
+            */
 
             if (isset($_COOKIE['EAX'])) {
                 if (\Mktr\Helper\Valid::getParam('orders') !== null) {
