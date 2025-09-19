@@ -23,12 +23,11 @@
  *
  * @docs        https://themarketer.com/resources/api
  **/
-
 namespace Mktr\Model;
 
 use PrestaShop\PrestaShop\Core\Context\LanguageContext;
-
 use PrestaShop\PrestaShop\Core\Context\ShopContext;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }

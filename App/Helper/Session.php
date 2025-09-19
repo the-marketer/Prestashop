@@ -127,9 +127,11 @@ class Session
         if (self::init()->isDirty) {
             $uid = self::getUid();
             $table_name = self::$MKTR_TABLE;
-            if (!empty(self::init()->data)) {
+            $session = self::init();
+
+            if (!empty($session->data)) {
                 $data = [
-                    'data' => call_user_func('serialize', self::init()->data),
+                    'data' => call_user_func('serialize', $session->data),
                     'expire' => date('Y-m-d H:i:s', strtotime('+2 day')),
                 ];
 
@@ -181,7 +183,7 @@ class Session
 
             self::clearIfExipire();
 
-            self::init()->isDirty = false;
+            $session->isDirty = false;
 
             return true;
         }
