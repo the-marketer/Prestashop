@@ -68,6 +68,7 @@ class Mktr extends \Module
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
+        $this->module_key = '4d03ed6733df2cd9460531dbf772b2d2';
 
         parent::__construct();
 
