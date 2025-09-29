@@ -1,3 +1,4 @@
 Storage/*
 !index.php
 .DS_Store
+.idea

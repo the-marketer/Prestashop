@@ -6,6 +6,9 @@
   "prefer-stable": true,
   "keywords": ["prestashop", "module", "themarketer"],
   "license": "MIT",
+  "config": {
+    "prepend-autoloader": false
+  },
   "require": {
     "php": ">=7.2",
     "prestashop/module-lib-mbo-installer": "^3.0"
