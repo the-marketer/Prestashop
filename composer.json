@@ -1,0 +1,13 @@
+{
+  "name": "mktr/prestashop",
+  "description": "theMarketer - PrestaShop Module",
+  "minimum-stability": "dev",
+  "author" : "theMarketer",
+  "prefer-stable": true,
+  "keywords": ["prestashop", "module", "themarketer"],
+  "license": "MIT",
+  "require": {
+    "php": ">=7.2",
+    "prestashop/module-lib-mbo-installer": "^3.0"
+  }
+}

@@ -242,7 +242,7 @@ class Product extends DataBase
         $i = self::i();
 
         $sql = 'SELECT * FROM `' . _DB_PREFIX_ . 'cart_product`' .
-        ' WHERE `id_cart` = "' . $cart_id . '" AND `id_product_attribute` = "' . (int) $id_product_attribute . '" AND `id_product` = "' . $id_product . '"';
+            ' WHERE `id_cart` = "' . (int) $cart_id . '" AND `id_product_attribute` = "' . (int) $id_product_attribute . '" AND `id_product` = "' . (int) $id_product . '"';
 
         return Config::db()->executeS($sql);
     }

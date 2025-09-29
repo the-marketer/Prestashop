@@ -271,6 +271,13 @@ class Mktr extends \Module
 
     public function getContent()
     {
+        $mboInstaller = new \Prestashop\ModuleLibMboInstaller\DependencyBuilder($this);
+        if (!$mboInstaller->areDependenciesMet()) {
+            $dependencies = $mboInstaller->handleDependencies();
+            $this->smarty->assign('dependencies', $dependencies);
+            return $this->display(__FILE__, 'views/templates/admin/dependency_builder.tpl');
+        }
+
         \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
 
         return null;
