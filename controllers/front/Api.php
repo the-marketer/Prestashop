@@ -27,6 +27,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+use Mktr\Helper\FileSystem;
 use Mktr\Helper\Valid;
 
 class MktrApiModuleFrontController extends \FrontController
@@ -118,6 +119,13 @@ class MktrApiModuleFrontController extends \FrontController
 
     public function __call($name, $arguments)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid method name.');
+            }
+            return null;
+        }
+
         if (array_key_exists($name, self::$Route)) {
             return call_user_func_array(['Mktr\\Route\\' . self::$Route[$name], 'run'], $arguments);
         } elseif (method_exists($this, $name)) {
@@ -138,6 +146,16 @@ class MktrApiModuleFrontController extends \FrontController
         $name = self::$page;
 
         if (array_key_exists($name, self::$page_mime)) {
+            if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+                Valid::Output('status', 'Invalid method name');
+                exit(0);
+            }
+
+            if (!array_key_exists($name, self::$Route)) {
+                Valid::Output('status', 'Invalid Page');
+                exit(0);
+            }
+
             $mime = Valid::getParam('mime-type', self::$page_mime[$name]);
 
             if (array_key_exists($name, self::$check)) {
@@ -162,11 +180,22 @@ class MktrApiModuleFrontController extends \FrontController
                 }
 
                 if ($file !== null) {
-                    header('Content-Disposition: attachment; filename=' . $fileName);
+                    $safeFileName = str_replace(["\r", "\n"], '', $fileName);
+                    $safeFileName = preg_replace('/[^A-Za-z0-9._-]/', '_', $safeFileName);
+                    $safeFileName = substr($safeFileName, 0, 150);
+                    if ($safeFileName === '') {
+                        $safeFileName = 'download.' . $mime;
+                    }
+                    header(
+                        'Content-Disposition: attachment; filename="' . $safeFileName .
+                        '"; filename*=UTF-8\'\'' . rawurlencode($safeFileName)
+                    );
                 }
 
-                if ($read !== null && $isStatic && self::fileExists($fileName)) {
-                    Valid::Output(self::readFile($fileName), null, null, true);
+                FileSystem::setWorkDirectory('Storage/');
+
+                if ($read !== null && $isStatic && FileSystem::fileExists($fileName)) {
+                    Valid::Output(FileSystem::readFile($fileName), null, null, true);
                 } else {
                     $out = $this->{$name}();
                     if (array_key_exists($name, self::$page_tree)) {
@@ -184,7 +213,7 @@ class MktrApiModuleFrontController extends \FrontController
                     }
 
                     if ($isStatic) {
-                        self::writeFile($fileName, Valid::getOutPut());
+                        FileSystem::writeFile($fileName, Valid::getOutPut());
                     }
                 }
             } else {
@@ -194,33 +223,5 @@ class MktrApiModuleFrontController extends \FrontController
             Valid::Output('status', 'Invalid Page');
         }
         exit(0);
-    }
-
-    public function writeFile($fName, $content, $mode = 'w+')
-    {
-        $file = fopen(MKTR_APP . 'Storage/' . $fName, $mode);
-        fwrite($file, $content);
-        fclose($file);
-    }
-
-    public function readFile($fName, $mode = 'rb')
-    {
-        $contents = false;
-        $lastPath = MKTR_APP . 'Storage/' . $fName;
-
-        if ($this->fileExists($fName)) {
-            $file = fopen($lastPath, $mode);
-
-            $contents = fread($file, filesize($lastPath));
-
-            fclose($file);
-        }
-
-        return $contents;
-    }
-
-    public function fileExists($fName)
-    {
-        return file_exists(MKTR_APP . 'Storage/' . $fName);
     }
 }

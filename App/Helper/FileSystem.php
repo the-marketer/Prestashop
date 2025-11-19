@@ -63,9 +63,13 @@ class FileSystem
     /** @noinspection PhpUnused */
     public static function writeFile($fName, $content, $mode = 'w+')
     {
-        self::$lastPath = self::getPath() . $fName;
+        $fName = self::getName($fName);
 
         $file = fopen(self::$lastPath, $mode);
+        if ($file === false) {
+            throw new \Exception('Failed to open file.');
+        }
+
         fwrite($file, $content);
         fclose($file);
 
@@ -82,10 +86,13 @@ class FileSystem
     /** @noinspection PhpUnused */
     public static function rFile($fName, $mode = 'rb')
     {
-        self::$lastPath = self::getPath() . $fName;
+        $fName = self::getName($fName);
 
         if (self::fileExists($fName) && filesize(self::$lastPath) > 0) {
             $file = fopen(self::$lastPath, $mode);
+            if ($file === false) {
+                throw new \Exception('Failed to open file.');
+            }
 
             $contents = fread($file, filesize(self::$lastPath));
 
@@ -100,11 +107,15 @@ class FileSystem
     /** @noinspection PhpUnused */
     public static function readFile($fName, $mode = 'rb')
     {
+        $fName = self::getName($fName);
+
         $contents = '';
-        self::$lastPath = self::getPath() . $fName;
 
         if (self::fileExists($fName) && filesize(self::$lastPath) > 0) {
             $file = fopen(self::$lastPath, $mode);
+            if ($file === false) {
+                throw new \Exception('Failed to open file.');
+            }
 
             $contents = fread($file, filesize(self::$lastPath));
 
@@ -123,10 +134,12 @@ class FileSystem
     /** @noinspection PhpUnused */
     public static function deleteFile($fName)
     {
-        self::$lastPath = self::getPath() . $fName;
+        $fName = self::getName($fName);
 
         if (self::fileExists($fName)) {
-            unlink(self::$lastPath);
+            if (!unlink(self::$lastPath)) {
+                throw new \Exception('Failed to delete file.');
+            }
         }
 
         return true;
@@ -150,5 +163,33 @@ class FileSystem
     public static function getStatus()
     {
         return self::$status;
+    }
+
+    /**
+     * @param $fName
+     * @return string
+     * @throws \Exception
+     */
+    public static function getName($fName): string
+    {
+        $fName = basename($fName);
+
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $fName)) {
+            throw new \Exception('Invalid filename.');
+        }
+
+        if (empty($fName)) {
+            throw new \Exception('Filename cannot be empty.');
+        }
+
+        self::$lastPath = self::getPath() . $fName;
+
+        $realBase = realpath(self::getPath());
+        $realUserPath = realpath(dirname(self::$lastPath));
+
+        if ($realUserPath === false || $realBase === false || strpos($realUserPath, $realBase) !== 0) {
+            throw new \Exception('Invalid file path.');
+        }
+        return $fName;
     }
 }

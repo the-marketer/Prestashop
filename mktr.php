@@ -64,7 +64,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.2';
+        $this->version = '1.1.4';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -100,10 +100,47 @@ class Mktr extends \Module
 
     public static function correctUpdate($filePath, $from, $to)
     {
-        $content = \Tools::file_get_contents($filePath, true);
+        $realFilePath = realpath($filePath);
+        $realBase = realpath(MKTR_APP);
+
+        if ($realFilePath === false || $realBase === false) {
+            throw new \Exception('Invalid file path.');
+        }
+
+        if (strpos($realFilePath, $realBase) !== 0) {
+            throw new \Exception('File path outside module directory.');
+        }
+
+        $allowedFiles = [
+            'mktr.php',
+            'controllers/admin/MktrController.php',
+        ];
+
+        $relativePath = str_replace($realBase . '/', '', $realFilePath);
+        if (!in_array($relativePath, $allowedFiles)) {
+            throw new \Exception('File not in allowed list.');
+        }
+
+        if (!file_exists($realFilePath) || !is_readable($realFilePath)) {
+            throw new \Exception('File does not exist or is not readable.');
+        }
+
+        $content = \Tools::file_get_contents($realFilePath, true);
+        if ($content === false) {
+            throw new \Exception('Failed to read file.');
+        }
+
         $newContent = str_replace($from, $to, $content);
 
-        $file = fopen($filePath, 'w+');
+        if (!is_writable($realFilePath)) {
+            throw new \Exception('File is not writable.');
+        }
+
+        $file = fopen($realFilePath, 'w+');
+        if ($file === false) {
+            throw new \Exception('Failed to open file for writing.');
+        }
+
         fwrite($file, $newContent);
         fclose($file);
     }
@@ -772,6 +809,8 @@ class Mktr extends \Module
 
             $events[] = '})(window);';
             $events[] = ' </script>';
+
+            $allowedPgValues = ['setEmail', 'saveOrder'];
             /*
                         // $rewrite = (bool) \Mktr\Model\Config::getConfig('PS_REWRITING_SETTINGS');
 
@@ -780,9 +819,20 @@ class Mktr extends \Module
             */
             foreach ($evList as $key => $value) {
                 if (!empty(\Mktr\Helper\Session::get($key)) && $add[$value] === false) {
+                    if (!in_array($value, $allowedPgValues, true)) {
+                        continue;
+                    }
+
+                    if (!preg_match('/^[a-zA-Z]+$/', $value)) {
+                        continue;
+                    }
+
                     $add[$value] = true;
-                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=Api&pg=' . $value . '&mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
-                    /* $events[] = '<noscript><iframe src="' . $linkPath . ($rewrite ? 'mktr/Api/' . $value . '?' : '?fc=module&module=mktr&controller=Api&pg=' . $value . '&') . 'mktr_time=' . time() . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'; */
+
+                    $escapedValue = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                    $timestamp = (int) time();
+
+                    $events[] = '<noscript><iframe src="/?fc=module&module=mktr&controller=Api&pg=' . $escapedValue . '&mktr_time=' . $timestamp . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>';
                 }
             }
 
@@ -822,6 +872,13 @@ class Mktr extends \Module
 
     public function __call($name, $arguments)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid method name.');
+            }
+            return null;
+        }
+
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
         } else {
@@ -835,6 +892,13 @@ class Mktr extends \Module
 
     public static function __callStatic($name, $arguments)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid static method name.');
+            }
+            return null;
+        }
+
         if (self::$i === null) {
             $class = get_called_class();
             self::$i = new $class();

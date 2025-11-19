@@ -200,6 +200,10 @@ class Valid
             $mi = self::def_mime;
         }
 
+        if (preg_match('/[\r\n]/', $mi)) {
+            $mi = self::def_mime;
+        }
+
         header('Content-type: ' . self::mime[$mi] . '; charset=utf-8');
         header('HTTP/1.1 200 OK');
         http_response_code(201);

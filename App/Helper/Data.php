@@ -101,7 +101,30 @@ class Data
 
     public static function writeFile($fName, $content, $mode = 'w+')
     {
-        $file = fopen(MKTR_APP . 'Storage/' . $fName, $mode);
+        $fName = basename($fName);
+
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $fName)) {
+            throw new \Exception('Invalid filename.');
+        }
+
+        if (empty($fName)) {
+            throw new \Exception('Filename cannot be empty.');
+        }
+
+        $fullPath = MKTR_APP . 'Storage/' . $fName;
+
+        $realBase = realpath(MKTR_APP . 'Storage/');
+        $realPath = realpath(dirname($fullPath));
+
+        if ($realPath === false || strpos($realPath, $realBase) !== 0) {
+            throw new \Exception('Invalid file path.');
+        }
+
+        $file = fopen($fullPath, $mode);
+        if ($file === false) {
+            throw new \Exception('Failed to open file.');
+        }
+
         fwrite($file, $content);
         fclose($file);
     }

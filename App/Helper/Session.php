@@ -73,7 +73,7 @@ class Session
         if (self::$uid === null) {
             if (!isset($_COOKIE['__sm__uid']) || $_COOKIE['__sm__uid'] === false) {
                 self::$uid = uniqid();
-                setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/');
+                setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/', '', !empty($_SERVER['HTTPS']), true);
             } else {
                 self::$uid = $_COOKIE['__sm__uid'];
             }

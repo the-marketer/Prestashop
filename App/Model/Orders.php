@@ -457,9 +457,13 @@ class Orders extends DataBase
         $out = [];
 
         foreach ([
-            'number', 'email_address', 'phone', 'firstname', 'lastname', 'city', 'county', 'address',
-            'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
-        ] as $v) {
+                     'number', 'email_address', 'phone', 'firstname', 'lastname', 'city', 'county', 'address',
+                     'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
+                 ] as $v) {
+            if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $v)) {
+                continue;
+            }
+
             if ($v === 'products_api') {
                 /* @phpstan-ignore-next-line */
                 $out['products'] = $this->{$v};
@@ -478,8 +482,12 @@ class Orders extends DataBase
 
         foreach ([
             'number', 'email_address', 'phone', 'firstname', 'lastname', 'city', 'county', 'address',
-            'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
-        ] as $v) {
+                     'discount_value', 'discount_code', 'shipping', 'tax', 'total_value', 'products_api',
+                     ] as $v) {
+            if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $v)) {
+                continue;
+            }
+
             if ($v === 'products_api') {
                 /* @phpstan-ignore-next-line */
                 $out['products'] = $this->{$v};

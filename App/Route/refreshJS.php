@@ -412,7 +412,31 @@ window.mktr.ready = true;
 
     private static function write($f, $c, $root = false)
     {
-        $file = fopen(($root ? MKTR_ROOT : MKTR_APP) . $f, 'w+');
+        $f = basename($f);
+
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $f)) {
+            throw new \Exception('Invalid filename.');
+        }
+
+        if (empty($f)) {
+            throw new \Exception('Filename cannot be empty.');
+        }
+
+        $basePath = $root ? MKTR_ROOT : MKTR_APP;
+        $fullPath = $basePath . $f;
+
+        $realBase = realpath($basePath);
+        $realPath = realpath(dirname($fullPath));
+
+        if ($realPath === false || $realBase === false || strpos($realPath, $realBase) !== 0) {
+            throw new \Exception('Invalid file path.');
+        }
+
+        $file = fopen($fullPath, 'w+');
+        if ($file === false) {
+            throw new \Exception('Failed to open file.');
+        }
+
         fwrite($file, '/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA

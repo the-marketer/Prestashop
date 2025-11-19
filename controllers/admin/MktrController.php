@@ -280,6 +280,10 @@ class MktrController extends \AdminController
 
         $form = self::FormData();
         foreach ($form[self::$page] as $key => $value) {
+            if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
+                continue;
+            }
+
             $vv = \Tools::getValue($key);
 
             if (in_array($key, ['rest_key', 'tracking_key', 'customer_id']) && empty($vv)) {
@@ -298,6 +302,10 @@ class MktrController extends \AdminController
         }
 
         foreach ($proccess as $key) {
+            if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
+                continue;
+            }
+
             switch ($key) {
                 case 'opt_in':
                     $this->updateOptIn();

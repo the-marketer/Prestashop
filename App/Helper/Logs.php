@@ -94,11 +94,4 @@ class Logs
     {
         FileSystem::writeFile('logs.json', Valid::toJson(self::$data));
     }
-
-    public static function writeFile($fName, $content, $mode = 'w+')
-    {
-        $file = fopen(MKTR_APP . 'Storage/' . $fName, $mode);
-        fwrite($file, $content);
-        fclose($file);
-    }
 }

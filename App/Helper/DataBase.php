@@ -48,11 +48,19 @@ abstract class DataBase
 
     public function __call($name, $arguments)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid method name.');
+            }
+
+            return null;
+        }
+
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
+                throw new \Exception('Method ' . $name . ' does not exist.');
             }
 
             return null;
@@ -61,7 +69,14 @@ abstract class DataBase
 
     public static function __callStatic($name, $arguments)
     {
-        // $i = new static();
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid static method name.');
+            }
+
+            return null;
+        }
+
         $class = get_called_class();
         $i = new $class();
 
@@ -69,7 +84,7 @@ abstract class DataBase
             return call_user_func_array([$i, $name], $arguments);
         } else {
             if (_PS_MODE_DEV_) {
-                throw new \Exception("Static method {$name} does not exist.");
+                throw new \Exception('Static method ' . $name . ' does not exist.');
             }
 
             return null;
@@ -81,6 +96,10 @@ abstract class DataBase
         $list = [];
         if ($this->attributes) {
             foreach ($this->attributes as $key => $value) {
+                if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
+                    continue;
+                }
+
                 if (!in_array($key, $this->hide)) {
                     $value = $this->{$key};
                     if (array_key_exists($key, $this->cast) && in_array($this->cast[$key], ['date', 'datetime']) && $value !== null) {
@@ -113,7 +132,11 @@ abstract class DataBase
                 $this->attributes[$key] = call_user_func_array([$this, $this->ref[$key]], []);
             } elseif (in_array($this->ref[$key], $this->vars)) {
                 $v = $this->ref[$key];
-                $this->attributes[$key] = $this->{$v};
+                if (property_exists($this, $v) || in_array($v, array_keys($this->attributes))) {
+                    $this->attributes[$key] = $this->{$v};
+                } else {
+                    $this->attributes[$key] = null;
+                }
             } else {
                 if (array_key_exists($key, $this->cast)) {
                     $this->attributes[$key] = $this->cast($key, $this->data->{$this->ref[$key]});

@@ -203,6 +203,13 @@ class Config
 
     public function __call($name, $arguments)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid method name.');
+            }
+            return null;
+        }
+
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
         } else {
@@ -216,6 +223,13 @@ class Config
 
     public static function __callStatic($name, $arguments)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            if (_PS_MODE_DEV_) {
+                throw new \Exception('Invalid static method name.');
+            }
+            return null;
+        }
+
         if (self::$i === null) {
             $class = get_called_class();
             self::$i = new $class();
@@ -235,7 +249,16 @@ class Config
 
     public function __get($name)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            return null;
+        }
+
         self::CFG();
+
+        if (!array_key_exists($name, self::$CFG_DATA)) {
+            return null;
+        }
+
         if ($this->attributes[$name] === null) {
             $this->attributes[$name] = \Configuration::get(self::$CFG_DATA[$name]['key']);
             if (!in_array(self::$CFG_DATA[$name]['type'], ['bool', 'boolean']) && $this->attributes[$name] === false) {
@@ -340,9 +363,18 @@ class Config
 
     public function asString($name)
     {
-        $value = $this->{$name};
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            return null;
+        }
 
         self::CFG();
+
+        if (!array_key_exists($name, self::$CFG_DATA)) {
+            return null;
+        }
+
+        $value = $this->{$name};
+
         if (self::$CFG_DATA[$name]['type'] === 'array' && $value !== null) {
             $value = implode('|', $value);
         }
@@ -355,7 +387,9 @@ class Config
         $i = self::i();
         self::CFG();
         foreach (self::$CFG_DATA as $key => $v) {
-            $i->{$key} = $v['default'];
+            if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
+                $i->{$key} = $v['default'];
+            }
         }
 
         $i->save();
@@ -418,7 +452,16 @@ class Config
 
     public function update($name, $value)
     {
+        if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
+            return;
+        }
+
         self::CFG();
+
+        if (!array_key_exists($name, self::$CFG_DATA)) {
+            return;
+        }
+
         if (self::$CFG_DATA[$name]['type'] === 'array' && $value !== null) {
             if (in_array($name, ['brand', 'color', 'size'])) {
                 $value = strtolower($value);
