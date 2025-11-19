@@ -64,7 +64,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.4';
+        $this->version = '1.1.3';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
