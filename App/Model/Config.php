@@ -122,6 +122,7 @@ class Config
     public static $dateFormatParam = 'Y-m-d';
 
     private static $i;
+    private static $instances = [];
     private static $nws;
     private static $lang_id;
     private static $context;
@@ -178,14 +179,30 @@ class Config
 
     public static function i($new = false)
     {
-        if (self::$i === null || $new === true) {
+        $shopId = self::shop();
+        if ($new === true || !isset(self::$instances[$shopId])) {
             self::CFG();
             $class = get_called_class();
-            self::$i = new $class();
-            // self::$i = new static();
+            self::$instances[$shopId] = new $class();
         }
 
+        self::$i = self::$instances[$shopId];
+
         return self::$i;
+    }
+
+    public static function reset()
+    {
+        self::$i = null;
+        self::$instances = [];
+        self::$shop = null;
+        self::$lang_id = null;
+        self::$checkData = [
+            'showJs' => null,
+            'showJsOut' => null,
+            'showGoogle' => null,
+            'rest' => null,
+        ];
     }
 
     public static function CFG()
@@ -260,7 +277,7 @@ class Config
         }
 
         if ($this->attributes[$name] === null) {
-            $this->attributes[$name] = \Configuration::get(self::$CFG_DATA[$name]['key']);
+            $this->attributes[$name] = self::getShopConfigValue(self::$CFG_DATA[$name]['key']);
             if (!in_array(self::$CFG_DATA[$name]['type'], ['bool', 'boolean']) && $this->attributes[$name] === false) {
                 $this->attributes[$name] = self::$CFG_DATA[$name]['default'];
             } else {
@@ -282,7 +299,7 @@ class Config
     protected function getConfig($name)
     {
         if (!array_key_exists($name, $this->attributes) || $this->attributes[$name] === null) {
-            $this->attributes[$name] = \Configuration::get($name);
+            $this->attributes[$name] = self::getShopConfigValue($name);
         }
 
         return $this->attributes[$name];
@@ -290,7 +307,7 @@ class Config
 
     protected function setConfig($name, $value)
     {
-        \Configuration::updateValue($name, $value);
+        self::updateShopConfigValue($name, $value);
         $this->attributes[$name] = $value;
 
         return $this->attributes[$name];
@@ -384,15 +401,38 @@ class Config
 
     public static function AddDefault()
     {
-        $i = self::i();
+        if (\Shop::isFeatureActive()) {
+            self::AddDefaultForAllShops();
+        } else {
+            $i = self::i();
+            self::CFG();
+            foreach (self::$CFG_DATA as $key => $v) {
+                if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
+                    $i->{$key} = $v['default'];
+                }
+            }
+
+            $i->save();
+        }
+    }
+
+    public static function AddDefaultForAllShops()
+    {
         self::CFG();
-        foreach (self::$CFG_DATA as $key => $v) {
-            if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
-                $i->{$key} = $v['default'];
+        $shops = \Shop::getShops(true, null, true);
+        foreach ($shops as $shopId) {
+            foreach (self::$CFG_DATA as $key => $v) {
+                if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
+                    $val = $v['default'];
+                    if (in_array($v['type'], ['array', 'object'])) {
+                        $val = call_user_func('serialize', $val);
+                    } elseif (in_array($v['type'], ['bool', 'boolean'])) {
+                        $val = (int) $val;
+                    }
+                    \Configuration::updateValue($v['key'], $val, false, null, (int) $shopId);
+                }
             }
         }
-
-        $i->save();
     }
 
     public static function showJs($new = false)
@@ -481,11 +521,9 @@ class Config
             foreach ($this->load as $key => $value) {
                 $value1 = $this->attributes[$key];
                 if ($value1 !== null) {
-                    \Configuration::updateValue(self::$CFG_DATA[$key]['key'], $this->unCast($key, $value1), true);
-                // if (in_array($key, ['brand', 'color', 'size'])) { var_dump($key, $value1,$this->unCast($key, $value1), \Configuration::updateValue(self::$CFG_DATA[$key]['key'], $this->unCast($key, $value1), true));die(); }
-                // var_dump(self::$CFG_DATA[$key]['key'], $key, $value1); die();
+                    self::updateShopConfigValue(self::$CFG_DATA[$key]['key'], $this->unCast($key, $value1), true);
                 } else {
-                    \Configuration::updateValue(self::$CFG_DATA[$key]['key'], null);
+                    self::updateShopConfigValue(self::$CFG_DATA[$key]['key'], null);
                 }
             }
         }
@@ -549,5 +587,70 @@ class Config
             default:
                 return $value;
         }
+    }
+
+    /**
+     * @param string $configKey
+     * @param int|null $idLang
+     * @return bool|string|null
+     */
+    public static function getShopConfigValue($configKey, $idLang = null)
+    {
+        if (!\Shop::isFeatureActive()) {
+            return \Configuration::get($configKey, $idLang);
+        }
+
+        $shopId = self::shop();
+        if ($shopId) {
+            return \Configuration::get($configKey, $idLang, null, $shopId);
+        }
+
+        return \Configuration::get($configKey, $idLang);
+    }
+
+    /**
+     * @param string $configKey
+     * @param mixed $value
+     * @param bool $html
+     * @return bool
+     */
+    public static function updateShopConfigValue($configKey, $value, $html = false)
+    {
+        if (!\Shop::isFeatureActive()) {
+            return \Configuration::updateValue($configKey, $value, $html);
+        }
+
+        $shopId = self::shop();
+        if ($shopId) {
+            return \Configuration::updateValue($configKey, $value, $html, null, $shopId);
+        }
+
+        return \Configuration::updateValue($configKey, $value, $html);
+    }
+
+    /**
+     * @return string
+     */
+    public static function getStoragePath()
+    {
+        if (\Shop::isFeatureActive()) {
+            $shopId = self::shop();
+            return 'Storage/' . (int) $shopId . '/';
+        }
+
+        return 'Storage/';
+    }
+
+    /**
+     * @return string
+     */
+    public static function getJsPrefix()
+    {
+        if (\Shop::isFeatureActive()) {
+            $shopId = self::shop();
+            return 'mktr.' . (int) $shopId . '.';
+        }
+
+        return 'mktr.';
     }
 }

@@ -52,6 +52,7 @@ class MktrController extends \AdminController
     private static $t;
     private static $config;
     private static $jsRefresh = true;
+    private static $baseIndex = null;
 
     private static $err = [
         'log' => [],
@@ -64,6 +65,9 @@ class MktrController extends \AdminController
 
     public function __construct()
     {
+        $this->multishop_context = \Shop::CONTEXT_SHOP | \Shop::CONTEXT_GROUP | \Shop::CONTEXT_ALL;
+        $this->multishop_context_group = true;
+
         parent::__construct();
         self::$i = $this;
 
@@ -136,7 +140,7 @@ class MktrController extends \AdminController
         $p = (self::$page === 'tracker' ? 'google' : 'tracker');
 
         $this->page_header_toolbar_btn['settings'] = [
-            'href' => self::$currentIndex . '&page=' . $p . '&' . $this->token(),
+            'href' => $this->getBaseIndex() . '&page=' . $p . '&' . $this->token(),
             'desc' => ucfirst($p) . ' Settings',
             'icon' => 'process-icon-cogs',
         ];
@@ -316,6 +320,7 @@ class MktrController extends \AdminController
             }
         }
 
+        \Mktr\Route\refreshJS::resetConfig();
         \Mktr\Route\refreshJS::loadJs();
 
         self::$config->save();
@@ -347,7 +352,7 @@ class MktrController extends \AdminController
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitMktrModule';
         $helper->token = $this->token;
-        $helper->currentIndex = self::$currentIndex . '&page=' . self::$page;
+        $helper->currentIndex = $this->getBaseIndex() . '&page=' . self::$page;
         $values = $this->getConfigFormValues();
         $values['dni'] = 0;
         $values['first_call'] = false;
@@ -393,8 +398,26 @@ class MktrController extends \AdminController
         return self::$t;
     }
 
+    private function getBaseIndex()
+    {
+        if (self::$baseIndex === null) {
+            if (version_compare(_PS_VERSION_, '9.0.0', '>=')) {
+                $link = $this->context->link->getAdminLink('Mktr', false);
+                if (strpos($link, 'http') !== 0 && strpos($link, '/') !== 0) {
+                    $link = __PS_BASE_URI__ . basename(_PS_ADMIN_DIR_) . '/' . $link;
+                }
+                self::$baseIndex = $link;
+            } else {
+                self::$baseIndex = self::$currentIndex;
+            }
+        }
+
+        return self::$baseIndex;
+    }
+
     public function initContent()
     {
+        \Mktr\Model\Config::reset();
         /* @phpstan-ignore-next-line */
         self::$config = \Mktr\Model\Config::setLang($this->context->language->id);
 
@@ -411,6 +434,31 @@ class MktrController extends \AdminController
         $this->title = 'TheMarketer - ' . ucfirst(self::$page);
         $this->toolbar_btn = $this->getToolbarBtn();
         $this->show_page_header_toolbar = true;
+
+        $multiStoreHeader = '';
+        if (\Shop::isFeatureActive()) {
+            $shopContext = \Shop::getContext();
+            if ($shopContext === \Shop::CONTEXT_ALL) {
+                $multiStoreHeader = '<div class="alert alert-info"><i class="icon icon-info-circle"></i> ' .
+                    'You are editing settings for <strong>All shops</strong>. Changes will apply to all shops that don\'t have specific values set.' .
+                    '</div>';
+            } elseif ($shopContext === \Shop::CONTEXT_GROUP) {
+                $groupName = '';
+                if (method_exists($this->context->shop, 'getGroup')) {
+                    $group = $this->context->shop->getGroup();
+                    $groupName = is_object($group) ? $group->name : '';
+                }
+                $multiStoreHeader = '<div class="alert alert-info"><i class="icon icon-info-circle"></i> ' .
+                    'You are editing settings for shop group: <strong>' . $groupName . '</strong>.' .
+                    '</div>';
+            } else {
+                $shopName = isset($this->context->shop->name) ? $this->context->shop->name : 'Current shop';
+                $multiStoreHeader = '<div class="alert alert-info"><i class="icon icon-info-circle"></i> ' .
+                    'You are editing settings for shop: <strong>' . $shopName . '</strong>.' .
+                    '</div>';
+            }
+        }
+
         $this->context->smarty->assign(
             [
                 'toolbar_scroll' => true,
@@ -427,7 +475,7 @@ class MktrController extends \AdminController
                     ],
                     'tab' => [
                         'name' => 'TheMarketer',
-                        'href' => self::$currentIndex . '&' . $this->token(),
+                        'href' => $this->getBaseIndex() . '&' . $this->token(),
                         'icon' => '',
                         'id_parent' => 0,
                     ],
@@ -438,7 +486,7 @@ class MktrController extends \AdminController
                         'id_parent' => 0,
                     ],
                 ],
-                'content' => $this->outPut(),
+                'content' => $multiStoreHeader . $this->outPut(),
                 'title' => $this->title,
                 'toolbar_btn' => $this->toolbar_btn,
                 'page_header_toolbar_btn' => $this->toolbar_btn,

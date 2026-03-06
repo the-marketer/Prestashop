@@ -182,16 +182,22 @@ class Orders extends DataBase
         $sql = 'SELECT `id_order`' .
                 ' FROM `' . _DB_PREFIX_ . 'orders`';
 
-        if ($start_date !== null || $end_date !== null) {
-            $wh = [];
-            if ($start_date !== null) {
-                $wh[] = " date_add >= '" . \pSQL($start_date) . "'";
-            }
+        $wh = [];
 
-            if ($end_date !== null) {
-                $wh[] = " date_add <= '" . \pSQL($end_date) . "'";
-            }
-            $sql .= ' WHERE' . implode('AND', $wh);
+        if (\Shop::isFeatureActive()) {
+            $wh[] = ' `id_shop` = ' . (int) Config::shop();
+        }
+
+        if ($start_date !== null) {
+            $wh[] = " date_add >= '" . \pSQL($start_date) . "'";
+        }
+
+        if ($end_date !== null) {
+            $wh[] = " date_add <= '" . \pSQL($end_date) . "'";
+        }
+
+        if (!empty($wh)) {
+            $sql .= ' WHERE' . implode(' AND', $wh);
         }
         $sql .= ' ORDER BY `' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
 

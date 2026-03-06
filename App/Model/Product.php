@@ -334,8 +334,13 @@ class Product extends DataBase
         if ($this->isCombination === null) {
             if (_PS_VERSION_ < '1.7.8.0') {
                 $this->isCombination = $this->data->hasAttributes();
+
+                if (!$this->isCombination) {
+                    $combinations = $this->data->getAttributeCombinations(Config::getLang());
+                    $this->isCombination = !empty($combinations);
+                }
             } else {
-                $this->isCombination = $this->data->product_type === 'combinations';
+                $this->isCombination = $this->data->product_type === 'combinations' || $this->data->hasAttributes();
             }
         }
 

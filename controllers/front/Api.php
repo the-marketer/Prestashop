@@ -192,7 +192,7 @@ class MktrApiModuleFrontController extends \FrontController
                     );
                 }
 
-                FileSystem::setWorkDirectory('Storage/');
+                FileSystem::setWorkDirectory(\Mktr\Model\Config::getStoragePath());
 
                 if ($read !== null && $isStatic && FileSystem::fileExists($fileName)) {
                     Valid::Output(FileSystem::readFile($fileName), null, null, true);
