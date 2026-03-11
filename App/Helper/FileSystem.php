@@ -52,7 +52,14 @@ class FileSystem
     public static function setWorkDirectory($name = 'Storage')
     {
         if ($name != 'base' && !self::$useRoot) {
-            self::$path = MKTR_APP . $name . '/';
+            if ($name === 'Storage' || $name === 'Storage/') {
+                self::$path = MKTR_APP . \Mktr\Model\Config::getStoragePath();
+            } else {
+                self::$path = MKTR_APP . $name . '/';
+            }
+            if (!is_dir(self::$path)) {
+                @mkdir(self::$path, 0755, true);
+            }
         } else {
             self::$path = MKTR_ROOT;
         }
@@ -152,6 +159,11 @@ class FileSystem
         }
 
         return self::$path;
+    }
+
+    public static function resetPath()
+    {
+        self::$path = null;
     }
 
     /** @noinspection PhpUnused */

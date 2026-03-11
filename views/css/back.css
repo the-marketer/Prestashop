@@ -7,57 +7,38 @@
  * @docs        https://themarketer.com/resources/api
  **/
 
- .icon-Mktr:before{
-    content:"Ⓜ️";
-    height: 0.5rem;
-    display: block;
+.icon-Mktr:before {
+    content: "\e80b";
+    font-family: "Material Icons", Arial, sans-serif;
+    font-size: 14px;
+    display: inline-block;
+    vertical-align: middle;
 }
 
-.mi-mktr:before{
-    content:"Ⓜ️";
-    height: 0.2rem;
-    display: block;
+.process-icon-mktr-up:before {
+    content: "";
 }
 
-.sidebar-closed .mi-mktr:before{
-    content:"Ⓜ️";
-    height: 0.5rem;
-    display: block; 
+.process-icon-mktr-user:before {
+    content: "";
 }
 
-.process-icon-mktr-up:before{
-    content:""
+.main-menu .link-levelone img[src*="mktr/logo"],
+.main-menu .link-leveltwo img[src*="mktr/logo"],
+nav.nav-bar img[src*="mktr/logo"],
+#nav-sidebar img[src*="mktr/logo"],
+.sidebar img[src*="mktr/logo"] {
+    max-width: 20px !important;
+    max-height: 20px !important;
+    width: 20px !important;
+    height: auto !important;
+    object-fit: contain;
 }
-.process-icon-mktr-user:before{content:""}
 
 .mi-mktr {
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-    --breakpoint-xs: 0;
-    --breakpoint-sm: 544px;
-    --breakpoint-md: 768px;
-    --breakpoint-lg: 1024px;
-    --breakpoint-xl: 1300px;
-    --breakpoint-xxl: 1600px;
-    --font-family-sans-serif: "Open Sans", helvetica, arial, sans-serif;
-    --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    word-break: break-word;
-    box-sizing: border-box;
-    display: inline-block;
-    font-family: "Material Icons", Arial, Verdana, Tahoma, sans-serif;
-    font-style: normal;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: normal;
-    word-wrap: normal;
-    white-space: nowrap;
-    vertical-align: middle;
-    direction: ltr;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: "liga";
-    font-size: 1.188rem;
-    line-height: inherit;
-    color: #fff;
-    width: 19px;
+    font-size: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+    overflow: hidden;
 }

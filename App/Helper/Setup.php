@@ -35,15 +35,15 @@ class Setup
     const TABS = [
         'Mktr' => [
             'name' => 'TheMarketer',
-            'ico' => null,
+            'ico' => '',
         ],
         'MktrTracker' => [
             'name' => 'TheMarketer - Tracker',
-            'ico' => 'mktr',
+            'ico' => '',
         ],
         'MktrGoogle' => [
             'name' => 'TheMarketer - Google',
-            'ico' => 'mktr',
+            'ico' => '',
         ],
     ];
 
@@ -67,8 +67,8 @@ class Setup
                 $tab->name[$lang] = $value['name'];
                 if (_PS_VERSION_ >= 1.7) {
                     $tab->icon = $value['ico'];
-                    $tab->wording = 'Mktr';
-                    $tab->wording_domain = 'Admin.Navigation.Menu';
+                    $tab->wording = $value['name'];
+                    $tab->wording_domain = 'Modules.Mktr.Admin';
                 }
                 if ($key !== 'Mktr' && $parent === null) {
                     $parent = self::getTabId('Mktr');
@@ -100,6 +100,8 @@ class Setup
 
         self::AddTabs();
 
+        self::ensureStorageDirectories();
+
         \Mktr\Model\Config::AddDefault();
 
         $data = \Mktr\Model\Config::nws();
@@ -107,6 +109,28 @@ class Setup
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_CONFIRMATION', \Mktr\Model\Config::getConfig($data['CONFIRMATION']));
         /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_NOTIFICATION', \Mktr\Model\Config::getConfig($data['NOTIFICATION']));
+    }
+
+    public static function ensureStorageDirectories()
+    {
+        $baseStorage = MKTR_APP . 'Storage/';
+        if (!is_dir($baseStorage)) {
+            @mkdir($baseStorage, 0755, true);
+        }
+
+        if (\Shop::isFeatureActive()) {
+            $shops = \Shop::getShops(true, null, true);
+            foreach ($shops as $shopId) {
+                $shopDir = $baseStorage . (int) $shopId . '/';
+                if (!is_dir($shopDir)) {
+                    @mkdir($shopDir, 0755, true);
+                }
+
+                if (!file_exists($shopDir . 'index.php')) {
+                    @file_put_contents($shopDir . 'index.php', "<?php\nheader('Expires: Mon, 26 Jul 1997 05:00:00 GMT');\nheader('Last-Modified: '.gmdate('D, d M Y H:i:s').' GMT');\n\nheader('Cache-Control: no-store, no-cache, must-revalidate');\nheader('Cache-Control: post-check=0, pre-check=0', false);\nheader('Pragma: no-cache');\n\nheader('Location: ../../../');\nexit;\n");
+                }
+            }
+        }
     }
 
     public static function uninstall()
@@ -129,6 +153,9 @@ class Setup
             }
         }
 
+        self::cleanStorageDirectories();
+        self::cleanJsFiles();
+
         $data = \Mktr\Model\Config::nws();
         /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig($data['CONFIRMATION'], \Mktr\Model\Config::getConfig('MKTR_TRACKER_CONFIRMATION'));
@@ -137,5 +164,38 @@ class Setup
 
         /* must be after MKTR_TRACKER_CONFIRMATION And MKTR_TRACKER_NOTIFICATION * */
         \Mktr\Model\Config::delete();
+    }
+
+    private static function cleanStorageDirectories()
+    {
+        $baseStorage = MKTR_APP . 'Storage/';
+        if (is_dir($baseStorage)) {
+            $dirs = glob($baseStorage . '[0-9]*', GLOB_ONLYDIR);
+            if ($dirs) {
+                foreach ($dirs as $dir) {
+                    $files = glob($dir . '/*');
+                    if ($files) {
+                        foreach ($files as $file) {
+                            if (is_file($file)) {
+                                @unlink($file);
+                            }
+                        }
+                    }
+                    @rmdir($dir);
+                }
+            }
+        }
+    }
+
+    private static function cleanJsFiles()
+    {
+        $jsFiles = glob(MKTR_APP . 'mktr.*.js');
+        if ($jsFiles) {
+            foreach ($jsFiles as $file) {
+                if (is_file($file)) {
+                    @unlink($file);
+                }
+            }
+        }
     }
 }

@@ -30,6 +30,10 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+if (class_exists('Mktr\\Route\\refreshJS', false)) {
+    return;
+}
+
 class refreshJS
 {
     const FIREBASE_CONFIG = 'const firebaseConfig = {
@@ -63,6 +67,11 @@ importScripts("https://t.themarketer.com/firebase.js");';
         }
 
         return self::$config;
+    }
+
+    public static function resetConfig()
+    {
+        self::$config = null;
     }
 
     public static function loadJs()
@@ -381,14 +390,18 @@ window.mktr.ready = true;
 }
 ';
 
-            if (self::c()->js_file !== '' && file_exists(MKTR_APP . 'mktr.' . self::c()->js_file . '.js')) {
-                unlink(MKTR_APP . 'mktr.' . self::c()->js_file . '.js');
+            $jsPrefix = \Mktr\Model\Config::getJsPrefix();
+
+            if (self::c()->js_file !== '' && file_exists(MKTR_APP . $jsPrefix . self::c()->js_file . '.js')) {
+                unlink(MKTR_APP . $jsPrefix . self::c()->js_file . '.js');
             }
             self::c()->js_file = time();
-            self::write('mktr.' . self::c()->js_file . '.js', $c);
+            self::write($jsPrefix . self::c()->js_file . '.js', $c);
         } else {
-            if (self::c()->js_file !== '' && file_exists(MKTR_APP . 'mktr.' . self::c()->js_file . '.js')) {
-                unlink(MKTR_APP . 'mktr.' . self::c()->js_file . '.js');
+            $jsPrefix = \Mktr\Model\Config::getJsPrefix();
+
+            if (self::c()->js_file !== '' && file_exists(MKTR_APP . $jsPrefix . self::c()->js_file . '.js')) {
+                unlink(MKTR_APP . $jsPrefix . self::c()->js_file . '.js');
             }
             self::c()->js_file = '';
         }

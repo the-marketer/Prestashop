@@ -64,7 +64,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.4';
+        $this->version = '1.1.5';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -155,6 +155,7 @@ class Mktr extends \Module
         if (self::$update) {
             if (file_exists(MKTR_APP . 'mktr.php')) {
                 self::$update = false;
+                \Mktr\Route\refreshJS::resetConfig();
                 \Mktr\Route\refreshJS::loadJs();
 
                 self::correctUpdate(
@@ -201,6 +202,10 @@ class Mktr extends \Module
 
     public function install()
     {
+        if (\Shop::isFeatureActive()) {
+            \Shop::setContext(\Shop::CONTEXT_ALL);
+        }
+
         if (_PS_VERSION_ >= 1.6) {
             $hook = [
                 /* Front */
@@ -295,6 +300,10 @@ class Mktr extends \Module
 
     public function uninstall()
     {
+        if (\Shop::isFeatureActive()) {
+            \Shop::setContext(\Shop::CONTEXT_ALL);
+        }
+
         \Mktr\Helper\Setup::uninstall();
 
         if (parent::uninstall()) {
@@ -630,7 +639,8 @@ class Mktr extends \Module
                     \Mktr\Helper\Session::save();
                 }
 
-                $this->context->controller->addJS($this->_path . 'mktr.' . $js . '.js');
+                $jsPrefix = \Mktr\Model\Config::getJsPrefix();
+                $this->context->controller->addJS($this->_path . $jsPrefix . $js . '.js');
             }
         }
     }

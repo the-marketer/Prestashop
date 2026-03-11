@@ -33,6 +33,7 @@ if (!defined('_PS_VERSION_')) {
 class Data
 {
     private static $init;
+    private static $initShopId;
 
     private static $data;
 
@@ -50,7 +51,9 @@ class Data
 
     public static function init()
     {
-        if (self::$init == null) {
+        $currentShopId = \Mktr\Model\Config::shop();
+        if (self::$init == null || self::$initShopId !== $currentShopId) {
+            self::$initShopId = $currentShopId;
             self::$init = new self();
         }
 
@@ -111,9 +114,15 @@ class Data
             throw new \Exception('Filename cannot be empty.');
         }
 
-        $fullPath = MKTR_APP . 'Storage/' . $fName;
+        $storagePath = MKTR_APP . \Mktr\Model\Config::getStoragePath();
 
-        $realBase = realpath(MKTR_APP . 'Storage/');
+        if (!is_dir($storagePath)) {
+            @mkdir($storagePath, 0755, true);
+        }
+
+        $fullPath = $storagePath . $fName;
+
+        $realBase = realpath($storagePath);
         $realPath = realpath(dirname($fullPath));
 
         if ($realPath === false || strpos($realPath, $realBase) !== 0) {

@@ -33,6 +33,8 @@ class MktrCronModuleFrontController extends \ModuleFrontController
     {
         parent::initContent();
 
+        \Mktr\Helper\FileSystem::resetPath();
+
         $module = new \Mktr();
         if (\Mktr\Model\Config::showJS()) {
             $data = \Mktr\Helper\Data::init();
