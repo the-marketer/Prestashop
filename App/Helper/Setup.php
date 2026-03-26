@@ -35,15 +35,15 @@ class Setup
     const TABS = [
         'Mktr' => [
             'name' => 'TheMarketer',
-            'ico' => '',
+            'ico' => 'trending_up',
         ],
         'MktrTracker' => [
             'name' => 'TheMarketer - Tracker',
-            'ico' => '',
+            'ico' => 'trending_up',
         ],
         'MktrGoogle' => [
             'name' => 'TheMarketer - Google',
-            'ico' => '',
+            'ico' => 'analytics',
         ],
     ];
 
@@ -55,7 +55,7 @@ class Setup
     public static function AddTabs()
     {
         $parent = null;
-        $lang = (int) \Configuration::get('PS_LANG_DEFAULT');
+        $languages = \Language::getLanguages(false);
         $mktr = null;
 
         foreach (self::TABS as $key => $value) {
@@ -64,7 +64,9 @@ class Setup
                 $tab->class_name = $key;
                 $tab->module = 'mktr';
                 $tab->active = true;
-                $tab->name[$lang] = $value['name'];
+                foreach ($languages as $language) {
+                    $tab->name[$language['id_lang']] = $value['name'];
+                }
                 if (_PS_VERSION_ >= 1.7) {
                     $tab->icon = $value['ico'];
                     $tab->wording = $value['name'];
