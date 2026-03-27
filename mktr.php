@@ -1103,29 +1103,19 @@ class Mktr extends \Module
     public function __call($name, $arguments)
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid method name.');
-            }
             return null;
         }
 
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
-            }
-
-            return null;
         }
+
+        return null;
     }
 
     public static function __callStatic($name, $arguments)
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid static method name.');
-            }
             return null;
         }
 
@@ -1137,13 +1127,9 @@ class Mktr extends \Module
 
         if (method_exists(self::$i, $name)) {
             return call_user_func_array([self::$i, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Static method {$name} does not exist.");
-            }
-
-            return null;
         }
+
+        return null;
     }
 
     public static function finLoad()
