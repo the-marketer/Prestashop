@@ -55,6 +55,10 @@ class Config
         'js_status' => ['key' => 'MKTR_TRACKER_JS_STATUS', 'default' => false, 'type' => 'bool'],
         'google_status' => ['key' => 'MKTR_GOOGLE_GOOGLE_STATUS', 'default' => false, 'type' => 'bool'],
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
+        'firebase_api_key' => ['key' => 'MKTR_FIREBASE_API_KEY', 'default' => '', 'type' => 'string'],
+        'firebase_project_id' => ['key' => 'MKTR_FIREBASE_PROJECT_ID', 'default' => '', 'type' => 'string'],
+        'firebase_sender_id' => ['key' => 'MKTR_FIREBASE_SENDER_ID', 'default' => '', 'type' => 'string'],
+        'firebase_app_id' => ['key' => 'MKTR_FIREBASE_APP_ID', 'default' => '', 'type' => 'string'],
     ];
 
     const CONFIG_DATA_PS15 = [
@@ -78,6 +82,10 @@ class Config
         'js_status' => ['key' => 'MKTR_TRACKER_JS_STATUS', 'default' => 0, 'type' => 'int'],
         'google_status' => ['key' => 'MKTR_GOOGLE_GOOGLE_STATUS', 'default' => 0, 'type' => 'int'],
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
+        'firebase_api_key' => ['key' => 'MKTR_FIREBASE_API_KEY', 'default' => '', 'type' => 'string'],
+        'firebase_project_id' => ['key' => 'MKTR_FIREBASE_PROJECT_ID', 'default' => '', 'type' => 'string'],
+        'firebase_sender_id' => ['key' => 'MKTR_FIREBASE_SENDER_ID', 'default' => '', 'type' => 'string'],
+        'firebase_app_id' => ['key' => 'MKTR_FIREBASE_APP_ID', 'default' => '', 'type' => 'string'],
     ];
 
     const DEFAULT_VALUES = [
@@ -114,6 +122,10 @@ class Config
         'js_status' => null,
         'google_status' => null,
         'google_tagCode' => null,
+        'firebase_api_key' => null,
+        'firebase_project_id' => null,
+        'firebase_sender_id' => null,
+        'firebase_app_id' => null,
     ];
 
     protected $load = [];
@@ -197,12 +209,21 @@ class Config
         self::$instances = [];
         self::$shop = null;
         self::$lang_id = null;
+        self::$context = null;
         self::$checkData = [
             'showJs' => null,
             'showJsOut' => null,
             'showGoogle' => null,
             'rest' => null,
         ];
+    }
+
+    /**
+     * @param int $shopId
+     */
+    public static function setShop($shopId)
+    {
+        self::$shop = (int) $shopId;
     }
 
     public static function CFG()
@@ -620,12 +641,52 @@ class Config
             return \Configuration::updateValue($configKey, $value, $html);
         }
 
+        if (self::isAdminContext()) {
+            $shopContext = \Shop::getContext();
+
+            if ($shopContext === \Shop::CONTEXT_ALL) {
+                $shops = \Shop::getShops(true, null, true);
+                foreach ($shops as $sid) {
+                    \Configuration::updateValue($configKey, $value, $html, null, (int) $sid);
+                }
+                return true;
+            }
+
+            if ($shopContext === \Shop::CONTEXT_GROUP) {
+                $shopGroupId = \Shop::getContextShopGroupID(true);
+                if ($shopGroupId) {
+                    $shops = \Shop::getShops(true, $shopGroupId, true);
+                    foreach ($shops as $sid) {
+                        \Configuration::updateValue($configKey, $value, $html, null, (int) $sid);
+                    }
+                    return true;
+                }
+            }
+        }
+
         $shopId = self::shop();
         if ($shopId) {
             return \Configuration::updateValue($configKey, $value, $html, null, $shopId);
         }
 
         return \Configuration::updateValue($configKey, $value, $html);
+    }
+
+    /**
+     * @return bool
+     */
+    private static function isAdminContext()
+    {
+        if (defined('_PS_ADMIN_DIR_')) {
+            return true;
+        }
+
+        $context = self::getLegacyContext();
+        if ($context && isset($context->controller) && $context->controller instanceof \AdminController) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

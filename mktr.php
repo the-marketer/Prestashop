@@ -44,7 +44,7 @@ class Mktr extends \Module
 
     private static $i;
 
-    private static $update = true;
+    private static $update = false;
 
     private static $included = [];
 
@@ -52,6 +52,7 @@ class Mktr extends \Module
         'header' => true,
         'footer' => true,
         'dispatcher' => true,
+        'jsFooter' => true,
     ];
 
     public static $checkList = [
@@ -64,7 +65,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.5';
+        $this->version = '1.1.6';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -84,13 +85,143 @@ class Mktr extends \Module
         /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
 
+
         if (self::$update) {
             self::preConfig();
         } else {
             \Mktr\Helper\Session::getUid();
         }
 
+        // Auto-heal hooks for multistore support
+        $this->autoHealHooksIfNeeded();
+
         // $this->registerHook('actionDispatcher');
+    }
+
+    /**
+     * Automatically registers missing hooks for the current shop in multistore.
+     * Runs once per request, lightweight on normal loads (single config read).
+     * Only performs heavy DB work when hooks haven't been verified for this shop+version.
+     */
+    private function autoHealHooksIfNeeded()
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+        $checked = true;
+
+        try {
+            if (!\Shop::isFeatureActive()) {
+                return;
+            }
+
+            $shopId = (int) \Mktr\Model\Config::shop();
+            if ($shopId <= 0) {
+                return;
+            }
+
+            $storedVersion = \Configuration::get('MKTR_HOOKS_OK', null, null, $shopId);
+
+            if ($storedVersion === $this->version) {
+                return;
+            }
+
+            $moduleId = (int) $this->id;
+            if ($moduleId <= 0) {
+                return;
+            }
+
+            $db = \Db::getInstance();
+
+            // Ensure module_shop entry exists
+            $moduleShopExists = (int) $db->getValue(
+                'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'module_shop` ' .
+                'WHERE `id_module` = ' . $moduleId . ' AND `id_shop` = ' . $shopId
+            );
+
+            if (!$moduleShopExists) {
+                $db->insert('module_shop', [
+                    'id_module' => $moduleId,
+                    'id_shop' => $shopId,
+                    'enable_device' => 7,
+                ]);
+            }
+
+            // Ensure enable_device is 7 (all devices)
+            $enableDevice = (int) $db->getValue(
+                'SELECT `enable_device` FROM `' . _DB_PREFIX_ . 'module_shop` ' .
+                'WHERE `id_module` = ' . $moduleId . ' AND `id_shop` = ' . $shopId
+            );
+
+            if ($enableDevice !== 7) {
+                $db->update(
+                    'module_shop',
+                    ['enable_device' => 7],
+                    'id_module = ' . $moduleId . ' AND id_shop = ' . $shopId
+                );
+            }
+
+            // Register missing hooks
+            $hooks = self::getRequiredHooks();
+            foreach ($hooks as $hookName) {
+                $idHook = (int) \Hook::getIdByName($hookName);
+                if ($idHook <= 0) {
+                    continue;
+                }
+
+                $exists = (int) $db->getValue(
+                    'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'hook_module` ' .
+                    'WHERE `id_module` = ' . $moduleId .
+                    ' AND `id_hook` = ' . $idHook .
+                    ' AND `id_shop` = ' . $shopId
+                );
+
+                if (!$exists) {
+                    $position = (int) $db->getValue(
+                        'SELECT COALESCE(MAX(`position`), 0) FROM `' . _DB_PREFIX_ . 'hook_module` ' .
+                        'WHERE `id_hook` = ' . $idHook . ' AND `id_shop` = ' . $shopId
+                    );
+
+                    $db->insert('hook_module', [
+                        'id_module' => $moduleId,
+                        'id_hook' => $idHook,
+                        'id_shop' => $shopId,
+                        'position' => $position + 1,
+                    ]);
+                }
+            }
+
+            // Generate JS file for this shop if missing
+            try {
+                $originalShop = \Mktr\Model\Config::shop();
+                \Mktr\Model\Config::setShop($shopId);
+                \Mktr\Model\Config::i(true);
+
+                if (\Mktr\Model\Config::showJs(true)) {
+                    $jsPrefix = \Mktr\Model\Config::getJsPrefix();
+                    $jsFile = \Mktr\Model\Config::i()->js_file;
+
+                    if ($jsFile === '' || !file_exists(MKTR_APP . $jsPrefix . $jsFile . '.js')) {
+                        \Mktr\Route\refreshJS::resetConfig();
+                        \Mktr\Route\refreshJS::loadJs();
+                    }
+                }
+
+                if ($originalShop !== $shopId) {
+                    \Mktr\Model\Config::setShop($originalShop);
+                    \Mktr\Model\Config::i(true);
+                    \Mktr\Model\Config::showJs(true);
+                }
+            } catch (\Exception $e) {
+                // Silent
+            }
+
+            // Mark hooks as verified for this shop+version
+            \Configuration::updateValue('MKTR_HOOKS_OK', $this->version, false, null, $shopId);
+        } catch (\Exception $e) {
+            // Silent — don't break the page
+        }
     }
 
     public static function i()
@@ -150,19 +281,57 @@ class Mktr extends \Module
         return true;
     }
 
+    /**
+     * @return array
+     */
+    public static function getRequiredHooks()
+    {
+        if (_PS_VERSION_ >= 1.6) {
+            $hooks = [
+                'Header',
+                'displayHeader',
+                'moduleRoutes',
+                'displayFooter',
+                'displayFooterAfter',
+                'displayFooterBefore',
+                'actionFrontControllerSetMedia',
+                'actionDispatcher',
+                'actionDispatcherBefore',
+                'actionControllerInitBefore',
+                'displayBackOfficeHeader',
+                'actionOrderStatusUpdate',
+            ];
+        } else {
+            $hooks = [
+                'displayHeader',
+                'moduleRoutes',
+                'displayFooter',
+                'actionDispatcher',
+                'actionDispatcherBefore',
+                'actionControllerInitBefore',
+                'displayBackOfficeHeader',
+                'actionOrderStatusUpdate',
+            ];
+        }
+
+        if (_PS_VERSION_ >= 1.7) {
+            $hooks[] = 'displayBeforeBodyClosingTag';
+        }
+
+        return $hooks;
+    }
+
     public static function preConfig()
     {
         if (self::$update) {
             if (file_exists(MKTR_APP . 'mktr.php')) {
                 self::$update = false;
-                \Mktr\Route\refreshJS::resetConfig();
-                \Mktr\Route\refreshJS::loadJs();
 
                 self::correctUpdate(
                     MKTR_APP . 'mktr.php',
                     [
                         implode('', ['private static $update ', '= true;']),
-                        "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
+                        "define('MKTR_ROOT', '/home/sportmagadmin/public_html/');",
                         "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
                         "
         \$d = MKTR_ROOT . 'modules/mktr/';",
@@ -179,7 +348,7 @@ class Mktr extends \Module
                     MKTR_APP . 'controllers/admin/MktrController.php',
                     [
                         implode('', ['private static $update ', '= true;']),
-                        "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
+                        "define('MKTR_ROOT', '/home/sportmagadmin/public_html/');",
                         "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
                         "
         \$d = MKTR_ROOT . 'modules/mktr/';",
@@ -206,40 +375,7 @@ class Mktr extends \Module
             \Shop::setContext(\Shop::CONTEXT_ALL);
         }
 
-        if (_PS_VERSION_ >= 1.6) {
-            $hook = [
-                /* Front */
-                'Header',
-                'displayHeader',
-                'moduleRoutes',
-                'displayFooterAfter',
-                'displayFooterBefore',
-                'actionDispatcher',
-                'actionDispatcherBefore',
-                'actionControllerInitBefore',
-                /* Admin */
-                'displayBackOfficeHeader',
-                'actionOrderStatusUpdate',
-            ];
-        } else {
-            $hook = [
-                /* Front */
-                'displayHeader',
-                'moduleRoutes',
-                'actionDispatcher',
-                'actionDispatcherBefore',
-                'actionControllerInitBefore',
-                /* Admin */
-                'displayBackOfficeHeader',
-                'actionOrderStatusUpdate',
-            ];
-        }
-
-        if (_PS_VERSION_ >= 1.7) {
-            $hook[] = 'displayBeforeBodyClosingTag';
-        } else {
-            $hook[] = 'displayFooter';
-        }
+        $hook = self::getRequiredHooks();
 
         \Mktr\Helper\Setup::install();
 
@@ -317,11 +453,13 @@ class Mktr extends \Module
 
     public function getContent()
     {
-        $mboInstaller = new \Prestashop\ModuleLibMboInstaller\DependencyBuilder($this);
-        if (!$mboInstaller->areDependenciesMet()) {
-            $dependencies = $mboInstaller->handleDependencies();
-            $this->smarty->assign('dependencies', $dependencies);
-            return $this->display(__FILE__, 'views/templates/admin/dependency_builder.tpl');
+        if (version_compare(_PS_VERSION_, '1.7.0.0', '>=')) {
+            $mboInstaller = new \Prestashop\ModuleLibMboInstaller\DependencyBuilder($this);
+            if (!$mboInstaller->areDependenciesMet()) {
+                $dependencies = $mboInstaller->handleDependencies();
+                $this->smarty->assign('dependencies', $dependencies);
+                return $this->display(__FILE__, 'views/templates/admin/dependency_builder.tpl');
+            }
         }
 
         \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
@@ -378,6 +516,68 @@ class Mktr extends \Module
     public function hookactionControllerInitBefore()
     {
         $this->initDispatcher();
+    }
+
+    /**
+     * @return string|null
+     */
+    private function resolveJsFile()
+    {
+        $js = \Mktr\Model\Config::i()->js_file;
+        $prefix = \Mktr\Model\Config::getJsPrefix();
+
+        if ($js === '' || !file_exists(MKTR_APP . $prefix . $js . '.js')) {
+            try {
+                \Mktr\Route\refreshJS::resetConfig();
+                \Mktr\Route\refreshJS::loadJs();
+                $js = \Mktr\Model\Config::i()->js_file;
+                $prefix = \Mktr\Model\Config::getJsPrefix();
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        if ($js === '' || !file_exists(MKTR_APP . $prefix . $js . '.js')) {
+            return null;
+        }
+
+        $this->syncCartId();
+
+        return $prefix . $js . '.js';
+    }
+
+    private function syncCartId()
+    {
+        if (isset($this->context->cart->id) && \Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
+            \Mktr\Helper\Session::set('cartID', $this->context->cart->id);
+            \Mktr\Helper\Session::save();
+        }
+    }
+
+    public function hookActionFrontControllerSetMedia($params = null)
+    {
+        if (!\Mktr\Model\Config::showJS()) {
+            return;
+        }
+
+        $file = $this->resolveJsFile();
+        if ($file === null) {
+            return;
+        }
+
+        try {
+            if (method_exists($this->context->controller, 'registerJavascript')) {
+                $this->context->controller->registerJavascript(
+                    'module-mktr-tracking',
+                    'modules/' . $this->name . '/' . $file,
+                    ['server' => 'local', 'position' => 'head', 'priority' => 100]
+                );
+            } else {
+                $this->context->controller->addJS($this->_path . $file);
+            }
+        } catch (\Exception $e) {
+            // Silent
+        }
     }
 
     public function initDispatcher()
@@ -629,18 +829,15 @@ class Mktr extends \Module
 
     public function hScript()
     {
-        if (self::$displayLoad['header'] === true && \Mktr\Model\Config::showJS()) {
+        $showJS = \Mktr\Model\Config::showJS();
+        $headerFlag = self::$displayLoad['header'];
+
+        if ($headerFlag === true && $showJS) {
             self::$displayLoad['header'] = false;
-            $js = \Mktr\Model\Config::i()->js_file;
 
-            if ($js !== '') {
-                if (\Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
-                    \Mktr\Helper\Session::set('cartID', $this->context->cart->id);
-                    \Mktr\Helper\Session::save();
-                }
-
-                $jsPrefix = \Mktr\Model\Config::getJsPrefix();
-                $this->context->controller->addJS($this->_path . $jsPrefix . $js . '.js');
+            $file = $this->resolveJsFile();
+            if ($file !== null) {
+                return '<script type="text/javascript" src="' . htmlspecialchars($this->_path . $file, ENT_QUOTES, 'UTF-8') . '" defer></script>';
             }
         }
     }
@@ -677,10 +874,21 @@ class Mktr extends \Module
 
     public function script()
     {
+        $jsTag = '';
+        if (self::$displayLoad['jsFooter'] === true && \Mktr\Model\Config::showJS()) {
+            self::$displayLoad['jsFooter'] = false;
+
+            $file = $this->resolveJsFile();
+            if ($file !== null) {
+                $jsTag = '<script type="text/javascript" src="' . htmlspecialchars($this->_path . $file, ENT_QUOTES, 'UTF-8') . '"></script>';
+            }
+        }
+
         if (\Mktr\Model\Config::showJsOut()) {
             self::$displayLoad['footer'] = false;
         }
 
+        $eventsHtml = '';
         if (self::$displayLoad['footer'] === true && \Mktr\Model\Config::showJS()) {
             self::$displayLoad['footer'] = false;
 
@@ -846,12 +1054,24 @@ class Mktr extends \Module
                 }
             }
 
-            return PHP_EOL . implode(PHP_EOL, $events);
+            $eventsHtml = PHP_EOL . implode(PHP_EOL, $events);
             /*
             if (_PS_VERSION_ > 1.6) {
             } else {
                 echo PHP_EOL . implode(PHP_EOL, $events);
             }*/
+        }
+
+        $output = '';
+        if ($jsTag !== '') {
+            $output .= PHP_EOL . $jsTag;
+        }
+        if ($eventsHtml !== '') {
+            $output .= $eventsHtml;
+        }
+
+        if ($output !== '') {
+            return $output;
         }
     }
 
@@ -883,29 +1103,19 @@ class Mktr extends \Module
     public function __call($name, $arguments)
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid method name.');
-            }
             return null;
         }
 
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
-            }
-
-            return null;
         }
+
+        return null;
     }
 
     public static function __callStatic($name, $arguments)
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid static method name.');
-            }
             return null;
         }
 
@@ -917,13 +1127,9 @@ class Mktr extends \Module
 
         if (method_exists(self::$i, $name)) {
             return call_user_func_array([self::$i, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Static method {$name} does not exist.");
-            }
-
-            return null;
         }
+
+        return null;
     }
 
     public static function finLoad()
