@@ -45,7 +45,7 @@ class MktrController extends \AdminController
 {
     const Docs = 'https://themarketer.com/resources/api';
     const LogIn = 'https://app.themarketer.com/login';
-    const Register = 'https://app.themarketer.com/register';
+    const Register = 'https://app.themarketer.com/register-account';
 
     private static $page = 'tracker';
     private static $i;
@@ -226,7 +226,11 @@ class MktrController extends \AdminController
             if (array_key_exists('values', $value)) {
                 $n['values'] = $value['values'];
                 foreach ($value['values'] as $key1 => $value1) {
-                    $n['values'][$key1]['label'] = $this->trans($value1['label']);
+                    if (_PS_VERSION_ >= 1.7 && method_exists($this, 'trans')) {
+                        $n['values'][$key1]['label'] = $this->trans($value1['label']);
+                    } else {
+                        $n['values'][$key1]['label'] = $this->l($value1['label']);
+                    }
                 }
             }
 
@@ -252,7 +256,7 @@ class MktrController extends \AdminController
             ],
             'input' => $new,
             'submit' => [
-                'title' => $this->trans('Save'),
+                'title' => (_PS_VERSION_ >= 1.7 && method_exists($this, 'trans')) ? $this->trans('Save') : $this->l('Save'),
             ],
         ];
 
@@ -324,6 +328,32 @@ class MktrController extends \AdminController
         \Mktr\Route\refreshJS::loadJs();
 
         self::$config->save();
+
+        if (\Shop::isFeatureActive()) {
+            $this->regenerateJsForAffectedShops();
+        }
+    }
+
+    private function regenerateJsForAffectedShops()
+    {
+        $currentShopId = \Mktr\Model\Config::shop();
+        $shopIds = \Shop::getShops(true, null, true);
+
+        foreach ($shopIds as $shopId) {
+            $shopId = (int) $shopId;
+            if ($shopId === $currentShopId) {
+                continue;
+            }
+
+            \Mktr\Model\Config::reset();
+            \Mktr\Model\Config::setShop($shopId);
+
+            \Mktr\Route\refreshJS::resetConfig();
+            \Mktr\Route\refreshJS::loadJs();
+        }
+
+        \Mktr\Model\Config::reset();
+        \Mktr\Model\Config::setLang($this->context->language->id);
     }
 
     private function updateOptIn()
@@ -417,6 +447,8 @@ class MktrController extends \AdminController
 
     public function initContent()
     {
+        parent::initContent();
+
         \Mktr\Model\Config::reset();
         /* @phpstan-ignore-next-line */
         self::$config = \Mktr\Model\Config::setLang($this->context->language->id);
