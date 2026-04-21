@@ -151,7 +151,6 @@ class Api
 
             \curl_close(self::$cURL);
 
-            sleep(1);
         } catch (\Exception $e) {
         }
 
