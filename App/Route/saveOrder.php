@@ -32,87 +32,55 @@ if (!defined('_PS_VERSION_')) {
 
 class saveOrder
 {
-    private static $try = 0;
-
     public static function run()
     {
         $events = [''];
         $Order = \Mktr\Helper\Session::get('save_order');
         $allGood = true;
+        $toClean = [];
 
         if (!empty($Order)) {
-            foreach ($Order as $sOrderData) {
-                if (array_key_exists('is_order', $sOrderData) && $sOrderData['is_order'] == false) {
-                    if (is_array($sOrderData) && method_exists('\Order', 'getIdByCartId')) {
-                        $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
-                    }
-                    if (is_array($sOrderData) && method_exists('\Order', 'getIdByCartId')) {
-                        $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
-                    }
-                    if ($sOrderData['id'] == false) {
-                        \Mktr\Helper\Session::set('save_order', []);
-                        \Mktr\Helper\Session::save();
-
-                        return 'console.log("Clean");';
-                    }
-                } elseif (!array_key_exists('is_order', $sOrderData)) {
-                    \Mktr\Helper\Session::set('save_order', []);
-                    \Mktr\Helper\Session::save();
-
-                    return 'console.log("OLD VERSION");';
+            foreach ($Order as $key => $sOrderData) {
+                if (!is_array($sOrderData) || !array_key_exists('is_order', $sOrderData)) {
+                    $toClean[] = $key;
+                    continue;
                 }
 
-                $temp = \Mktr\Model\Orders::getByID($sOrderData['id']);
-                $sOrder = $temp->toApi();
-
-                if (empty($temp->getProducts())) {
-                    ++self::$try;
-                    sleep(2);
-                    if (self::$try < 5) {
-                        return self::run();
+                if ($sOrderData['is_order'] == false) {
+                    if (method_exists('\Order', 'getIdByCartId')) {
+                        $sOrderData['id'] = \Order::getIdByCartId($sOrderData['id']);
                     }
 
-                    return 'console.log("Empty Products");';
+                    if (empty($sOrderData['id'])) {
+                        // The order does not exist yet - an async payment callback
+                        // may still be on its way. Keep it queued until it expires
+                        // instead of dropping the whole queue.
+                        if (GetEvents::isExpired($sOrderData)) {
+                            $toClean[] = $key;
+                        }
+
+                        $allGood = false;
+                        continue;
+                    }
                 }
 
-                \Mktr\Helper\Api::send('save_order', $sOrder);
-                if (\Mktr\Helper\Api::getStatus() != 200) {
+                if (\Mktr\Model\Orders::push($sOrderData['id'])) {
+                    $toClean[] = $key;
+                } else {
                     $allGood = false;
-                }
 
-                if (!empty($sOrder['email_address'])) {
-                    $v = \Mktr\Model\Subscription::getByEmail($sOrder['email_address']);
-                    if ($v->subscribed) {
-                        $info = [
-                            'email' => $v->email_address,
-                        ];
-                        $name = [];
-
-                        if ($v->firstname !== null) {
-                            $name[] = $v->firstname;
-                        }
-
-                        if ($v->lastname !== null) {
-                            $name[] = $v->lastname;
-                        }
-
-                        $info['name'] = implode(' ', $name);
-
-                        if ($v->phone !== null) {
-                            $info['phone'] = $v->phone;
-                        }
-
-                        \Mktr\Helper\Api::send('add_subscriber', $info);
-
-                        if (\Mktr\Helper\Api::getStatus() != 200) {
-                            $allGood = false;
-                        }
+                    if (GetEvents::isExpired($sOrderData)) {
+                        $toClean[] = $key;
                     }
                 }
             }
 
-            if ($allGood) {
-                \Mktr\Helper\Session::set('save_order', []);
+            if (!empty($toClean)) {
+                foreach ($toClean as $key) {
+                    unset($Order[$key]);
+                }
+
+                \Mktr\Helper\Session::set('save_order', $Order);
                 \Mktr\Helper\Session::save();
             }
         }

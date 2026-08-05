@@ -67,7 +67,10 @@ class MktrCronModuleFrontController extends \ModuleFrontController
                 $data->update_feed = strtotime('+' . (empty($add) ? 4 : $add) . ' hour');
             }
 
+            $data->last_cron_run = time();
             $data->save();
+
+            \Mktr\Route\SyncOrders::run();
         }
 
         header('Content-type: application/json; charset=UTF-8');

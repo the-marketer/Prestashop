@@ -51,6 +51,8 @@ class CheckHook
                     'actionDispatcher',
                     'actionDispatcherBefore',
                     'actionControllerInitBefore',
+                    /* Orders */
+                    'actionValidateOrder',
                     /* Admin */
                     'displayBackOfficeHeader',
                     'actionOrderStatusUpdate',
@@ -63,6 +65,8 @@ class CheckHook
                     'actionDispatcher',
                     'actionDispatcherBefore',
                     'actionControllerInitBefore',
+                    /* Orders */
+                    'actionValidateOrder',
                     /* Admin */
                     'displayBackOfficeHeader',
                     'actionOrderStatusUpdate',

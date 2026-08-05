@@ -79,33 +79,12 @@ class GetEvents
                         }
 
                         $temp = \Mktr\Model\Orders::getByID($value1['id']);
-                        $sOrder = $temp->toApi();
 
                         if (!empty($temp->getProducts())) {
                             $events[] = [$event, $temp->toEvent()];
-                            \Mktr\Helper\Api::send('save_order', $sOrder);
 
-                            if (\Mktr\Helper\Api::getStatus() == 200 || self::isExpired($value1)) {
+                            if (\Mktr\Model\Orders::push($value1['id']) || self::isExpired($value1)) {
                                 $toClean[] = $key;
-                            }
-
-                            if (!empty($sOrder['email_address'])) {
-                                $v = \Mktr\Model\Subscription::getByEmail($sOrder['email_address']);
-                                if ($v->subscribed) {
-                                    $info = ['email' => $v->email_address];
-                                    $name = [];
-                                    if ($v->firstname !== null) {
-                                        $name[] = $v->firstname;
-                                    }
-                                    if ($v->lastname !== null) {
-                                        $name[] = $v->lastname;
-                                    }
-                                    if ($v->phone !== null) {
-                                        $info['phone'] = $v->phone;
-                                    }
-                                    $info['name'] = implode(' ', $name);
-                                    \Mktr\Helper\Api::send('add_subscriber', $info);
-                                }
                             }
                         }
                     } elseif (in_array($event, ['set_email'])) {

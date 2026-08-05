@@ -379,6 +379,8 @@ class MktrController extends \AdminController
             $out .= \Mktr::i()->displayError(implode('<br />', self::$err['log']));
         }
 
+        $out .= $this->cronWarning();
+
         $js_status = \Tools::getValue('js_status', null);
 
         if ($js_status !== null) {
@@ -387,6 +389,45 @@ class MktrController extends \AdminController
         }
 
         return $out . $helper->generateForm($this->getConfigForm());
+    }
+
+    /**
+     * The cron endpoint is what recovers orders the API refused or timed out
+     * on. It only runs if the merchant added it to their crontab, so say so
+     * when it clearly has not run.
+     *
+     * @return string
+     */
+    private function cronWarning()
+    {
+        if (self::$page !== 'tracker' || !\Mktr\Model\Config::rest()) {
+            return '';
+        }
+
+        $data = \Mktr\Helper\Data::init();
+        $lastRun = (int) $data->last_cron_run;
+        $feedNext = (int) $data->update_feed;
+
+        if ($lastRun === 0) {
+            // Never seen a run since this version - fall back to the feed
+            // timestamp, which a working cron keeps in the future.
+            $stale = $feedNext <= time();
+        } else {
+            $stale = $lastRun < (time() - 86400);
+        }
+
+        if (!$stale) {
+            return '';
+        }
+
+        $url = \Tools::getShopDomainSsl(true) . __PS_BASE_URI__ .
+            'index.php?fc=module&module=mktr&controller=cron';
+
+        return \Mktr::i()->displayWarning(
+            'TheMarketer cron has not run in the last 24 hours. Orders that fail to reach ' .
+            'the API are recovered by it, so please add this to your server cron jobs:<br />' .
+            '<code>0 * * * * curl -s "' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" > /dev/null 2>&1</code>'
+        );
     }
 
     public function token()

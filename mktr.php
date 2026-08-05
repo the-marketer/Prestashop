@@ -64,7 +64,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.5';
+        $this->version = '1.1.6';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -217,6 +217,8 @@ class Mktr extends \Module
                 'actionDispatcher',
                 'actionDispatcherBefore',
                 'actionControllerInitBefore',
+                /* Orders */
+                'actionValidateOrder',
                 /* Admin */
                 'displayBackOfficeHeader',
                 'actionOrderStatusUpdate',
@@ -229,6 +231,8 @@ class Mktr extends \Module
                 'actionDispatcher',
                 'actionDispatcherBefore',
                 'actionControllerInitBefore',
+                /* Orders */
+                'actionValidateOrder',
                 /* Admin */
                 'displayBackOfficeHeader',
                 'actionOrderStatusUpdate',
@@ -607,6 +611,85 @@ class Mktr extends \Module
                     }
                 }
             }
+
+            self::scheduleOrderSync();
+        }
+    }
+
+    /**
+     * Fires inside PaymentModule::validateOrder(), so it catches every payment
+     * method - including the ones that create the order in a server-to-server
+     * callback and never bring the customer back to the confirmation page.
+     */
+    public function hookactionValidateOrder($params = null)
+    {
+        if (empty($params['order']) || !\Mktr\Model\Config::rest()) {
+            return;
+        }
+
+        try {
+            \Mktr\Model\Orders::push((int) $params['order']->id);
+        } catch (\Exception $e) {
+            // Never let tracking break order creation - the sweeper retries.
+            self::orderLog('VALIDATE_ORDER', $e->getMessage());
+        } catch (\Throwable $e) {
+            self::orderLog('VALIDATE_ORDER', $e->getMessage());
+        }
+    }
+
+    private static function orderLog($tag, $message)
+    {
+        @file_put_contents(
+            MKTR_APP . 'Storage/install.log',
+            date('Y-m-d H:i:s') . '[' . $tag . '] ' . $message . "\n",
+            FILE_APPEND
+        );
+    }
+
+    /**
+     * Queues a small sweep to run after the response, at most once every 15
+     * minutes per shop. Keeps the safety net alive on shops that never added
+     * the cron job.
+     */
+    public static function scheduleOrderSync()
+    {
+        if (!\Mktr\Model\Config::rest()) {
+            return;
+        }
+
+        $cont = \Mktr\Helper\Valid::getParam('controller', null);
+
+        if (in_array(strtolower((string) $cont), ['api', 'cron'])) {
+            return;
+        }
+
+        try {
+            $data = \Mktr\Helper\Data::init();
+
+            if ((int) $data->next_order_sync > time()) {
+                return;
+            }
+
+            // Reserved before the sweep runs, so parallel requests do not pile up.
+            $data->next_order_sync = time() + 900;
+            \Mktr\Helper\Data::save();
+        } catch (\Exception $e) {
+            return;
+        }
+
+        register_shutdown_function(['Mktr', 'runOrderSync']);
+    }
+
+    public static function runOrderSync()
+    {
+        try {
+            // Small and time boxed - this runs on a request the shop is
+            // already paying for, after the response has been built.
+            \Mktr\Route\SyncOrders::run(5, 8);
+        } catch (\Exception $e) {
+            self::orderLog('SYNC_ORDERS', $e->getMessage());
+        } catch (\Throwable $e) {
+            self::orderLog('SYNC_ORDERS', $e->getMessage());
         }
     }
 
