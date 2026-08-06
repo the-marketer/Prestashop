@@ -29,7 +29,8 @@ if (!defined('_PS_VERSION_')) {
 
 /**
  * Registers actionValidateOrder so orders are sent when they are created,
- * instead of relying on the customer landing on the confirmation page.
+ * instead of relying on the customer landing on the confirmation page, and
+ * adds the table that records what actually reached TheMarketer.
  *
  * @param Mktr $module
  *
@@ -37,6 +38,10 @@ if (!defined('_PS_VERSION_')) {
  */
 function upgrade_module_1_1_6($module)
 {
+    if (!Mktr\Model\Config::db()->execute(Mktr\Helper\Setup::orderSyncTable())) {
+        return false;
+    }
+
     if (!(Hook::getIdByName('actionValidateOrder') > 0)) {
         return true;
     }

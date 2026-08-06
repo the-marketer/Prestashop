@@ -224,77 +224,45 @@ class Orders extends DataBase
             return false;
         }
 
-        // The hook already sent this one and the browser is now draining the
-        // session queue for the same order. Order ids only grow, so anything
-        // at or below the watermark has been through here already.
-        if (self::alreadySent($id_order)) {
+        // Already delivered - the hook sent it and the browser is now draining
+        // the session queue for the same order.
+        if (OrderSync::isSent($id_order)) {
             return true;
         }
+
+        OrderSync::enroll($id_order);
 
         try {
             $order = self::getByID($id_order, true);
 
             if (empty($order->getProducts())) {
+                OrderSync::markFailed($id_order, 'Order has no products yet');
+
                 return false;
             }
 
             $sOrder = $order->toApi();
 
             \Mktr\Helper\Api::send('save_order', $sOrder);
-            $sent = \Mktr\Helper\Api::getStatus() == 200;
+            $status = \Mktr\Helper\Api::getStatus();
+            $sent = $status == 200;
 
             if (!empty($sOrder['email_address'])) {
                 self::pushSubscriber($sOrder['email_address']);
             }
 
             if ($sent) {
-                self::advanceWatermark($id_order);
+                OrderSync::markSent($id_order);
+            } else {
+                OrderSync::markFailed($id_order, 'API responded ' . (int) $status);
             }
 
             return $sent;
         } catch (\Exception $e) {
             self::pushLog($id_order, $e->getMessage());
+            OrderSync::markFailed($id_order, $e->getMessage());
 
             return false;
-        }
-    }
-
-    /**
-     * @param int $id_order
-     *
-     * @return bool whether the watermark already covers this order
-     */
-    private static function alreadySent($id_order)
-    {
-        try {
-            $last = (int) \Mktr\Helper\Data::init()->last_order_sync;
-        } catch (\Exception $e) {
-            return false;
-        }
-
-        return $last > 0 && $id_order <= $last;
-    }
-
-    /**
-     * Keeps the sweeper's watermark in step with the orders the hook already
-     * sent, so the usual case leaves it nothing to re-send. Only closes the
-     * gap by one - anything else is left for the sweeper to work out.
-     *
-     * @param int $id_order
-     */
-    private static function advanceWatermark($id_order)
-    {
-        try {
-            $data = \Mktr\Helper\Data::init();
-            $last = (int) $data->last_order_sync;
-
-            if ($last > 0 && $id_order === $last + 1) {
-                $data->last_order_sync = $id_order;
-                \Mktr\Helper\Data::save();
-            }
-        } catch (\Exception $e) {
-            // The watermark is an optimisation, not a guarantee - a shop with
-            // an unwritable Storage directory still sends its orders.
         }
     }
 

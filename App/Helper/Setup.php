@@ -81,16 +81,41 @@ class Setup
         }
     }
 
+    /**
+     * One row per order, so the shop can answer "did this order reach
+     * TheMarketer" instead of only "how far did the sweeper get".
+     *
+     * @return string
+     */
+    public static function orderSyncTable()
+    {
+        // id_order is auto increment across the whole installation, so it is
+        // the key on its own. Everything else about the order, the shop it
+        // belongs to included, stays in the orders table.
+        return 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'mktr_order_sync` (
+            `id_order` int(10) unsigned NOT NULL,
+            `sent` tinyint(1) unsigned NOT NULL DEFAULT 0,
+            `attempts` int(10) unsigned NOT NULL DEFAULT 0,
+            `last_error` varchar(255) DEFAULT NULL,
+            `date_add` datetime NOT NULL,
+            `date_sent` datetime DEFAULT NULL,
+            PRIMARY KEY (`id_order`),
+            KEY `mktr_pending` (`sent`, `id_order`)
+        ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+    }
+
     public static function install()
     {
         $sql = [];
 
         $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'mktr` (
             `uid` varchar(50) NOT NULL,
-            `data` longtext, 
+            `data` longtext,
             `expire` datetime,
             PRIMARY KEY  (uid)
         ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+
+        $sql[] = self::orderSyncTable();
 
         foreach ($sql as $query) {
             if (\Mktr\Model\Config::db()->execute($query) == false) {
@@ -137,6 +162,7 @@ class Setup
     {
         $sql = [
             'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'mktr`;',
+            'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'mktr_order_sync`;',
         ];
 
         foreach ($sql as $query) {

@@ -379,6 +379,7 @@ class MktrController extends \AdminController
             $out .= \Mktr::i()->displayError(implode('<br />', self::$err['log']));
         }
 
+        $out .= $this->orderSyncStatus();
         $out .= $this->cronWarning();
 
         $js_status = \Tools::getValue('js_status', null);
@@ -389,6 +390,53 @@ class MktrController extends \AdminController
         }
 
         return $out . $helper->generateForm($this->getConfigForm());
+    }
+
+    /**
+     * What is still owed to TheMarketer. Silent when everything is delivered.
+     *
+     * @return string
+     */
+    private function orderSyncStatus()
+    {
+        if (self::$page !== 'tracker' || !\Mktr\Model\Config::rest()) {
+            return '';
+        }
+
+        if (\Tools::isSubmit('mktrRetryStuck')) {
+            $reopened = \Mktr\Model\OrderSync::retryStuck();
+
+            return \Mktr::i()->displayConfirmation(
+                $reopened . ' order(s) queued for another attempt.'
+            );
+        }
+
+        $counts = \Mktr\Model\OrderSync::counts();
+
+        if ($counts['pending'] === 0 && $counts['stuck'] === 0) {
+            return '';
+        }
+
+        $out = '';
+
+        if ($counts['pending'] > 0) {
+            $out .= \Mktr::i()->displayWarning(
+                $counts['pending'] . ' order(s) waiting to be sent to TheMarketer. ' .
+                'They are delivered by the cron, or automatically as the shop receives traffic.'
+            );
+        }
+
+        if ($counts['stuck'] > 0) {
+            $out .= \Mktr::i()->displayError(
+                $counts['stuck'] . ' order(s) failed ' . \Mktr\Model\OrderSync::MAX_ATTEMPTS .
+                ' times and are no longer retried. Check the last_error column in ' .
+                '<code>' . _DB_PREFIX_ . 'mktr_order_sync</code>, then ' .
+                '<a href="' . $this->getBaseIndex() . '&page=tracker&mktrRetryStuck=1&' .
+                $this->token() . '">retry them</a>.'
+            );
+        }
+
+        return $out;
     }
 
     /**
