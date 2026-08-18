@@ -258,7 +258,7 @@ class OrderSync
         $error = \Tools::substr((string) $error, 0, 255);
 
         Config::db()->execute(
-            'UPDATE `' . self::table() . '` SET `attempts` = `attempts` + 1,' .
+            'UPDATE `' . self::table() . '` SET `sent` = ' . (int) self::STATE_PENDING . ', `attempts` = `attempts` + 1,' .
             " `last_error` = '" . \pSQL($error) . "'," .
             " `date_next_try` = '" . date('Y-m-d H:i:s', time() + self::retryDelay($made)) . "'" .
             ' WHERE `id_order` = ' . (int) $id_order . ' AND `sent` = ' . (int) self::STATE_PROCESSING

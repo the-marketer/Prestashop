@@ -273,6 +273,8 @@ class Orders extends DataBase
             }
 
             if (!OrderSync::markSent($id_order)) {
+                self::pushLog($id_order, 'API acknowledged order after its delivery claim was lost');
+
                 return false;
             }
 

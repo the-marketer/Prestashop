@@ -75,7 +75,7 @@ class Mktr extends \Module
         $this->displayName = 'TheMarketer';
         $this->description = 'TheMarketer - PrestaShop Version';
         $this->confirmUninstall = 'Are you sure you want to uninstall this module?';
-        $this->ps_versions_compliancy = ['min' => '1.5', 'max' => _PS_VERSION_];
+        $this->ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
         self::$i = $this;
         self::$init = true;
 

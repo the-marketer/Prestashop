@@ -485,7 +485,7 @@ class Config
             return $token;
         }
 
-        $token = bin2hex(random_bytes(32));
+        $token = self::newCronToken();
         \Configuration::updateValue(self::CRON_TOKEN_KEY, $token);
 
         return $token;
@@ -502,7 +502,51 @@ class Config
             return false;
         }
 
-        return hash_equals(self::cronToken(), $token);
+        $expected = self::cronToken();
+
+        if (function_exists('hash_equals')) {
+            return hash_equals($expected, $token);
+        }
+
+        if (strlen($expected) !== strlen($token)) {
+            return false;
+        }
+
+        $different = 0;
+        for ($i = 0, $length = strlen($expected); $i < $length; ++$i) {
+            $different |= ord($expected[$i]) ^ ord($token[$i]);
+        }
+
+        return $different === 0;
+    }
+
+    /**
+     * Generates a token on PHP versions both with and without random_bytes().
+     * PrestaShop 1.6 installations can still run older supported PHP builds,
+     * where OpenSSL is the available cryptographically secure source.
+     *
+     * @return string
+     */
+    private static function newCronToken()
+    {
+        if (function_exists('random_bytes')) {
+            try {
+                return bin2hex(random_bytes(32));
+            } catch (\Exception $e) {
+                // Fall through to OpenSSL when the system CSPRNG is unavailable.
+            }
+        }
+
+        if (function_exists('openssl_random_pseudo_bytes')) {
+            $strong = false;
+            $bytes = openssl_random_pseudo_bytes(32, $strong);
+
+            if ($bytes !== false && $strong) {
+                return bin2hex($bytes);
+            }
+        }
+
+        throw new \RuntimeException('No cryptographically secure random source is available for the cron token.');
     }
 
     public static function showGoogle($new = false)
