@@ -34,6 +34,9 @@ if (!defined('_PS_VERSION_')) {
 
 class Config
 {
+    /** Shared secret required by the public cron endpoint. */
+    const CRON_TOKEN_KEY = 'MKTR_CRON_TOKEN';
+
     const CONFIG_DATA = [
         'status' => ['key' => 'MKTR_TRACKER_TRACKER_STATUS', 'default' => false, 'type' => 'bool'],
         'tracking_key' => ['key' => 'MKTR_TRACKER_TRACKER_TRACKING_KEY', 'default' => '', 'type' => 'string'],
@@ -465,6 +468,43 @@ class Config
         return self::$checkData['rest'];
     }
 
+    /**
+     * Returns the installation-wide secret used by the server cron job.
+     *
+     * It deliberately lives outside the normal per-shop configuration: a
+     * single cPanel job can use one secret, while the host name still selects
+     * which shop the job runs for.
+     *
+     * @return string
+     */
+    public static function cronToken()
+    {
+        $token = (string) \Configuration::get(self::CRON_TOKEN_KEY);
+
+        if (preg_match('/^[a-f0-9]{64}$/D', $token)) {
+            return $token;
+        }
+
+        $token = bin2hex(random_bytes(32));
+        \Configuration::updateValue(self::CRON_TOKEN_KEY, $token);
+
+        return $token;
+    }
+
+    /**
+     * @param mixed $token
+     *
+     * @return bool
+     */
+    public static function validCronToken($token)
+    {
+        if (!is_string($token)) {
+            return false;
+        }
+
+        return hash_equals(self::cronToken(), $token);
+    }
+
     public static function showGoogle($new = false)
     {
         if ($new === true || self::$checkData['showGoogle'] === null) {
@@ -485,6 +525,7 @@ class Config
 
             \Configuration::deleteByName('MKTR_TRACKER_CONFIRMATION');
             \Configuration::deleteByName('MKTR_TRACKER_NOTIFICATION');
+            \Configuration::deleteByName(self::CRON_TOKEN_KEY);
         } else {
             \Configuration::deleteByName(self::$CFG_DATA[$name]['key']);
         }

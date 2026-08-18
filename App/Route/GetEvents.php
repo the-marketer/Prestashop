@@ -56,8 +56,8 @@ class GetEvents
 
         $data = \Mktr\Helper\Session::data();
 
-        $toClean = [];
         foreach ($evList as $event => $value) {
+            $toClean = [];
             $list = \Mktr\Helper\Session::get($event);
             if (!empty($list)) {
                 foreach ($list as $key => $value1) {
@@ -78,14 +78,34 @@ class GetEvents
                             continue;
                         }
 
-                        $temp = \Mktr\Model\Orders::getByID($value1['id']);
+                        $idOrder = (int) $value1['id'];
+
+                        // Server-side delivery owns the order. Do not emit a
+                        // second __sm__order event after cron or another
+                        // request has already delivered (or claimed) it.
+                        if (\Mktr\Model\OrderSync::isSettled($idOrder)) {
+                            $toClean[] = $key;
+                            continue;
+                        }
+
+                        if (\Mktr\Model\Orders::push($idOrder)) {
+                            $toClean[] = $key;
+                            continue;
+                        }
+
+                        if (\Mktr\Model\OrderSync::isProcessing($idOrder)) {
+                            continue;
+                        }
+
+                        $temp = \Mktr\Model\Orders::getByID($idOrder);
 
                         if (!empty($temp->getProducts())) {
+                            // The browser remains a one-shot fallback after a
+                            // real REST failure. The table keeps retrying it
+                            // server-side, so retaining this session entry
+                            // would only re-emit the same tracking event.
                             $events[] = [$event, $temp->toEvent()];
-
-                            if (\Mktr\Model\Orders::push($value1['id']) || self::isExpired($value1)) {
-                                $toClean[] = $key;
-                            }
+                            $toClean[] = $key;
                         }
                     } elseif (in_array($event, ['set_email'])) {
                         $v = null;

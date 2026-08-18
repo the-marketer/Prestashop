@@ -92,6 +92,11 @@ class Setup
         // id_order is auto increment across the whole installation, so it is
         // the key on its own. Everything else about the order, the shop it
         // belongs to included, stays in the orders table.
+        //
+        // The index leads on `sent` and carries `id_order` so the sweeper's
+        // "oldest pending first" reads straight off the index. Putting
+        // `attempts` in between would turn the ordering into a filesort,
+        // because it is matched as a range rather than a constant.
         return 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'mktr_order_sync` (
             `id_order` int(10) unsigned NOT NULL,
             `sent` tinyint(1) unsigned NOT NULL DEFAULT 0,
@@ -99,9 +104,33 @@ class Setup
             `last_error` varchar(255) DEFAULT NULL,
             `date_add` datetime NOT NULL,
             `date_sent` datetime DEFAULT NULL,
+            `date_next_try` datetime DEFAULT NULL,
             PRIMARY KEY (`id_order`),
             KEY `mktr_pending` (`sent`, `id_order`)
-        ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+        ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4;';
+    }
+
+    /**
+     * Brings a table created by an earlier build of this version up to date.
+     * CREATE TABLE IF NOT EXISTS leaves an existing table alone, so the column
+     * added after the first 1.1.6 packages went out has to be filled in here.
+     *
+     * @return bool
+     */
+    public static function orderSyncColumns()
+    {
+        $columns = \Mktr\Model\Config::db()->executeS(
+            'SHOW COLUMNS FROM `' . _DB_PREFIX_ . "mktr_order_sync` LIKE 'date_next_try'"
+        );
+
+        if (!empty($columns)) {
+            return true;
+        }
+
+        return (bool) \Mktr\Model\Config::db()->execute(
+            'ALTER TABLE `' . _DB_PREFIX_ . 'mktr_order_sync`' .
+            ' ADD `date_next_try` datetime DEFAULT NULL'
+        );
     }
 
     public static function install()
@@ -123,17 +152,24 @@ class Setup
             }
         }
 
+        if (!self::orderSyncColumns()) {
+            return false;
+        }
+
         self::AddTabs();
 
         self::ensureStorageDirectories();
 
         \Mktr\Model\Config::AddDefault();
+        \Mktr\Model\Config::cronToken();
 
         $data = \Mktr\Model\Config::nws();
         /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_CONFIRMATION', \Mktr\Model\Config::getConfig($data['CONFIRMATION']));
         /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setConfig('MKTR_TRACKER_NOTIFICATION', \Mktr\Model\Config::getConfig($data['NOTIFICATION']));
+
+        return true;
     }
 
     public static function ensureStorageDirectories()

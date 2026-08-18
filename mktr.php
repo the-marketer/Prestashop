@@ -158,38 +158,20 @@ class Mktr extends \Module
                 \Mktr\Route\refreshJS::resetConfig();
                 \Mktr\Route\refreshJS::loadJs();
 
+                // Only the flag is rewritten, and only in this file - the
+                // admin controller has no such flag, so rewriting it was a
+                // no-op that still wrote the file back to disk.
+                //
+                // The path patterns that used to live here matched their own
+                // source line: str_replace runs over the whole file, the array
+                // of patterns included, so the first run baked the machine's
+                // absolute path into the module. The flag survives that only
+                // because its pattern is assembled at runtime and never
+                // appears whole in the file.
                 self::correctUpdate(
                     MKTR_APP . 'mktr.php',
-                    [
-                        implode('', ['private static $update ', '= true;']),
-                        "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
-                        "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
-                        "
-        \$d = MKTR_ROOT . 'modules/mktr/';",
-                    ],
-                    [
-                        'private static $update = false;',
-                        "define('MKTR_ROOT', '" . MKTR_ROOT . "');",
-                        "define('MKTR_APP', '" . MKTR_APP . "');",
-                        '',
-                    ]
-                );
-
-                self::correctUpdate(
-                    MKTR_APP . 'controllers/admin/MktrController.php',
-                    [
-                        implode('', ['private static $update ', '= true;']),
-                        "define('MKTR_ROOT', _PS_ROOT_DIR_ . (substr(_PS_ROOT_DIR_, -1) === '/' ? '' : '/'));",
-                        "define('MKTR_APP', \$d . (substr(\$d, -1) === '/' ? '' : '/'));",
-                        "
-        \$d = MKTR_ROOT . 'modules/mktr/';",
-                    ],
-                    [
-                        'private static $update = false;',
-                        "define('MKTR_ROOT', '" . MKTR_ROOT . "');",
-                        "define('MKTR_APP', '" . MKTR_APP . "');",
-                        '',
-                    ]
+                    [implode('', ['private static $update ', '= true;'])],
+                    ['private static $update = false;']
                 );
             }
         }
@@ -245,7 +227,9 @@ class Mktr extends \Module
             $hook[] = 'displayFooter';
         }
 
-        \Mktr\Helper\Setup::install();
+        if (!\Mktr\Helper\Setup::install()) {
+            return false;
+        }
 
         if (_PS_VERSION_ >= 1.6) {
             foreach ($hook as $kk => $vv) {
@@ -620,6 +604,12 @@ class Mktr extends \Module
      * Fires inside PaymentModule::validateOrder(), so it catches every payment
      * method - including the ones that create the order in a server-to-server
      * callback and never bring the customer back to the confirmation page.
+     *
+     * It only records the order. Delivering it from here would put an HTTP
+     * call on the checkout path, and on the payment provider's callback path,
+     * where a slow response is retried or treated as a failed payment. The
+     * confirmation page pushes it moments later, and the cron picks up
+     * whatever never got a confirmation page.
      */
     public function hookactionValidateOrder($params = null)
     {
@@ -628,7 +618,7 @@ class Mktr extends \Module
         }
 
         try {
-            \Mktr\Model\Orders::push((int) $params['order']->id);
+            \Mktr\Model\OrderSync::enroll((int) $params['order']->id);
         } catch (\Exception $e) {
             // Never let tracking break order creation - the sweeper retries.
             self::orderLog('VALIDATE_ORDER', $e->getMessage());
@@ -647,9 +637,12 @@ class Mktr extends \Module
     }
 
     /**
-     * Queues a small sweep to run after the response, at most once every 15
-     * minutes per shop. Keeps the safety net alive on shops that never added
-     * the cron job.
+     * Emergency delivery for shops with no working cron.
+     *
+     * The cron endpoint is the supported way to deliver orders. This exists
+     * only for the shop that never added it, where orders created by a payment
+     * callback would otherwise never leave. As long as the cron has run in the
+     * last day it costs one cached lookup and does nothing else.
      */
     public static function scheduleOrderSync()
     {
@@ -664,6 +657,10 @@ class Mktr extends \Module
         }
 
         try {
+            if (!\Mktr\Route\SyncOrders::cronIsStale()) {
+                return;
+            }
+
             $data = \Mktr\Helper\Data::init();
 
             if ((int) $data->next_order_sync > time()) {
@@ -682,10 +679,17 @@ class Mktr extends \Module
 
     public static function runOrderSync()
     {
+        // Hand the response back before spending a second per order on HTTP.
+        // Without this the visitor's browser, and the php-fpm worker serving
+        // it, wait for the whole sweep.
+        if (function_exists('fastcgi_finish_request')) {
+            @fastcgi_finish_request();
+        }
+
         try {
-            // Small and time boxed - this runs on a request the shop is
-            // already paying for, after the response has been built.
-            \Mktr\Route\SyncOrders::run(5, 8);
+            // Deliberately tiny. This is a stopgap for a missing cron, not a
+            // second delivery system.
+            \Mktr\Route\SyncOrders::run(2, 8);
         } catch (\Exception $e) {
             self::orderLog('SYNC_ORDERS', $e->getMessage());
         } catch (\Throwable $e) {

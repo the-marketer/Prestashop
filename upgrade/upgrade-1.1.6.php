@@ -42,6 +42,16 @@ function upgrade_module_1_1_6($module)
         return false;
     }
 
+    // A shop upgraded from an earlier 1.1.6 build already has the table, so
+    // CREATE TABLE IF NOT EXISTS above left it untouched.
+    if (!Mktr\Helper\Setup::orderSyncColumns()) {
+        return false;
+    }
+
+    // The cron endpoint is not public: generate its installation-wide secret
+    // while the module is being upgraded, before the admin shows the command.
+    Mktr\Model\Config::cronToken();
+
     if (!(Hook::getIdByName('actionValidateOrder') > 0)) {
         return true;
     }

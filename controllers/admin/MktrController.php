@@ -84,13 +84,17 @@ class MktrController extends \AdminController
 
     public static function FormData()
     {
+        $cronToken = \Mktr\Model\Config::cronToken();
+
         return [
             'tracker' => [
                 'status' => ['type' => 'switch', 'label' => 'Status'],
                 'tracking_key' => ['type' => 'text', 'label' => 'Tracking API Key *'],
                 'rest_key' => ['type' => 'text', 'label' => 'REST API Key *'],
                 'customer_id' => ['type' => 'text', 'label' => 'Customer ID *'],
-                'cron_feed' => ['type' => 'switch', 'label' => 'Activate Cron Feed', 'desc' => '<b>If Enable, Please Add this to your server Cron Jobs</b><br /><code>0 * * * * curl -s https://yourshop.com/index.php?fc=module&module=mktr&controller=cron > /dev/null 2>&1</code>'],
+                // The URL must stay quoted: an unquoted & splits the command in
+                // the shell and only the first parameter ever reaches the shop.
+                'cron_feed' => ['type' => 'switch', 'label' => 'Activate Cron Feed', 'desc' => '<b>If Enable, Please Add this to your server Cron Jobs</b><br /><code>*/15 * * * * curl -s "https://yourshop.com/index.php?fc=module&amp;module=mktr&amp;controller=cron&amp;cron_token=' . $cronToken . '" > /dev/null 2>&1</code>'],
                 'update_feed' => ['type' => 'text', 'label' => 'Cron Update feed every (hours)'],
                 'cron_review' => ['type' => 'switch', 'label' => 'Activate Cron Review'],
                 'update_review' => ['type' => 'text', 'label' => 'Cron Update Review every (hours)'],
@@ -412,17 +416,13 @@ class MktrController extends \AdminController
         }
 
         $counts = \Mktr\Model\OrderSync::counts();
-
-        if ($counts['pending'] === 0 && $counts['stuck'] === 0) {
-            return '';
-        }
-
         $out = '';
 
         if ($counts['pending'] > 0) {
             $out .= \Mktr::i()->displayWarning(
                 $counts['pending'] . ' order(s) waiting to be sent to TheMarketer. ' .
-                'They are delivered by the cron, or automatically as the shop receives traffic.'
+                'They are delivered by the cron, and a failed order is retried a few ' .
+                'times over the following hours before it is reported here.'
             );
         }
 
@@ -440,9 +440,9 @@ class MktrController extends \AdminController
     }
 
     /**
-     * The cron endpoint is what recovers orders the API refused or timed out
-     * on. It only runs if the merchant added it to their crontab, so say so
-     * when it clearly has not run.
+     * The cron endpoint is how orders reach TheMarketer. Everything else -
+     * the confirmation page, the emergency sweep - is opportunistic, so a shop
+     * without a cron job needs to hear about it.
      *
      * @return string
      */
@@ -452,30 +452,87 @@ class MktrController extends \AdminController
             return '';
         }
 
-        $data = \Mktr\Helper\Data::init();
-        $lastRun = (int) $data->last_cron_run;
-        $feedNext = (int) $data->update_feed;
-
-        if ($lastRun === 0) {
-            // Never seen a run since this version - fall back to the feed
-            // timestamp, which a working cron keeps in the future.
-            $stale = $feedNext <= time();
-        } else {
-            $stale = $lastRun < (time() - 86400);
-        }
-
-        if (!$stale) {
+        if (!\Mktr\Route\SyncOrders::cronIsStale()) {
             return '';
         }
 
-        $url = \Tools::getShopDomainSsl(true) . __PS_BASE_URI__ .
-            'index.php?fc=module&module=mktr&controller=cron';
+        $lines = [];
 
-        return \Mktr::i()->displayWarning(
-            'TheMarketer cron has not run in the last 24 hours. Orders that fail to reach ' .
-            'the API are recovered by it, so please add this to your server cron jobs:<br />' .
-            '<code>0 * * * * curl -s "' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" > /dev/null 2>&1</code>'
-        );
+        foreach ($this->cronUrls() as $shop) {
+            $label = $shop['name'] === '' ? '' : '<b>' . $this->esc($shop['name']) . '</b><br />';
+
+            $lines[] = $label . '<code>*/15 * * * * curl -s "' . $this->esc($shop['url']) .
+                '" > /dev/null 2>&1</code>';
+        }
+
+        $message = 'TheMarketer cron has not run in the last 24 hours. It is what delivers ' .
+            'orders to the API, so please add it to your server cron jobs:<br />' .
+            implode('<br />', $lines);
+
+        if (count($lines) > 1) {
+            $message .= '<br />Each shop needs its own line - a run only covers the shop ' .
+                'its address belongs to.';
+        }
+
+        $lastSync = (int) \Mktr\Helper\Data::init()->last_order_sync_run;
+
+        if ($lastSync > 0 && $lastSync > (time() - 3600)) {
+            $message .= '<br />Until then orders are being delivered by a fallback that runs ' .
+                'on shop traffic. It is slower, it only works while the shop is being ' .
+                'visited, and it is not a substitute for the cron job.';
+        }
+
+        return \Mktr::i()->displayWarning($message);
+    }
+
+    /**
+     * One cron address per shop. The endpoint works on whichever shop the
+     * address resolves to, so a multistore install that only calls the default
+     * domain leaves its other shops undelivered.
+     *
+     * @return array<int, array{name: string, url: string}>
+     */
+    private function cronUrls()
+    {
+        $query = 'index.php?fc=module&module=mktr&controller=cron&cron_token=' .
+            rawurlencode(\Mktr\Model\Config::cronToken());
+        $urls = [];
+
+        if (\Shop::isFeatureActive()) {
+            foreach (\Shop::getShops(true) as $shop) {
+                $domain = empty($shop['domain_ssl']) ? $shop['domain'] : $shop['domain_ssl'];
+
+                if (empty($domain)) {
+                    continue;
+                }
+
+                $uri = empty($shop['uri']) ? '/' : $shop['uri'];
+
+                $urls[] = [
+                    'name' => empty($shop['name']) ? '' : (string) $shop['name'],
+                    'url' => 'https://' . $domain . $uri . $query,
+                ];
+            }
+        }
+
+        if (empty($urls)) {
+            $urls[] = [
+                'name' => '',
+                'url' => \Tools::getShopDomainSsl(true) . __PS_BASE_URI__ . $query,
+            ];
+        }
+
+        return $urls;
+    }
+
+    /**
+     * @param string $value
+     *
+     * @return string
+     */
+    private function esc($value)
+    {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     }
 
     public function token()

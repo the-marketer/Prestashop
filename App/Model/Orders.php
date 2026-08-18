@@ -209,12 +209,13 @@ class Orders extends DataBase
     /**
      * Sends one order to TheMarketer.
      *
-     * Single exit point for every path that pushes an order: the
-     * actionValidateOrder hook, the cron sweeper and the session queue.
+     * Single exit point for every path that delivers an order: the cron
+     * sweeper, the session queue and the emergency sweep.
      *
      * @param int $id_order
      *
-     * @return bool true when the API acknowledged the order
+     * @return bool true when the order is settled and nobody should ask again -
+     *              either the API acknowledged it, or there was nothing to send
      */
     public static function push($id_order)
     {
@@ -224,41 +225,76 @@ class Orders extends DataBase
             return false;
         }
 
-        // Already delivered - the hook sent it and the browser is now draining
-        // the session queue for the same order.
-        if (OrderSync::isSent($id_order)) {
+        // Settled already - the sweeper delivered it and the browser is now
+        // draining the session queue for the same order.
+        if (OrderSync::isSettled($id_order)) {
             return true;
         }
 
-        OrderSync::enroll($id_order);
+        // Only one path may deliver an order at a time. The other paths leave
+        // it to the worker that already holds the short-lived claim.
+        if (!OrderSync::claim($id_order)) {
+            return OrderSync::isSettled($id_order);
+        }
 
         try {
             $order = self::getByID($id_order, true);
 
-            if (empty($order->getProducts())) {
-                OrderSync::markFailed($id_order, 'Order has no products yet');
+            if (!\Validate::isLoadedObject($order->data)) {
+                return OrderSync::markSkipped($id_order, 'Order no longer exists');
+            }
 
-                return false;
+            $sendable = $order->getProducts();
+
+            if (empty($sendable)) {
+                if (empty($order->data->getProducts())) {
+                    // No order lines written yet - a payment module may still
+                    // be building the order. Wait without consuming one of
+                    // the finite API retry attempts.
+                    OrderSync::defer($id_order, 'Order has no products yet');
+
+                    return false;
+                }
+
+                // The order has lines, but none of them carry a price, so
+                // there is no payload to send and there never will be.
+                return OrderSync::markSkipped($id_order, 'Order has no products with a price above zero');
             }
 
             $sOrder = $order->toApi();
 
             \Mktr\Helper\Api::send('save_order', $sOrder);
             $status = \Mktr\Helper\Api::getStatus();
-            $sent = $status == 200;
 
-            if (!empty($sOrder['email_address'])) {
-                self::pushSubscriber($sOrder['email_address']);
-            }
-
-            if ($sent) {
-                OrderSync::markSent($id_order);
-            } else {
+            if ($status != 200) {
                 OrderSync::markFailed($id_order, 'API responded ' . (int) $status);
+
+                return false;
             }
 
-            return $sent;
+            if (!OrderSync::markSent($id_order)) {
+                return false;
+            }
+
+            // Only once the order itself is through: on a failed order this
+            // would be a second timeout and a second sleep for nothing.
+            if (!empty($sOrder['email_address'])) {
+                try {
+                    self::pushSubscriber($sOrder['email_address']);
+                } catch (\Exception $e) {
+                    self::pushLog($id_order, 'Subscriber: ' . $e->getMessage());
+                } catch (\Throwable $e) {
+                    self::pushLog($id_order, 'Subscriber: ' . $e->getMessage());
+                }
+            }
+
+            return true;
         } catch (\Exception $e) {
+            self::pushLog($id_order, $e->getMessage());
+            OrderSync::markFailed($id_order, $e->getMessage());
+
+            return false;
+        } catch (\Throwable $e) {
             self::pushLog($id_order, $e->getMessage());
             OrderSync::markFailed($id_order, $e->getMessage());
 

@@ -31,6 +31,13 @@ class MktrCronModuleFrontController extends \ModuleFrontController
 {
     public function initContent()
     {
+        if (!\Mktr\Model\Config::validCronToken(\Tools::getValue('cron_token'))) {
+            header('Content-type: application/json; charset=UTF-8');
+            http_response_code(403);
+            echo json_encode(['status' => 'FORBIDDEN']);
+            exit;
+        }
+
         parent::initContent();
 
         \Mktr\Helper\FileSystem::resetPath();

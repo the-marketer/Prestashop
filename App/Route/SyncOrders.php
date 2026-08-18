@@ -33,9 +33,9 @@ if (!defined('_PS_VERSION_')) {
 /**
  * Delivers the orders sitting in the sync table.
  *
- * The actionValidateOrder hook is the primary path; whatever it loses - API
- * timeouts, downtime, a shop where the hook was never registered - stays
- * recorded as pending and is picked up here.
+ * The actionValidateOrder hook records every order as it is created; this is
+ * what actually sends them. It normally runs from the shop's cron job, and
+ * from the emergency sweep on shops where that was never set up.
  */
 class SyncOrders
 {
@@ -49,6 +49,9 @@ class SyncOrders
      */
     const MAX_SECONDS = 20;
 
+    /** How long the cron may be silent before it counts as not running. */
+    const CRON_SILENCE = 86400;
+
     public static function run($limit = self::BATCH, $maxSeconds = self::MAX_SECONDS)
     {
         if (!\Mktr\Model\Config::rest()) {
@@ -61,33 +64,68 @@ class SyncOrders
 
         $pending = \Mktr\Model\OrderSync::pending($limit);
 
-        if (empty($pending)) {
-            return ['status' => 'done', 'found' => $found, 'sent' => 0, 'failed' => 0];
-        }
-
-        $sent = 0;
+        $settled = 0;
         $failed = 0;
         $startedAt = time();
 
         foreach ($pending as $row) {
-            if (\Mktr\Model\Orders::push((int) $row['id_order'])) {
-                ++$sent;
-            } else {
-                ++$failed;
+            if ($settled + $failed > 0 && (time() - $startedAt) >= $maxSeconds) {
+                break;
             }
 
-            if ((time() - $startedAt) >= $maxSeconds) {
-                break;
+            if (\Mktr\Model\Orders::push((int) $row['id_order'])) {
+                ++$settled;
+            } else {
+                ++$failed;
             }
         }
 
         \Mktr\Model\OrderSync::prune();
 
+        self::recordRun();
+
         return [
             'status' => 'done',
             'found' => $found,
-            'sent' => $sent,
+            'sent' => $settled,
             'failed' => $failed,
         ];
+    }
+
+    /**
+     * Whether the shop's cron has gone quiet. Both the back office warning and
+     * the emergency sweep ask this, so they can never disagree about it.
+     *
+     * @return bool
+     */
+    public static function cronIsStale()
+    {
+        $data = \Mktr\Helper\Data::init();
+        $lastRun = (int) $data->last_cron_run;
+
+        if ($lastRun > 0) {
+            return $lastRun < (time() - self::CRON_SILENCE);
+        }
+
+        // Never seen a run since this version - fall back to the feed
+        // timestamp, which a working cron keeps in the future.
+        return (int) $data->update_feed <= time();
+    }
+
+    /**
+     * When orders were last actually delivered, whichever path did it. The
+     * back office reports this separately from the cron's own timestamp, so a
+     * shop being covered by the emergency sweep is not told nothing is
+     * happening.
+     */
+    private static function recordRun()
+    {
+        try {
+            $data = \Mktr\Helper\Data::init();
+            $data->last_order_sync_run = time();
+            \Mktr\Helper\Data::save();
+        } catch (\Exception $e) {
+            // A read-only storage directory must not stop delivery.
+        }
     }
 }
