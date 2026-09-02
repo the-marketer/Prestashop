@@ -47,6 +47,9 @@ class Valid
     private static $error;
     private static $getOut;
 
+    /** @var int|null nesting level of the buffer opened by captureStrayOutput() */
+    private static $strayLevel;
+
     public static function init()
     {
         if (self::$init == null) {
@@ -192,8 +195,51 @@ class Valid
         return self::$error;
     }
 
+    /**
+     * Starts swallowing stray output.
+     *
+     * Anything written before we emit the response - a PHP deprecation, a
+     * warning from another module, a stray echo - lands inside the XML/JSON
+     * body we hand to theMarketer and makes the header() calls below fail with
+     * "headers already sent".
+     *
+     * Deliberately a no-op in dev mode: there the noise is the point.
+     */
+    public static function captureStrayOutput()
+    {
+        if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_) {
+            return;
+        }
+
+        if (self::$strayLevel === null && ob_start()) {
+            self::$strayLevel = ob_get_level();
+        }
+    }
+
+    /**
+     * Drops everything captureStrayOutput() collected, including buffers opened
+     * on top of ours. Buffers below ours are left untouched.
+     */
+    public static function discardStrayOutput()
+    {
+        if (self::$strayLevel === null) {
+            return;
+        }
+
+        $level = self::$strayLevel;
+        self::$strayLevel = null;
+
+        while (ob_get_level() >= $level) {
+            if (ob_get_clean() === false) {
+                break;
+            }
+        }
+    }
+
     public static function Output($data, $data1 = null, $name = null, $fromFile = false)
     {
+        self::discardStrayOutput();
+
         $mi = self::getParam('mime-type', self::def_mime);
 
         if (!array_key_exists($mi, self::mime)) {

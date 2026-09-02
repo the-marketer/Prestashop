@@ -113,6 +113,9 @@ class MktrApiModuleFrontController extends \FrontController
 
     public function __construct()
     {
+        // Before anything else: this response is a payload, not a web page.
+        Valid::captureStrayOutput();
+
         parent::__construct();
         self::$page = Valid::getParam('pg', false, true);
     }

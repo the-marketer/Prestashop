@@ -31,7 +31,13 @@ class MktrCronModuleFrontController extends \ModuleFrontController
 {
     public function initContent()
     {
+        // The feed build walks every product through third-party price and stock
+        // hooks; a single notice from one of them would otherwise end up in this
+        // JSON response and break the header() calls below.
+        \Mktr\Helper\Valid::captureStrayOutput();
+
         if (!\Mktr\Model\Config::validCronToken(\Tools::getValue('cron_token'))) {
+            \Mktr\Helper\Valid::discardStrayOutput();
             header('Content-type: application/json; charset=UTF-8');
             http_response_code(403);
             echo json_encode(['status' => 'FORBIDDEN']);
@@ -79,6 +85,8 @@ class MktrCronModuleFrontController extends \ModuleFrontController
 
             \Mktr\Route\SyncOrders::run();
         }
+
+        \Mktr\Helper\Valid::discardStrayOutput();
 
         header('Content-type: application/json; charset=UTF-8');
         header('HTTP/1.1 200 OK');
