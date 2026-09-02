@@ -330,22 +330,76 @@ class Mktr extends \Module
                     self::$included[$className] = false;
                 }
             }
-        } elseif (strtolower($className) == 'mktrapimodulefrontcontroller') {
-            $className = 'MktrApiModuleFrontController';
+        } elseif (preg_match('/^mktr(.+)modulefrontcontroller$/', strtolower($className), $m)) {
+            // PrestaShop builds the include path from the raw `controller` value in
+            // the query string, not from the file it just found on disk
+            // (classes/Dispatcher.php, case FC_MODULE - same in 1.7, 8 and 9):
+            //
+            //   if (isset($controllers[strtolower($this->controller)])) {       // lowercased key
+            //       include_once ... "controllers/front/{$this->controller}.php"; // raw value
+            //
+            // On a case-sensitive filesystem any casing that does not match the
+            // file makes that include fail and the controller class is missing,
+            // which surfaces as "Class mktr<x>ModuleFrontController not found".
+            // Resolving it here keeps every casing working: controller=cron and
+            // controller=Cron both reach controllers/front/cron.php.
+            //
+            // Admin controllers are not affected - the FC_ADMIN branch includes
+            // the real filename from the map instead of the URL value.
+            $key = strtolower($className);
 
-            if (!array_key_exists($className, self::$included)) {
-                self::$included[$className] = true;
-                $file = MKTR_APP . 'controllers/front/Api.php';
+            if (!array_key_exists($key, self::$included)) {
+                self::$included[$key] = true;
 
-                if (!file_exists($file)) {
-                    $file = MKTR_APP . 'controllers/front/api.php';
-                }
+                $file = self::findFrontController($m[1], $ext);
 
-                if (file_exists($file)) {
+                if ($file !== null) {
                     require_once $file;
                 }
             }
         }
+    }
+
+    /**
+     * Resolves controllers/front/<name>.php regardless of the casing used in the
+     * request. Only regular files directly inside that directory are eligible,
+     * so a crafted controller name cannot reach anything else.
+     *
+     * @param string $name lowercase controller name taken from the class name
+     * @param string $ext
+     *
+     * @return string|null absolute path, or null when there is no such controller
+     */
+    private static function findFrontController($name, $ext = '.php')
+    {
+        // 'index' is PrestaShop's blank guard file, never a controller.
+        if ($name === 'index' || !preg_match('/^[a-z0-9_]+$/', $name)) {
+            return null;
+        }
+
+        $dir = MKTR_APP . 'controllers/front/';
+
+        // The two spellings we ship, checked first so the common path costs no
+        // directory listing.
+        foreach ([$name, ucfirst($name)] as $candidate) {
+            if (is_file($dir . $candidate . $ext)) {
+                return $dir . $candidate . $ext;
+            }
+        }
+
+        $entries = @scandir($dir);
+
+        if ($entries === false) {
+            return null;
+        }
+
+        foreach ($entries as $entry) {
+            if (strtolower($entry) === $name . $ext && is_file($dir . $entry)) {
+                return $dir . $entry;
+            }
+        }
+
+        return null;
     }
 
     public static function getExpire()
