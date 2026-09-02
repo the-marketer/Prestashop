@@ -32,17 +32,23 @@ if (!defined('_PS_VERSION_')) {
  * instead of relying on the customer landing on the confirmation page, and
  * adds the table that records what actually reached TheMarketer.
  *
+ * Numbered 1.1.8 rather than 1.1.6 on purpose: the package published to
+ * Addons carried version 1.1.7, so anything below that would never run on the
+ * shops that need it most.
+ *
  * @param Mktr $module
  *
  * @return bool
  */
-function upgrade_module_1_1_6($module)
+function upgrade_module_1_1_8($module)
 {
+    mktr_remove_stale_cron_controller();
+
     if (!Mktr\Model\Config::db()->execute(Mktr\Helper\Setup::orderSyncTable())) {
         return false;
     }
 
-    // A shop upgraded from an earlier 1.1.6 build already has the table, so
+    // A shop upgraded from an earlier build already has the table, so
     // CREATE TABLE IF NOT EXISTS above left it untouched.
     if (!Mktr\Helper\Setup::orderSyncColumns()) {
         return false;
@@ -61,4 +67,35 @@ function upgrade_module_1_1_6($module)
     }
 
     return (bool) $module->registerHook('actionValidateOrder');
+}
+
+/**
+ * Drops the pre-1.1.8 `Cron.php`.
+ *
+ * PrestaShop extracts the new package over the existing folder without
+ * removing files that disappeared, so a shop coming from 1.1.7 ends up with
+ * both `Cron.php` (old code) and `cron.php` (current) on a case-sensitive
+ * filesystem. A request for `controller=Cron` would then run the old file.
+ *
+ * The inode comparison is what makes this safe on case-insensitive
+ * filesystems, where the two names are one and the same file.
+ */
+function mktr_remove_stale_cron_controller()
+{
+    $dir = _PS_MODULE_DIR_ . 'mktr/controllers/front/';
+    $stale = $dir . 'Cron.php';
+    $current = $dir . 'cron.php';
+
+    if (!is_file($stale) || !is_file($current)) {
+        return;
+    }
+
+    $staleNode = @fileinode($stale);
+    $currentNode = @fileinode($current);
+
+    if ($staleNode === false || $currentNode === false || $staleNode === $currentNode) {
+        return;
+    }
+
+    @unlink($stale);
 }
