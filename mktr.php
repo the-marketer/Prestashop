@@ -90,7 +90,126 @@ class Mktr extends \Module
             \Mktr\Helper\Session::getUid();
         }
 
+        $this->autoHealHooksIfNeeded();
+
         // $this->registerHook('actionDispatcher');
+    }
+
+    /**
+     * Registers the hooks missing for the current shop in a multistore setup.
+     *
+     * A shop created after the module was installed gets no hook_module or
+     * module_shop rows and no generated JS file, so tracking is silently dead
+     * on it. Runs at most once per request and costs a single Configuration
+     * read on the normal path; the DB work only happens until the current
+     * shop has been verified for this module version.
+     */
+    private function autoHealHooksIfNeeded()
+    {
+        static $checked = false;
+
+        if ($checked) {
+            return;
+        }
+
+        $checked = true;
+
+        try {
+            if (!\Shop::isFeatureActive()) {
+                return;
+            }
+
+            $shopId = (int) \Mktr\Model\Config::shop();
+
+            if ($shopId <= 0) {
+                return;
+            }
+
+            if (\Configuration::get('MKTR_HOOKS_OK', null, null, $shopId) === $this->version) {
+                return;
+            }
+
+            $moduleId = (int) $this->id;
+
+            if ($moduleId <= 0) {
+                return;
+            }
+
+            $db = \Db::getInstance();
+
+            $moduleShop = $db->getRow(
+                'SELECT `enable_device` FROM `' . _DB_PREFIX_ . 'module_shop` ' .
+                'WHERE `id_module` = ' . $moduleId . ' AND `id_shop` = ' . $shopId
+            );
+
+            if (!$moduleShop) {
+                $db->insert('module_shop', [
+                    'id_module' => $moduleId,
+                    'id_shop' => $shopId,
+                    'enable_device' => 7,
+                ]);
+            } elseif ((int) $moduleShop['enable_device'] !== 7) {
+                // 7 = all devices; anything else hides the module on some of them.
+                $db->update(
+                    'module_shop',
+                    ['enable_device' => 7],
+                    'id_module = ' . $moduleId . ' AND id_shop = ' . $shopId
+                );
+            }
+
+            foreach (self::getRequiredHooks() as $hookName) {
+                $idHook = (int) \Hook::getIdByName($hookName);
+
+                if ($idHook <= 0) {
+                    continue;
+                }
+
+                $exists = (int) $db->getValue(
+                    'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'hook_module` ' .
+                    'WHERE `id_module` = ' . $moduleId .
+                    ' AND `id_hook` = ' . $idHook .
+                    ' AND `id_shop` = ' . $shopId
+                );
+
+                if ($exists) {
+                    continue;
+                }
+
+                $position = (int) $db->getValue(
+                    'SELECT COALESCE(MAX(`position`), 0) FROM `' . _DB_PREFIX_ . 'hook_module` ' .
+                    'WHERE `id_hook` = ' . $idHook . ' AND `id_shop` = ' . $shopId
+                );
+
+                $db->insert('hook_module', [
+                    'id_module' => $moduleId,
+                    'id_hook' => $idHook,
+                    'id_shop' => $shopId,
+                    'position' => $position + 1,
+                ]);
+            }
+
+            // The JS file is per shop, so a new shop has none yet.
+            try {
+                \Mktr\Model\Config::i(true);
+
+                if (\Mktr\Model\Config::showJs(true)) {
+                    $jsFile = \Mktr\Model\Config::i()->js_file;
+
+                    if ($jsFile === '' ||
+                        !file_exists(MKTR_APP . \Mktr\Model\Config::getJsPrefix() . $jsFile . '.js')
+                    ) {
+                        \Mktr\Route\refreshJS::resetConfig();
+                        \Mktr\Route\refreshJS::loadJs();
+                    }
+                }
+            } catch (\Exception $e) {
+                // A missing JS file must not take the page down with it.
+            }
+
+            \Configuration::updateValue('MKTR_HOOKS_OK', $this->version, false, null, $shopId);
+        } catch (\Exception $e) {
+            // Self-repair is best effort - never break the shop over it.
+        }
     }
 
     public static function i()
@@ -182,12 +301,17 @@ class Mktr extends \Module
         return 'mktr/' . explode('mktr/', $fn)[1];
     }
 
-    public function install()
+    /**
+     * The hooks this module needs, for the running PrestaShop version.
+     *
+     * Single source of truth: install() registers them and
+     * autoHealHooksIfNeeded() repairs them per shop, so the two can never
+     * drift apart.
+     *
+     * @return string[]
+     */
+    public static function getRequiredHooks()
     {
-        if (\Shop::isFeatureActive()) {
-            \Shop::setContext(\Shop::CONTEXT_ALL);
-        }
-
         if (_PS_VERSION_ >= 1.6) {
             $hook = [
                 /* Front */
@@ -226,6 +350,17 @@ class Mktr extends \Module
         } else {
             $hook[] = 'displayFooter';
         }
+
+        return $hook;
+    }
+
+    public function install()
+    {
+        if (\Shop::isFeatureActive()) {
+            \Shop::setContext(\Shop::CONTEXT_ALL);
+        }
+
+        $hook = self::getRequiredHooks();
 
         if (!\Mktr\Helper\Setup::install()) {
             return false;
