@@ -113,9 +113,6 @@ class MktrApiModuleFrontController extends \FrontController
 
     public function __construct()
     {
-        // Before anything else: this response is a payload, not a web page.
-        Valid::captureStrayOutput();
-
         parent::__construct();
         self::$page = Valid::getParam('pg', false, true);
     }
@@ -144,6 +141,12 @@ class MktrApiModuleFrontController extends \FrontController
 
     public function initContent()
     {
+        // Deliberately here and not in the constructor: FrontController::init()
+        // opens its own buffer after the constructor runs, so capturing earlier
+        // would put ours underneath it and tearing ours down would take
+        // PrestaShop's with it - dropping the cookie writes init() just made.
+        Valid::captureStrayOutput();
+
         /* @phpstan-ignore-next-line */
         \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
         $name = self::$page;

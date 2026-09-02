@@ -435,6 +435,28 @@ class Product extends DataBase
         return $witch === null ? null : $this->prices[$witch];
     }
 
+    /**
+     * Reads one bound of a specific price as a timestamp.
+     *
+     * PrestaShop stores an absent bound as '0000-00-00 00:00:00', which
+     * strtotime() turns into a date in year -1 rather than failing. Treat
+     * anything at or before the epoch as "no bound".
+     *
+     * @param mixed $value
+     *
+     * @return int 0 when there is no bound
+     */
+    private static function toBoundTimestamp($value)
+    {
+        if (empty($value)) {
+            return 0;
+        }
+
+        $stamp = strtotime((string) $value);
+
+        return ($stamp === false || $stamp <= 0) ? 0 : (int) $stamp;
+    }
+
     protected function getSalePriceDateNow($witch = null)
     {
         if ($this->pricesDate === null) {
@@ -446,24 +468,27 @@ class Product extends DataBase
                 // Never assume the shape here. PrestaShop passes specific_price by
                 // reference through the actionProductPriceCalculation hook, so any
                 // third-party module can hand us a partial row.
-                $from = empty($v['from']) ? 0 : (int) strtotime((string) $v['from']);
-                $to = empty($v['to']) ? 0 : (int) strtotime((string) $v['to']);
-                if ($pricesDate['sale_price_start_date'] <= $from) {
-                    $pricesDate['sale_price_start_date'] = $from;
-                }
-
-                if ($pricesDate['sale_price_end_date'] <= $to) {
-                    $pricesDate['sale_price_end_date'] = $to;
-                }
+                $pricesDate['sale_price_start_date'] = max(
+                    $pricesDate['sale_price_start_date'],
+                    self::toBoundTimestamp(isset($v['from']) ? $v['from'] : null)
+                );
+                $pricesDate['sale_price_end_date'] = max(
+                    $pricesDate['sale_price_end_date'],
+                    self::toBoundTimestamp(isset($v['to']) ? $v['to'] : null)
+                );
             }
 
-            if ($pricesDate['sale_price_end_date'] != 0) {
-                $pricesDate['sale_price_start_date'] = \DateTime::createFromFormat('U', (string) $pricesDate['sale_price_start_date']);
-                $pricesDate['sale_price_end_date'] = \DateTime::createFromFormat('U', (string) $pricesDate['sale_price_end_date']);
-            } else {
-                $pricesDate['sale_price_start_date'] = null;
-                $pricesDate['sale_price_end_date'] = null;
+            // The two bounds are independent. A sale that starts on a date and
+            // never expires is stored with `to` = '0000-00-00 00:00:00', and
+            // keying both dates off the end one used to drop the start date as
+            // well - so an active open-ended promotion reached the feed with no
+            // dates at all.
+            foreach (['sale_price_start_date', 'sale_price_end_date'] as $bound) {
+                $pricesDate[$bound] = $pricesDate[$bound] === 0
+                    ? null
+                    : \DateTime::createFromFormat('U', (string) $pricesDate[$bound]);
             }
+
             $this->pricesDate = $pricesDate;
         }
 

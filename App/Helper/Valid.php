@@ -213,6 +213,11 @@ class Valid
 
         if (self::$strayLevel === null && ob_start()) {
             self::$strayLevel = ob_get_level();
+
+            // Backstop: an exit() that never reaches the response - a thrown
+            // token check, a die() in another module - would otherwise flush the
+            // captured noise to the client at shutdown.
+            register_shutdown_function([__CLASS__, 'discardStrayOutput']);
         }
     }
 

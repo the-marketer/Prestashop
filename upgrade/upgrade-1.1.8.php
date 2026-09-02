@@ -42,7 +42,7 @@ if (!defined('_PS_VERSION_')) {
  */
 function upgrade_module_1_1_8($module)
 {
-    mktr_remove_stale_cron_controller();
+    mktr_remove_stale_controllers();
 
     if (!Mktr\Model\Config::db()->execute(Mktr\Helper\Setup::orderSyncTable())) {
         return false;
@@ -70,32 +70,53 @@ function upgrade_module_1_1_8($module)
 }
 
 /**
- * Drops the pre-1.1.8 `Cron.php`.
+ * Drops front controllers left over from an earlier package.
  *
  * PrestaShop extracts the new package over the existing folder without
- * removing files that disappeared, so a shop coming from 1.1.7 ends up with
- * both `Cron.php` (old code) and `cron.php` (current) on a case-sensitive
- * filesystem. A request for `controller=Cron` would then run the old file.
+ * removing files that disappeared from it, so a shop coming from 1.1.7 keeps
+ * `Cron.php` (old code) next to `cron.php` (current) on a case-sensitive
+ * filesystem. Because the dispatcher includes the raw `controller` value from
+ * the URL, a request for `controller=Cron` would then run the old file.
  *
- * The inode comparison is what makes this safe on case-insensitive
- * filesystems, where the two names are one and the same file.
+ * fileinode() is deliberately not used to detect a case-insensitive
+ * filesystem: several shared hosts and network mounts report 0 for every file,
+ * which would make the two paths look identical and skip the cleanup on
+ * exactly the systems that need it. Asking the filesystem for a name we do not
+ * ship is conclusive.
  */
-function mktr_remove_stale_cron_controller()
+function mktr_remove_stale_controllers()
 {
     $dir = _PS_MODULE_DIR_ . 'mktr/controllers/front/';
-    $stale = $dir . 'Cron.php';
-    $current = $dir . 'cron.php';
 
-    if (!is_file($stale) || !is_file($current)) {
+    if (!is_dir($dir)) {
         return;
     }
 
-    $staleNode = @fileinode($stale);
-    $currentNode = @fileinode($current);
+    $shipped = ['Api.php', 'cron.php', 'index.php'];
 
-    if ($staleNode === false || $currentNode === false || $staleNode === $currentNode) {
+    // On a case-insensitive filesystem cron.php answers to this name too, and
+    // every spelling is the same file - nothing to clean, and unlinking would
+    // delete the controller itself.
+    if (is_file($dir . 'cRoN.php')) {
         return;
     }
 
-    @unlink($stale);
+    $entries = @scandir($dir);
+
+    if ($entries === false) {
+        return;
+    }
+
+    $shippedLower = array_map('strtolower', $shipped);
+
+    foreach ($entries as $entry) {
+        if (in_array($entry, $shipped, true) || !is_file($dir . $entry)) {
+            continue;
+        }
+
+        // Same controller, different casing: a leftover we no longer ship.
+        if (in_array(strtolower($entry), $shippedLower, true)) {
+            @unlink($dir . $entry);
+        }
+    }
 }

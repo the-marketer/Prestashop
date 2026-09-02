@@ -38,6 +38,9 @@ if (!defined('MKTR_APP')) {
 
 class Mktr extends \Module
 {
+    /** Prefix of the MKTR_HOOKS_OK value written when a self-heal attempt failed. */
+    const HEAL_RETRY = 'retry:';
+
     public static $expire = 172800; // seconds
 
     public static $init = false;
@@ -96,13 +99,19 @@ class Mktr extends \Module
     }
 
     /**
-     * Registers the hooks missing for the current shop in a multistore setup.
+     * Registers what is missing for the current shop in a multistore setup.
      *
-     * A shop created after the module was installed gets no hook_module or
-     * module_shop rows and no generated JS file, so tracking is silently dead
-     * on it. Runs at most once per request and costs a single Configuration
-     * read on the normal path; the DB work only happens until the current
-     * shop has been verified for this module version.
+     * A shop created after the module was installed gets no hook_module,
+     * module_shop or module_group rows and no generated JS file, so tracking is
+     * silently dead on it with nothing in the back office to say so. Runs at
+     * most once per request and costs a single Configuration read on the normal
+     * path; the DB work only happens until the current shop has been verified
+     * for this module version.
+     *
+     * This never enables the module. Module::disable() works by dropping the
+     * module_shop row, and PrestaShop calls it itself when an upgrade script
+     * fails, so recreating that row for a shop we have already seen would put a
+     * half-upgraded module back into service behind the merchant's back.
      */
     private function autoHealHooksIfNeeded()
     {
@@ -113,9 +122,17 @@ class Mktr extends \Module
         }
 
         $checked = true;
+        $shopId = 0;
 
         try {
             if (!\Shop::isFeatureActive()) {
+                return;
+            }
+
+            // Under "all shops" the back office points the context at the
+            // default shop, so Config::shop() would not name the shop being
+            // looked at and we would stamp the wrong one as healed.
+            if (\Shop::getContext() !== \Shop::CONTEXT_SHOP) {
                 return;
             }
 
@@ -125,7 +142,17 @@ class Mktr extends \Module
                 return;
             }
 
-            if (\Configuration::get('MKTR_HOOKS_OK', null, null, $shopId) === $this->version) {
+            $stamp = \Configuration::get('MKTR_HOOKS_OK', null, null, $shopId);
+
+            if ($stamp === $this->version) {
+                return;
+            }
+
+            // A heal that keeps failing must not cost ~35 queries on every
+            // single request for the rest of time.
+            if (is_string($stamp) && strpos($stamp, self::HEAL_RETRY) === 0
+                && (int) substr($stamp, strlen(self::HEAL_RETRY)) > time()
+            ) {
                 return;
             }
 
@@ -137,12 +164,25 @@ class Mktr extends \Module
 
             $db = \Db::getInstance();
 
+            if (!(int) $db->getValue(
+                'SELECT `active` FROM `' . _DB_PREFIX_ . 'module` WHERE `id_module` = ' . $moduleId
+            )) {
+                return;
+            }
+
             $moduleShop = $db->getRow(
                 'SELECT `enable_device` FROM `' . _DB_PREFIX_ . 'module_shop` ' .
                 'WHERE `id_module` = ' . $moduleId . ' AND `id_shop` = ' . $shopId
             );
 
             if (!$moduleShop) {
+                // No association and no stamp means a shop that appeared after
+                // the module was installed - the case this repair exists for.
+                // With a stamp, the association was taken away on purpose.
+                if ($stamp !== false && $stamp !== null && $stamp !== '') {
+                    return;
+                }
+
                 $db->insert('module_shop', [
                     'id_module' => $moduleId,
                     'id_shop' => $shopId,
@@ -156,6 +196,22 @@ class Mktr extends \Module
                     'id_module = ' . $moduleId . ' AND id_shop = ' . $shopId
                 );
             }
+
+            // Hook::exec inner-joins module_group on every front-office request
+            // once the group feature is on, so hook rows alone are not enough.
+            // Module::install() only fills this in for the shops that existed
+            // then. Written as NOT EXISTS because the primary key is
+            // (id_module, id_shop, id_group) and Group::addRestrictionsForModule
+            // is a plain INSERT ... SELECT.
+            $db->execute(
+                'INSERT INTO `' . _DB_PREFIX_ . 'module_group` (`id_module`, `id_shop`, `id_group`) ' .
+                'SELECT ' . $moduleId . ', ' . $shopId . ', g.`id_group` ' .
+                'FROM `' . _DB_PREFIX_ . 'group` g WHERE NOT EXISTS (' .
+                'SELECT 1 FROM `' . _DB_PREFIX_ . 'module_group` mg ' .
+                'WHERE mg.`id_module` = ' . $moduleId .
+                ' AND mg.`id_shop` = ' . $shopId .
+                ' AND mg.`id_group` = g.`id_group`)'
+            );
 
             foreach (self::getRequiredHooks() as $hookName) {
                 $idHook = (int) \Hook::getIdByName($hookName);
@@ -188,7 +244,9 @@ class Mktr extends \Module
                 ]);
             }
 
-            // The JS file is per shop, so a new shop has none yet.
+            // The JS file is per shop, so a new shop has none yet. Config's
+            // language and context live in statics, so rebuilding the instance
+            // here does not disturb the rest of the request.
             try {
                 \Mktr\Model\Config::i(true);
 
@@ -204,11 +262,45 @@ class Mktr extends \Module
                 }
             } catch (\Exception $e) {
                 // A missing JS file must not take the page down with it.
+                self::orderLog('HOOKS_HEAL_JS', $e->getMessage());
+            } catch (\Throwable $e) {
+                self::orderLog('HOOKS_HEAL_JS', $e->getMessage());
             }
 
             \Configuration::updateValue('MKTR_HOOKS_OK', $this->version, false, null, $shopId);
         } catch (\Exception $e) {
-            // Self-repair is best effort - never break the shop over it.
+            self::deferHeal($shopId, $e->getMessage());
+        } catch (\Throwable $e) {
+            self::deferHeal($shopId, $e->getMessage());
+        }
+    }
+
+    /**
+     * Parks a failed heal for a while so it stops running on every request.
+     *
+     * @param int $shopId
+     * @param string $message
+     */
+    private static function deferHeal($shopId, $message)
+    {
+        self::orderLog('HOOKS_HEAL', $message);
+
+        if ($shopId <= 0) {
+            return;
+        }
+
+        try {
+            \Configuration::updateValue(
+                'MKTR_HOOKS_OK',
+                self::HEAL_RETRY . (time() + 900),
+                false,
+                null,
+                (int) $shopId
+            );
+        } catch (\Exception $e) {
+            // Nothing left to do about it.
+        } catch (\Throwable $e) {
+            // Nothing left to do about it.
         }
     }
 
@@ -452,6 +544,17 @@ class Mktr extends \Module
         return null;
     }
 
+    /**
+     * Front controllers shipped in this package: lowercase controller name as it
+     * appears in a URL => the filename exactly as we ship it.
+     *
+     * @var string[]
+     */
+    private static $frontControllers = [
+        'api' => 'Api.php',
+        'cron' => 'cron.php',
+    ];
+
     private static function load($className, $ext = '.php')
     {
         if (strpos($className, 'Mktr\\') !== false) {
@@ -508,18 +611,22 @@ class Mktr extends \Module
     private static function findFrontController($name, $ext = '.php')
     {
         // 'index' is PrestaShop's blank guard file, never a controller.
-        if ($name === 'index' || !preg_match('/^[a-z0-9_]+$/', $name)) {
+        if ($name === 'index' || !preg_match('/^[a-z0-9_]+\z/', $name)) {
             return null;
         }
 
         $dir = MKTR_APP . 'controllers/front/';
 
-        // The two spellings we ship, checked first so the common path costs no
-        // directory listing.
-        foreach ([$name, ucfirst($name)] as $candidate) {
-            if (is_file($dir . $candidate . $ext)) {
-                return $dir . $candidate . $ext;
-            }
+        // The spelling this package ships always wins. An upgrade extracts over
+        // the old folder without deleting what disappeared from it, so a
+        // differently cased leftover of an earlier release can still sit next to
+        // ours - and loading that instead would silently run old code.
+        if (isset(self::$frontControllers[$name]) && is_file($dir . self::$frontControllers[$name])) {
+            return $dir . self::$frontControllers[$name];
+        }
+
+        if (is_file($dir . $name . $ext)) {
+            return $dir . $name . $ext;
         }
 
         $entries = @scandir($dir);
