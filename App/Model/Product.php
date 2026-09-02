@@ -364,12 +364,14 @@ class Product extends DataBase
             if ($mainImgID === null && $this->isCombination()) {
                 $Id = $this->data->getDefaultIdProductAttribute();
                 if ($Id) {
-                    /** @phpstan-ignore-next-line */
-                    $aImages = Product::_getAttributeImageAssociations($Id);
+                    // Leading backslash is required: inside Mktr\Model an unqualified
+                    // Product:: resolves to this class, falls into DataBase::__call()
+                    // and throws in dev mode / returns null in production.
+                    $aImages = \Product::_getAttributeImageAssociations($Id);
                 }
             }
 
-            if ($mainImgID !== null && $aImages !== null) {
+            if ($mainImgID === null && $aImages !== null) {
                 foreach ($aImages as $attrImageId) {
                     if ((int) $attrImageId > 0) {
                         $mainImgID = $attrImageId;
@@ -439,10 +441,13 @@ class Product extends DataBase
             $pricesDate['sale_price_start_date'] = 0;
             $pricesDate['sale_price_end_date'] = 0;
 
-            if (!empty($this->data->specificPrice)) {
+            if (!empty($this->data->specificPrice) && is_array($this->data->specificPrice)) {
                 $v = $this->data->specificPrice;
-                $from = strtotime($v['from']);
-                $to = strtotime($v['to']);
+                // Never assume the shape here. PrestaShop passes specific_price by
+                // reference through the actionProductPriceCalculation hook, so any
+                // third-party module can hand us a partial row.
+                $from = empty($v['from']) ? 0 : (int) strtotime((string) $v['from']);
+                $to = empty($v['to']) ? 0 : (int) strtotime((string) $v['to']);
                 if ($pricesDate['sale_price_start_date'] <= $from) {
                     $pricesDate['sale_price_start_date'] = $from;
                 }
