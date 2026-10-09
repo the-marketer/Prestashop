@@ -1,0 +1,96 @@
+name: Build module package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+          coverage: none
+
+      - name: Check version consistency
+        run: |
+          xml_version=$(sed -n 's/.*<version><!\[CDATA\[\(.*\)\]\]><\/version>.*/\1/p' config.xml)
+          php_version=$(sed -n "s/.*\$this->version = '\(.*\)';.*/\1/p" mktr.php)
+
+          echo "config.xml: $xml_version"
+          echo "mktr.php:   $php_version"
+
+          if [ -z "$xml_version" ] || [ "$xml_version" != "$php_version" ]; then
+            echo "::error::Version mismatch between config.xml ($xml_version) and mktr.php ($php_version)"
+            exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [ "$tag_version" != "$php_version" ]; then
+              echo "::error::Release tag $GITHUB_REF_NAME does not match module version $php_version"
+              exit 1
+            fi
+          fi
+
+      - name: Lint PHP files
+        run: |
+          find . -name '*.php' -not -path './vendor/*' -not -path './.git/*' -print0 \
+            | xargs -0 -n1 php -l > /dev/null
+
+      - name: Build mktr.zip
+        run: |
+          mkdir -p build
+          git archive --format=tar --prefix=mktr/ HEAD | tar -x -C build
+
+          # The Addons validator expects a single mktr/ folder and rejects
+          # repository and development files inside the package.
+          rm -rf \
+            build/mktr/.github \
+            build/mktr/.gitignore \
+            build/mktr/.gitattributes \
+            build/mktr/.php-cs-fixer.dist.php \
+            build/mktr/vendor/prestashop/module-lib-mbo-installer/.php-cs-fixer.dist.php
+
+          (cd build && zip -q -r -X ../mktr.zip mktr)
+
+      - name: Verify package structure
+        run: |
+          roots=$(unzip -Z1 mktr.zip | cut -d/ -f1 | sort -u)
+          if [ "$roots" != "mktr" ]; then
+            echo "::error::Package must contain only the mktr/ folder, found: $roots"
+            exit 1
+          fi
+
+          for required in mktr/mktr.php mktr/config.xml mktr/logo.png mktr/index.php; do
+            unzip -Z1 mktr.zip | grep -qx "$required" || {
+              echo "::error::Missing $required in package"
+              exit 1
+            }
+          done
+
+          unzip -l mktr.zip | tail -1
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" mktr.zip --clobber
+
+      - name: Upload as workflow artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mktr
+          path: mktr.zip
