@@ -88,9 +88,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" mktr.zip --clobber
 
+      # GitHub always zips artifacts on download, so uploading the folder
+      # (not mktr.zip) is what makes the downloaded mktr.zip contain mktr/.
       - name: Upload as workflow artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: mktr
-          path: mktr.zip
+          path: build/
+          include-hidden-files: true
