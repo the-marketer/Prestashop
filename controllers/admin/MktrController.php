@@ -591,8 +591,7 @@ class MktrController extends AdminController
             } elseif ($shopContext === Shop::CONTEXT_GROUP) {
                 $groupName = '';
                 if (method_exists($this->context->shop, 'getGroup')) {
-                    $group = $this->context->shop->getGroup();
-                    $groupName = is_object($group) ? $group->name : '';
+                    $groupName = $this->context->shop->getGroup()->name;
                 }
                 $multiStoreHeader = '<div class="alert alert-info"><i class="icon icon-info-circle"></i> ' .
                     'You are editing settings for shop group: <strong>' . $groupName . '</strong>.' .
