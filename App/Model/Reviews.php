@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -25,6 +26,7 @@
  **/
 
 namespace Mktr\Model;
+
 use PrestaShop\PrestaShop\Adapter\Module\ModuleManager;
 
 if (!defined('_PS_VERSION_')) {
@@ -106,8 +108,8 @@ class Reviews
             $comment->save();
 
             return $comment;
-        } else {
-            return null;
         }
+
+        return null;
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -179,7 +180,9 @@ class FileSystem
 
     /**
      * @param $fName
+     *
      * @return string
+     *
      * @throws \Exception
      */
     public static function getName($fName): string
@@ -202,6 +205,7 @@ class FileSystem
         if ($realUserPath === false || $realBase === false || strpos($realUserPath, $realBase) !== 0) {
             throw new \Exception('Invalid file path.');
         }
+
         return $fName;
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -34,13 +35,13 @@ use Mktr\Model\Config;
 
 class Valid
 {
-    const mime = [
+    public const mime = [
         'xml' => 'application/xhtml+xml',
         'js' => 'application/javascript',
         'json' => 'application/json',
         'csv' => 'text/csv',
     ];
-    const def_mime = 'xml';
+    public const def_mime = 'xml';
 
     private static $init;
     private static $params = [];

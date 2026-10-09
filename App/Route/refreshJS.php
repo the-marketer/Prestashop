@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -36,7 +37,7 @@ if (class_exists('Mktr\\Route\\refreshJS', false)) {
 
 class refreshJS
 {
-    const FIREBASE_CONFIG = 'const firebaseConfig = {
+    public const FIREBASE_CONFIG = 'const firebaseConfig = {
     apiKey: "AIzaSyA3c9lHIzPIvUciUjp1U2sxoTuaahnXuHw",
     projectId: "themarketer-e5579",
     messagingSenderId: "125832801949",
@@ -45,7 +46,7 @@ class refreshJS
 
 firebase.initializeApp(firebaseConfig);';
 
-    const FIREBASE_MESSAGING_SW = 'importScripts("https://www.gstatic.com/firebasejs/9.4.0/firebase-app-compat.js");
+    public const FIREBASE_MESSAGING_SW = 'importScripts("https://www.gstatic.com/firebasejs/9.4.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/9.4.0/firebase-messaging-compat.js");
 importScripts("./firebase-config.js");
 importScripts("https://t.themarketer.com/firebase.js");';

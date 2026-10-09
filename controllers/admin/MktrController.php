@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -41,18 +42,18 @@ if (_PS_VERSION_ < 1.7) {
     }
 }
 
-class MktrController extends \AdminController
+class MktrController extends AdminController
 {
-    const Docs = 'https://themarketer.com/resources/api';
-    const LogIn = 'https://app.themarketer.com/login';
-    const Register = 'https://app.themarketer.com/register';
+    public const Docs = 'https://themarketer.com/resources/api';
+    public const LogIn = 'https://app.themarketer.com/login';
+    public const Register = 'https://app.themarketer.com/register';
 
     private static $page = 'tracker';
     private static $i;
     private static $t;
     private static $config;
     private static $jsRefresh = true;
-    private static $baseIndex = null;
+    private static $baseIndex;
 
     private static $err = [
         'log' => [],
@@ -65,14 +66,14 @@ class MktrController extends \AdminController
 
     public function __construct()
     {
-        $this->multishop_context = \Shop::CONTEXT_SHOP | \Shop::CONTEXT_GROUP | \Shop::CONTEXT_ALL;
+        $this->multishop_context = Shop::CONTEXT_SHOP | Shop::CONTEXT_GROUP | Shop::CONTEXT_ALL;
         $this->multishop_context_group = true;
 
         parent::__construct();
         self::$i = $this;
 
-        if (!\Mktr::$init) {
-            \Module::getInstanceByName('Mktr');
+        if (!Mktr::$init) {
+            Module::getInstanceByName('Mktr');
             // new \Mktr();
         }
     }
@@ -84,7 +85,7 @@ class MktrController extends \AdminController
 
     public static function FormData()
     {
-        $cronToken = \Mktr\Model\Config::cronToken();
+        $cronToken = Mktr\Model\Config::cronToken();
 
         return [
             'tracker' => [
@@ -202,7 +203,7 @@ class MktrController extends \AdminController
             if (_PS_VERSION_ >= 1.6) {
                 if ($value['type'] === 'switch') {
                     $n['is_bool'] = true;
-                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : \Mktr\Model\Config::DEFAULT_VALUES;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
                 }
             } else {
                 if ($value['type'] === 'switch') {
@@ -210,7 +211,7 @@ class MktrController extends \AdminController
                     $n['class'] = 't';
                     $n['is_bool'] = true;
 
-                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : \Mktr\Model\Config::DEFAULT_VALUES;
+                    $value['values'] = array_key_exists('values', $value) ? $value['values'] : Mktr\Model\Config::DEFAULT_VALUES;
 
                     foreach ($value['values'] as $kkk => $vvv) {
                         if (isset($vvv['value'])) {
@@ -292,14 +293,14 @@ class MktrController extends \AdminController
                 continue;
             }
 
-            $vv = \Tools::getValue($key);
+            $vv = Tools::getValue($key);
 
             if (in_array($key, ['rest_key', 'tracking_key', 'customer_id']) && empty($vv)) {
                 self::$err['log'][] = self::$err['msg'][$key];
             }
 
             if (self::$config->{$key} != $vv) {
-                self::$config->update($key, \Tools::getValue($key));
+                self::$config->update($key, Tools::getValue($key));
                 $proccess[] = $key;
             }
         }
@@ -319,40 +320,40 @@ class MktrController extends \AdminController
                     $this->updateOptIn();
                     break;
                 case 'push_status':
-                    \Mktr\Route\refreshJS::updatePushStatus();
+                    Mktr\Route\refreshJS::updatePushStatus();
                     break;
             }
         }
 
-        \Mktr\Route\refreshJS::resetConfig();
-        \Mktr\Route\refreshJS::loadJs();
+        Mktr\Route\refreshJS::resetConfig();
+        Mktr\Route\refreshJS::loadJs();
 
         self::$config->save();
     }
 
     private function updateOptIn()
     {
-        $data = \Mktr\Model\Config::nws();
+        $data = Mktr\Model\Config::nws();
 
         if (self::$config->opt_in == 0) {
             /* @phpstan-ignore-next-line */
-            \Mktr\Model\Config::setConfig($data['CONFIRMATION'], true);
+            Mktr\Model\Config::setConfig($data['CONFIRMATION'], true);
             /* @phpstan-ignore-next-line */
-            \Mktr\Model\Config::setConfig($data['NOTIFICATION'], true);
+            Mktr\Model\Config::setConfig($data['NOTIFICATION'], true);
         } else {
             /* @phpstan-ignore-next-line */
-            \Mktr\Model\Config::setConfig($data['CONFIRMATION'], false);
+            Mktr\Model\Config::setConfig($data['CONFIRMATION'], false);
             /* @phpstan-ignore-next-line */
-            \Mktr\Model\Config::setConfig($data['NOTIFICATION'], false);
+            Mktr\Model\Config::setConfig($data['NOTIFICATION'], false);
         }
     }
 
     private function outPut()
     {
-        $helper = new \HelperForm();
+        $helper = new HelperForm();
         $helper->show_toolbar = true;
         $helper->toolbar_scroll = true;
-        $helper->default_form_language = \Mktr\Model\Config::getLang();
+        $helper->default_form_language = Mktr\Model\Config::getLang();
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitMktrModule';
         $helper->token = $this->token;
@@ -364,7 +365,7 @@ class MktrController extends \AdminController
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFormValues(),
             'languages' => $this->context->controller->getLanguages(),
-            'id_language' => \Mktr\Model\Config::getLang(),
+            'id_language' => Mktr\Model\Config::getLang(),
         ];
 
         $out = '';
@@ -380,13 +381,13 @@ class MktrController extends \AdminController
         }
 
         if (!empty(self::$err['log'])) {
-            $out .= \Mktr::i()->displayError(implode('<br />', self::$err['log']));
+            $out .= Mktr::i()->displayError(implode('<br />', self::$err['log']));
         }
 
         $out .= $this->orderSyncStatus();
         $out .= $this->cronWarning();
 
-        $js_status = \Tools::getValue('js_status', null);
+        $js_status = Tools::getValue('js_status', null);
 
         if ($js_status !== null) {
             self::$config->update('js_status', $js_status);
@@ -403,23 +404,23 @@ class MktrController extends \AdminController
      */
     private function orderSyncStatus()
     {
-        if (self::$page !== 'tracker' || !\Mktr\Model\Config::rest()) {
+        if (self::$page !== 'tracker' || !Mktr\Model\Config::rest()) {
             return '';
         }
 
-        if (\Tools::isSubmit('mktrRetryStuck')) {
-            $reopened = \Mktr\Model\OrderSync::retryStuck();
+        if (Tools::isSubmit('mktrRetryStuck')) {
+            $reopened = Mktr\Model\OrderSync::retryStuck();
 
-            return \Mktr::i()->displayConfirmation(
+            return Mktr::i()->displayConfirmation(
                 $reopened . ' order(s) queued for another attempt.'
             );
         }
 
-        $counts = \Mktr\Model\OrderSync::counts();
+        $counts = Mktr\Model\OrderSync::counts();
         $out = '';
 
         if ($counts['pending'] > 0) {
-            $out .= \Mktr::i()->displayWarning(
+            $out .= Mktr::i()->displayWarning(
                 $counts['pending'] . ' order(s) waiting to be sent to TheMarketer. ' .
                 'They are delivered by the cron, and a failed order is retried a few ' .
                 'times over the following hours before it is reported here.'
@@ -427,8 +428,8 @@ class MktrController extends \AdminController
         }
 
         if ($counts['stuck'] > 0) {
-            $out .= \Mktr::i()->displayError(
-                $counts['stuck'] . ' order(s) failed ' . \Mktr\Model\OrderSync::MAX_ATTEMPTS .
+            $out .= Mktr::i()->displayError(
+                $counts['stuck'] . ' order(s) failed ' . Mktr\Model\OrderSync::MAX_ATTEMPTS .
                 ' times and are no longer retried. Check the last_error column in ' .
                 '<code>' . _DB_PREFIX_ . 'mktr_order_sync</code>, then ' .
                 '<a href="' . $this->getBaseIndex() . '&page=tracker&mktrRetryStuck=1&' .
@@ -448,11 +449,11 @@ class MktrController extends \AdminController
      */
     private function cronWarning()
     {
-        if (self::$page !== 'tracker' || !\Mktr\Model\Config::rest()) {
+        if (self::$page !== 'tracker' || !Mktr\Model\Config::rest()) {
             return '';
         }
 
-        if (!\Mktr\Route\SyncOrders::cronIsStale()) {
+        if (!Mktr\Route\SyncOrders::cronIsStale()) {
             return '';
         }
 
@@ -474,7 +475,7 @@ class MktrController extends \AdminController
                 'its address belongs to.';
         }
 
-        $lastSync = (int) \Mktr\Helper\Data::init()->last_order_sync_run;
+        $lastSync = (int) Mktr\Helper\Data::init()->last_order_sync_run;
 
         if ($lastSync > 0 && $lastSync > (time() - 3600)) {
             $message .= '<br />Until then orders are being delivered by a fallback that runs ' .
@@ -482,7 +483,7 @@ class MktrController extends \AdminController
                 'visited, and it is not a substitute for the cron job.';
         }
 
-        return \Mktr::i()->displayWarning($message);
+        return Mktr::i()->displayWarning($message);
     }
 
     /**
@@ -495,11 +496,11 @@ class MktrController extends \AdminController
     private function cronUrls()
     {
         $query = 'index.php?fc=module&module=mktr&controller=cron&cron_token=' .
-            rawurlencode(\Mktr\Model\Config::cronToken());
+            rawurlencode(Mktr\Model\Config::cronToken());
         $urls = [];
 
-        if (\Shop::isFeatureActive()) {
-            foreach (\Shop::getShops(true) as $shop) {
+        if (Shop::isFeatureActive()) {
+            foreach (Shop::getShops(true) as $shop) {
                 $domain = empty($shop['domain_ssl']) ? $shop['domain'] : $shop['domain_ssl'];
 
                 if (empty($domain)) {
@@ -518,7 +519,7 @@ class MktrController extends \AdminController
         if (empty($urls)) {
             $urls[] = [
                 'name' => '',
-                'url' => \Tools::getShopDomainSsl(true) . __PS_BASE_URI__ . $query,
+                'url' => Tools::getShopDomainSsl(true) . __PS_BASE_URI__ . $query,
             ];
         }
 
@@ -563,13 +564,13 @@ class MktrController extends \AdminController
 
     public function initContent()
     {
-        \Mktr\Model\Config::reset();
+        Mktr\Model\Config::reset();
         /* @phpstan-ignore-next-line */
-        self::$config = \Mktr\Model\Config::setLang($this->context->language->id);
+        self::$config = Mktr\Model\Config::setLang($this->context->language->id);
 
-        self::$page = \Mktr\Helper\Valid::getParam('page', self::$page);
+        self::$page = Mktr\Helper\Valid::getParam('page', self::$page);
 
-        if (((bool) \Tools::isSubmit('submitMktrModule')) == true) {
+        if (((bool) Tools::isSubmit('submitMktrModule')) == true) {
             $this->post();
         }
 
@@ -582,13 +583,13 @@ class MktrController extends \AdminController
         $this->show_page_header_toolbar = true;
 
         $multiStoreHeader = '';
-        if (\Shop::isFeatureActive()) {
-            $shopContext = \Shop::getContext();
-            if ($shopContext === \Shop::CONTEXT_ALL) {
+        if (Shop::isFeatureActive()) {
+            $shopContext = Shop::getContext();
+            if ($shopContext === Shop::CONTEXT_ALL) {
                 $multiStoreHeader = '<div class="alert alert-info"><i class="icon icon-info-circle"></i> ' .
                     'You are editing settings for <strong>All shops</strong>. Changes will apply to all shops that don\'t have specific values set.' .
                     '</div>';
-            } elseif ($shopContext === \Shop::CONTEXT_GROUP) {
+            } elseif ($shopContext === Shop::CONTEXT_GROUP) {
                 $groupName = '';
                 if (method_exists($this->context->shop, 'getGroup')) {
                     $group = $this->context->shop->getGroup();

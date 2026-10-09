@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -37,11 +38,11 @@ class CodeGenerator
     private static $init;
     private static $code;
 
-    const PREFIX = 'MKTR-';
-    const LENGTH = 10;
-    const DESCRIPTION = 'Discount Code Generated through TheMarketer API';
+    public const PREFIX = 'MKTR-';
+    public const LENGTH = 10;
+    public const DESCRIPTION = 'Discount Code Generated through TheMarketer API';
 
-    const SYMBOLS_COLLECTION = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    public const SYMBOLS_COLLECTION = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
     public static function init()
     {

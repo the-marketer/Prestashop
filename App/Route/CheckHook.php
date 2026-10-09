@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -103,37 +104,36 @@ class CheckHook
 
                 if ($obj->registerHook($hook)) {
                     return ['status' => 'done', 'hooks' => $hook];
-                } else {
-                    return ['status' => 'There was an error during registerHook procces.', 'hooks' => $hook];
-                }
-            } else {
-                $send = ['status' => 'done'];
-                $message = [];
-
-                foreach ($hook as $kk => $vv) {
-                    if ($obj->isRegisteredInHook($vv)) {
-                        unset($hook[$kk]);
-                    }
                 }
 
-                foreach ($hook as $kk => $vv) {
-                    if (\Hook::getIdByName($vv) > 0) {
-                        if (!$obj->registerHook($vv)) {
-                            $message[] = 'There was an error during registerHook procces. [' . $vv . ']';
-                        }
-                    } else {
-                        file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $obj->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
-                    }
-                }
-                $send['hooks'] = $hook;
-                if (!empty($message)) {
-                    $send['error'] = $message;
-                }
-
-                return $send;
+                return ['status' => 'There was an error during registerHook procces.', 'hooks' => $hook];
             }
-        } else {
-            return file_get_contents(MKTR_APP . 'Storage/install.log');
+            $send = ['status' => 'done'];
+            $message = [];
+
+            foreach ($hook as $kk => $vv) {
+                if ($obj->isRegisteredInHook($vv)) {
+                    unset($hook[$kk]);
+                }
+            }
+
+            foreach ($hook as $kk => $vv) {
+                if (\Hook::getIdByName($vv) > 0) {
+                    if (!$obj->registerHook($vv)) {
+                        $message[] = 'There was an error during registerHook procces. [' . $vv . ']';
+                    }
+                } else {
+                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $obj->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
+                }
+            }
+            $send['hooks'] = $hook;
+            if (!empty($message)) {
+                $send['error'] = $message;
+            }
+
+            return $send;
         }
+
+        return file_get_contents(MKTR_APP . 'Storage/install.log');
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -40,17 +41,17 @@ if (!defined('_PS_VERSION_')) {
 class SyncOrders
 {
     /** Orders delivered per run. */
-    const BATCH = 25;
+    public const BATCH = 25;
 
     /**
      * Wall clock budget for one run. Api::REST() sleeps a second after every
      * call, so a full batch can outlive max_execution_time - stop early and
      * leave the rest pending for the next run.
      */
-    const MAX_SECONDS = 20;
+    public const MAX_SECONDS = 20;
 
     /** How long the cron may be silent before it counts as not running. */
-    const CRON_SILENCE = 86400;
+    public const CRON_SILENCE = 86400;
 
     public static function run($limit = self::BATCH, $maxSeconds = self::MAX_SECONDS)
     {

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -129,7 +130,7 @@ class Product extends DataBase
     protected $var;
     protected $variant = [];
 
-    const TYPE_COMBINATION = 'combinations';
+    public const TYPE_COMBINATION = 'combinations';
     private static $defStock;
     private static $att;
 
