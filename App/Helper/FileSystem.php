@@ -179,7 +179,9 @@ class FileSystem
 
     /**
      * @param $fName
+     *
      * @return string
+     *
      * @throws \Exception
      */
     public static function getName($fName): string
@@ -202,6 +204,7 @@ class FileSystem
         if ($realUserPath === false || $realBase === false || strpos($realUserPath, $realBase) !== 0) {
             throw new \Exception('Invalid file path.');
         }
+
         return $fName;
     }
 }

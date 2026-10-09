@@ -30,7 +30,7 @@ if (!defined('_PS_VERSION_')) {
 use Mktr\Helper\FileSystem;
 use Mktr\Helper\Valid;
 
-class MktrApiModuleFrontController extends \FrontController
+class MktrApiModuleFrontController extends FrontController
 {
     private static $page;
     private static $check = [
@@ -121,8 +121,9 @@ class MktrApiModuleFrontController extends \FrontController
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
             if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid method name.');
+                throw new Exception('Invalid method name.');
             }
+
             return null;
         }
 
@@ -130,19 +131,24 @@ class MktrApiModuleFrontController extends \FrontController
             return call_user_func_array(['Mktr\\Route\\' . self::$Route[$name], 'run'], $arguments);
         } elseif (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new Exception("Method {$name} does not exist.");
+        }
+
+        return null;
     }
 
     public function initContent()
     {
+        // Deliberately here and not in the constructor: FrontController::init()
+        // opens its own buffer after the constructor runs, so capturing earlier
+        // would put ours underneath it and tearing ours down would take
+        // PrestaShop's with it - dropping the cookie writes init() just made.
+        Valid::captureStrayOutput();
+
         /* @phpstan-ignore-next-line */
-        \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
         $name = self::$page;
 
         if (array_key_exists($name, self::$page_mime)) {
@@ -192,7 +198,7 @@ class MktrApiModuleFrontController extends \FrontController
                     );
                 }
 
-                FileSystem::setWorkDirectory(\Mktr\Model\Config::getStoragePath());
+                FileSystem::setWorkDirectory(Mktr\Model\Config::getStoragePath());
 
                 if ($read !== null && $isStatic && FileSystem::fileExists($fileName)) {
                     Valid::Output(FileSystem::readFile($fileName), null, null, true);

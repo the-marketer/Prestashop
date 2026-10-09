@@ -106,9 +106,9 @@ class Session
     {
         if (isset(self::init()->data[$key])) {
             return self::init()->data[$key];
-        } else {
-            return $default;
         }
+
+        return $default;
     }
 
     public static function save()

@@ -23,6 +23,7 @@
  *
  * @docs        https://themarketer.com/resources/api
  **/
+
 namespace Mktr\Model;
 
 use PrestaShop\PrestaShop\Core\Context\LanguageContext;
@@ -35,9 +36,9 @@ if (!defined('_PS_VERSION_')) {
 class Config
 {
     /** Shared secret required by the public cron endpoint. */
-    const CRON_TOKEN_KEY = 'MKTR_CRON_TOKEN';
+    public const CRON_TOKEN_KEY = 'MKTR_CRON_TOKEN';
 
-    const CONFIG_DATA = [
+    public const CONFIG_DATA = [
         'status' => ['key' => 'MKTR_TRACKER_TRACKER_STATUS', 'default' => false, 'type' => 'bool'],
         'tracking_key' => ['key' => 'MKTR_TRACKER_TRACKER_TRACKING_KEY', 'default' => '', 'type' => 'string'],
         'rest_key' => ['key' => 'MKTR_TRACKER_TRACKER_REST_KEY', 'default' => '', 'type' => 'string'],
@@ -60,7 +61,7 @@ class Config
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
     ];
 
-    const CONFIG_DATA_PS15 = [
+    public const CONFIG_DATA_PS15 = [
         'status' => ['key' => 'MKTR_TRACKER_STATUS', 'default' => 0, 'type' => 'int'],
         'tracking_key' => ['key' => 'MKTR_TRACKER_TRACKING_KEY', 'default' => '', 'type' => 'string'],
         'rest_key' => ['key' => 'MKTR_TRACKER_REST_KEY', 'default' => '', 'type' => 'string'],
@@ -83,7 +84,7 @@ class Config
         'google_tagCode' => ['key' => 'MKTR_GOOGLE_GOOGLE_TAGCODE', 'default' => '', 'type' => 'string'],
     ];
 
-    const DEFAULT_VALUES = [
+    public const DEFAULT_VALUES = [
         [
             'id' => 'active_on',
             'value' => true,
@@ -227,18 +228,18 @@ class Config
             if (_PS_MODE_DEV_) {
                 throw new \Exception('Invalid method name.');
             }
+
             return null;
         }
 
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new \Exception("Method {$name} does not exist.");
+        }
+
+        return null;
     }
 
     public static function __callStatic($name, $arguments)
@@ -247,6 +248,7 @@ class Config
             if (_PS_MODE_DEV_) {
                 throw new \Exception('Invalid static method name.');
             }
+
             return null;
         }
 
@@ -258,13 +260,12 @@ class Config
 
         if (method_exists(self::$i, $name)) {
             return call_user_func_array([self::$i, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Static method {$name} does not exist.");
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new \Exception("Static method {$name} does not exist.");
+        }
+
+        return null;
     }
 
     public function __get($name)
@@ -372,12 +373,14 @@ class Config
     public static function setContext($c)
     {
         self::$context = $c;
+
         return self::i();
     }
 
     public static function setLang($lang)
     {
         self::$lang_id = $lang;
+
         return self::i();
     }
 
@@ -677,6 +680,7 @@ class Config
     /**
      * @param string $configKey
      * @param int|null $idLang
+     *
      * @return bool|string|null
      */
     public static function getShopConfigValue($configKey, $idLang = null)
@@ -697,6 +701,7 @@ class Config
      * @param string $configKey
      * @param mixed $value
      * @param bool $html
+     *
      * @return bool
      */
     public static function updateShopConfigValue($configKey, $value, $html = false)
@@ -720,6 +725,7 @@ class Config
     {
         if (\Shop::isFeatureActive()) {
             $shopId = self::shop();
+
             return 'Storage/' . (int) $shopId . '/';
         }
 
@@ -733,6 +739,7 @@ class Config
     {
         if (\Shop::isFeatureActive()) {
             $shopId = self::shop();
+
             return 'mktr.' . (int) $shopId . '.';
         }
 

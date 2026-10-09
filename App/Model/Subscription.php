@@ -143,18 +143,18 @@ class Subscription extends DataBase
     {
         if ($this->is === 'customer') {
             return $this->data->firstname;
-        } else {
-            return $this->getName('firstname');
         }
+
+        return $this->getName('firstname');
     }
 
     protected function getLastName()
     {
         if ($this->is === 'customer') {
             return $this->data->lastname;
-        } else {
-            return $this->getName('lastname');
         }
+
+        return $this->getName('lastname');
     }
 
     protected function AdressData()
@@ -193,8 +193,8 @@ class Subscription extends DataBase
     {
         if ($this->is === 'customer') {
             return (bool) $this->data->newsletter;
-        } else {
-            return $this->data !== null ? (bool) $this->data->active : false;
         }
+
+        return $this->data !== null ? (bool) $this->data->active : false;
     }
 }

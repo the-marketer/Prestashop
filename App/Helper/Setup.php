@@ -32,7 +32,7 @@ if (!defined('_PS_VERSION_')) {
 
 class Setup
 {
-    const TABS = [
+    public const TABS = [
         'Mktr' => [
             'name' => 'TheMarketer',
             'ico' => '',

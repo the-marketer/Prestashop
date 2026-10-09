@@ -37,15 +37,15 @@ if (!defined('_PS_VERSION_')) {
 
 class Array2XML
 {
-    const DEFAULT_DOM_VERSION = '1.0';
-    const DEFAULT_ENCODING = 'UTF-8';
-    const DEFAULT_STANDALONE = false;
-    const DEFAULT_FORMAT_OUTPUT = true;
+    public const DEFAULT_DOM_VERSION = '1.0';
+    public const DEFAULT_ENCODING = 'UTF-8';
+    public const DEFAULT_STANDALONE = false;
+    public const DEFAULT_FORMAT_OUTPUT = true;
 
-    const LABEL_ATTRIBUTES = '@attributes';
-    const LABEL_CDATA = '@cdata';
-    const LABEL_DOCTYPE = '@docType';
-    const LABEL_VALUE = '@value';
+    public const LABEL_ATTRIBUTES = '@attributes';
+    public const LABEL_CDATA = '@cdata';
+    public const LABEL_DOCTYPE = '@docType';
+    public const LABEL_VALUE = '@value';
 
     public static $noNull = false;
 
@@ -116,36 +116,36 @@ class Array2XML
     {
         if (self::$domVersion !== null) {
             return self::$domVersion;
-        } else {
-            return self::DEFAULT_DOM_VERSION;
         }
+
+        return self::DEFAULT_DOM_VERSION;
     }
 
     public static function getEncoding()
     {
         if (self::$encoding !== null) {
             return self::$encoding;
-        } else {
-            return self::DEFAULT_ENCODING;
         }
+
+        return self::DEFAULT_ENCODING;
     }
 
     public static function isStandalone()
     {
         if (self::$standalone !== null) {
             return self::$standalone;
-        } else {
-            return self::DEFAULT_STANDALONE;
         }
+
+        return self::DEFAULT_STANDALONE;
     }
 
     public static function isFormatOutput()
     {
         if (self::$formatOutput !== null) {
             return self::$formatOutput;
-        } else {
-            return self::DEFAULT_FORMAT_OUTPUT;
         }
+
+        return self::DEFAULT_FORMAT_OUTPUT;
     }
 
     protected static function setDomVersion($domVersion = null)
@@ -188,36 +188,36 @@ class Array2XML
     {
         if (self::$labelAttributes !== null) {
             return self::$labelAttributes;
-        } else {
-            return self::LABEL_ATTRIBUTES;
         }
+
+        return self::LABEL_ATTRIBUTES;
     }
 
     public static function getLabelCData()
     {
         if (self::$labelCData !== null) {
             return self::$labelCData;
-        } else {
-            return self::LABEL_CDATA;
         }
+
+        return self::LABEL_CDATA;
     }
 
     public static function getLabelDocType()
     {
         if (self::$labelDocType !== null) {
             return self::$labelDocType;
-        } else {
-            return self::LABEL_DOCTYPE;
         }
+
+        return self::LABEL_DOCTYPE;
     }
 
     public static function getLabelValue()
     {
         if (self::$labelValue !== null) {
             return self::$labelValue;
-        } else {
-            return self::LABEL_VALUE;
         }
+
+        return self::LABEL_VALUE;
     }
 
     protected static function setLabelAttributes($labelAttributes = null)

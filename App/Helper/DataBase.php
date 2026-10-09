@@ -58,13 +58,12 @@ abstract class DataBase
 
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception('Method ' . $name . ' does not exist.');
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new \Exception('Method ' . $name . ' does not exist.');
+        }
+
+        return null;
     }
 
     public static function __callStatic($name, $arguments)
@@ -82,13 +81,12 @@ abstract class DataBase
 
         if (method_exists($i, $name)) {
             return call_user_func_array([$i, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception('Static method ' . $name . ' does not exist.');
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new \Exception('Static method ' . $name . ' does not exist.');
+        }
+
+        return null;
     }
 
     public function toArray($if = null)

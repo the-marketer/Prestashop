@@ -25,6 +25,7 @@
  **/
 
 namespace Mktr\Model;
+
 use PrestaShop\PrestaShop\Adapter\Module\ModuleManager;
 
 if (!defined('_PS_VERSION_')) {
@@ -106,8 +107,8 @@ class Reviews
             $comment->save();
 
             return $comment;
-        } else {
-            return null;
         }
+
+        return null;
     }
 }

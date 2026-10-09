@@ -39,10 +39,10 @@ if (!defined('_PS_VERSION_')) {
 class OrderSync
 {
     /** Waiting to be delivered. */
-    const STATE_PENDING = 0;
+    public const STATE_PENDING = 0;
 
     /** The API acknowledged it. */
-    const STATE_SENT = 1;
+    public const STATE_SENT = 1;
 
     /**
      * Nothing left to deliver, and no amount of retrying would change that -
@@ -50,13 +50,13 @@ class OrderSync
      * like a delivery, so it never shows up as a failure the merchant has to
      * act on.
      */
-    const STATE_SKIPPED = 2;
+    public const STATE_SKIPPED = 2;
 
     /** A worker has claimed the order and is currently calling the API. */
-    const STATE_PROCESSING = 3;
+    public const STATE_PROCESSING = 3;
 
     /** Attempts before an order stops being retried and is left for inspection. */
-    const MAX_ATTEMPTS = 5;
+    public const MAX_ATTEMPTS = 5;
 
     /**
      * Delay before each retry, indexed by the number of attempts already made.
@@ -65,19 +65,19 @@ class OrderSync
      * five in a few seconds, and a two minute API outage becomes permanent.
      * Spread out, the five attempts cover a bit over five hours.
      */
-    const RETRY_DELAYS = [300, 900, 3600, 14400];
+    public const RETRY_DELAYS = [300, 900, 3600, 14400];
 
     /** Retry delay for an order that has not finished writing its lines yet. */
-    const WAIT_FOR_DATA_DELAY = 300;
+    public const WAIT_FOR_DATA_DELAY = 300;
 
     /** A claim expires if its PHP worker dies before it can settle the order. */
-    const CLAIM_TTL = 120;
+    public const CLAIM_TTL = 120;
 
     /** How far back enrolment looks for orders nobody recorded. */
-    const BACKFILL_HOURS = 48;
+    public const BACKFILL_HOURS = 48;
 
     /** Settled rows are kept this long, for support questions. */
-    const KEEP_DAYS = 90;
+    public const KEEP_DAYS = 90;
 
     /**
      * @return string
@@ -171,8 +171,8 @@ class OrderSync
     {
         $row = self::row($id_order);
 
-        return $row !== null && (int) $row['sent'] === self::STATE_PROCESSING &&
-            !empty($row['date_next_try']) && strtotime($row['date_next_try']) > time();
+        return $row !== null && (int) $row['sent'] === self::STATE_PROCESSING
+            && !empty($row['date_next_try']) && strtotime($row['date_next_try']) > time();
     }
 
     /**
@@ -375,7 +375,7 @@ class OrderSync
     {
         Config::db()->execute(
             'DELETE FROM `' . self::table() . '`' .
-            ' WHERE `sent` IN (' . (int) self::STATE_SENT . ', ' . (int) self::STATE_SKIPPED . ")" .
+            ' WHERE `sent` IN (' . (int) self::STATE_SENT . ', ' . (int) self::STATE_SKIPPED . ')' .
             " AND `date_sent` < '" .
             date('Y-m-d H:i:s', strtotime('-' . (int) self::KEEP_DAYS . ' day')) . "'"
         );

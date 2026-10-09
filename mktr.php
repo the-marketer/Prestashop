@@ -36,8 +36,11 @@ if (!defined('MKTR_APP')) {
     define('MKTR_APP', rtrim($d, '/') . '/');
 }
 
-class Mktr extends \Module
+class Mktr extends Module
 {
+    /** Prefix of the MKTR_HOOKS_OK value written when a self-heal attempt failed. */
+    public const HEAL_RETRY = 'retry:';
+
     public static $expire = 172800; // seconds
 
     public static $init = false;
@@ -64,7 +67,7 @@ class Mktr extends \Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.6';
+        $this->version = '1.1.8';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -82,15 +85,223 @@ class Mktr extends \Module
         spl_autoload_register([$this, 'load'], true, true);
 
         /* @phpstan-ignore-next-line */
-        \Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
 
         if (self::$update) {
             self::preConfig();
         } else {
-            \Mktr\Helper\Session::getUid();
+            Mktr\Helper\Session::getUid();
         }
 
+        $this->autoHealHooksIfNeeded();
+
         // $this->registerHook('actionDispatcher');
+    }
+
+    /**
+     * Registers what is missing for the current shop in a multistore setup.
+     *
+     * A shop created after the module was installed gets no hook_module,
+     * module_shop or module_group rows and no generated JS file, so tracking is
+     * silently dead on it with nothing in the back office to say so. Runs at
+     * most once per request and costs a single Configuration read on the normal
+     * path; the DB work only happens until the current shop has been verified
+     * for this module version.
+     *
+     * This never enables the module. Module::disable() works by dropping the
+     * module_shop row, and PrestaShop calls it itself when an upgrade script
+     * fails, so recreating that row for a shop we have already seen would put a
+     * half-upgraded module back into service behind the merchant's back.
+     */
+    private function autoHealHooksIfNeeded()
+    {
+        static $checked = false;
+
+        if ($checked) {
+            return;
+        }
+
+        $checked = true;
+        $shopId = 0;
+
+        try {
+            if (!Shop::isFeatureActive()) {
+                return;
+            }
+
+            // Under "all shops" the back office points the context at the
+            // default shop, so Config::shop() would not name the shop being
+            // looked at and we would stamp the wrong one as healed.
+            if (Shop::getContext() !== Shop::CONTEXT_SHOP) {
+                return;
+            }
+
+            $shopId = (int) Mktr\Model\Config::shop();
+
+            if ($shopId <= 0) {
+                return;
+            }
+
+            $stamp = Configuration::get('MKTR_HOOKS_OK', null, null, $shopId);
+
+            if ($stamp === $this->version) {
+                return;
+            }
+
+            // A heal that keeps failing must not cost ~35 queries on every
+            // single request for the rest of time.
+            if (is_string($stamp) && strpos($stamp, self::HEAL_RETRY) === 0
+                && (int) substr($stamp, strlen(self::HEAL_RETRY)) > time()
+            ) {
+                return;
+            }
+
+            $moduleId = (int) $this->id;
+
+            if ($moduleId <= 0) {
+                return;
+            }
+
+            $db = Db::getInstance();
+
+            if (!(int) $db->getValue(
+                'SELECT `active` FROM `' . _DB_PREFIX_ . 'module` WHERE `id_module` = ' . $moduleId
+            )) {
+                return;
+            }
+
+            $moduleShop = $db->getRow(
+                'SELECT `enable_device` FROM `' . _DB_PREFIX_ . 'module_shop` ' .
+                'WHERE `id_module` = ' . $moduleId . ' AND `id_shop` = ' . $shopId
+            );
+
+            if (!$moduleShop) {
+                // No association and no stamp means a shop that appeared after
+                // the module was installed - the case this repair exists for.
+                // With a stamp, the association was taken away on purpose.
+                if ($stamp !== false && $stamp !== null && $stamp !== '') {
+                    return;
+                }
+
+                $db->insert('module_shop', [
+                    'id_module' => $moduleId,
+                    'id_shop' => $shopId,
+                    'enable_device' => 7,
+                ]);
+            } elseif ((int) $moduleShop['enable_device'] !== 7) {
+                // 7 = all devices; anything else hides the module on some of them.
+                $db->update(
+                    'module_shop',
+                    ['enable_device' => 7],
+                    'id_module = ' . $moduleId . ' AND id_shop = ' . $shopId
+                );
+            }
+
+            // Hook::exec inner-joins module_group on every front-office request
+            // once the group feature is on, so hook rows alone are not enough.
+            // Module::install() only fills this in for the shops that existed
+            // then. Written as NOT EXISTS because the primary key is
+            // (id_module, id_shop, id_group) and Group::addRestrictionsForModule
+            // is a plain INSERT ... SELECT.
+            $db->execute(
+                'INSERT INTO `' . _DB_PREFIX_ . 'module_group` (`id_module`, `id_shop`, `id_group`) ' .
+                'SELECT ' . $moduleId . ', ' . $shopId . ', g.`id_group` ' .
+                'FROM `' . _DB_PREFIX_ . 'group` g WHERE NOT EXISTS (' .
+                'SELECT 1 FROM `' . _DB_PREFIX_ . 'module_group` mg ' .
+                'WHERE mg.`id_module` = ' . $moduleId .
+                ' AND mg.`id_shop` = ' . $shopId .
+                ' AND mg.`id_group` = g.`id_group`)'
+            );
+
+            foreach (self::getRequiredHooks() as $hookName) {
+                $idHook = (int) Hook::getIdByName($hookName);
+
+                if ($idHook <= 0) {
+                    continue;
+                }
+
+                $exists = (int) $db->getValue(
+                    'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'hook_module` ' .
+                    'WHERE `id_module` = ' . $moduleId .
+                    ' AND `id_hook` = ' . $idHook .
+                    ' AND `id_shop` = ' . $shopId
+                );
+
+                if ($exists) {
+                    continue;
+                }
+
+                $position = (int) $db->getValue(
+                    'SELECT COALESCE(MAX(`position`), 0) FROM `' . _DB_PREFIX_ . 'hook_module` ' .
+                    'WHERE `id_hook` = ' . $idHook . ' AND `id_shop` = ' . $shopId
+                );
+
+                $db->insert('hook_module', [
+                    'id_module' => $moduleId,
+                    'id_hook' => $idHook,
+                    'id_shop' => $shopId,
+                    'position' => $position + 1,
+                ]);
+            }
+
+            // The JS file is per shop, so a new shop has none yet. Config's
+            // language and context live in statics, so rebuilding the instance
+            // here does not disturb the rest of the request.
+            try {
+                Mktr\Model\Config::i(true);
+
+                if (Mktr\Model\Config::showJs(true)) {
+                    $jsFile = Mktr\Model\Config::i()->js_file;
+
+                    if ($jsFile === ''
+                        || !file_exists(MKTR_APP . Mktr\Model\Config::getJsPrefix() . $jsFile . '.js')
+                    ) {
+                        Mktr\Route\refreshJS::resetConfig();
+                        Mktr\Route\refreshJS::loadJs();
+                    }
+                }
+            } catch (Exception $e) {
+                // A missing JS file must not take the page down with it.
+                self::orderLog('HOOKS_HEAL_JS', $e->getMessage());
+            } catch (Throwable $e) {
+                self::orderLog('HOOKS_HEAL_JS', $e->getMessage());
+            }
+
+            Configuration::updateValue('MKTR_HOOKS_OK', $this->version, false, null, $shopId);
+        } catch (Exception $e) {
+            self::deferHeal($shopId, $e->getMessage());
+        } catch (Throwable $e) {
+            self::deferHeal($shopId, $e->getMessage());
+        }
+    }
+
+    /**
+     * Parks a failed heal for a while so it stops running on every request.
+     *
+     * @param int $shopId
+     * @param string $message
+     */
+    private static function deferHeal($shopId, $message)
+    {
+        self::orderLog('HOOKS_HEAL', $message);
+
+        if ($shopId <= 0) {
+            return;
+        }
+
+        try {
+            Configuration::updateValue(
+                'MKTR_HOOKS_OK',
+                self::HEAL_RETRY . (time() + 900),
+                false,
+                null,
+                (int) $shopId
+            );
+        } catch (Exception $e) {
+            // Nothing left to do about it.
+        } catch (Throwable $e) {
+            // Nothing left to do about it.
+        }
     }
 
     public static function i()
@@ -104,11 +315,11 @@ class Mktr extends \Module
         $realBase = realpath(MKTR_APP);
 
         if ($realFilePath === false || $realBase === false) {
-            throw new \Exception('Invalid file path.');
+            throw new Exception('Invalid file path.');
         }
 
         if (strpos($realFilePath, $realBase) !== 0) {
-            throw new \Exception('File path outside module directory.');
+            throw new Exception('File path outside module directory.');
         }
 
         $allowedFiles = [
@@ -118,27 +329,27 @@ class Mktr extends \Module
 
         $relativePath = str_replace($realBase . '/', '', $realFilePath);
         if (!in_array($relativePath, $allowedFiles)) {
-            throw new \Exception('File not in allowed list.');
+            throw new Exception('File not in allowed list.');
         }
 
         if (!file_exists($realFilePath) || !is_readable($realFilePath)) {
-            throw new \Exception('File does not exist or is not readable.');
+            throw new Exception('File does not exist or is not readable.');
         }
 
-        $content = \Tools::file_get_contents($realFilePath, true);
+        $content = Tools::file_get_contents($realFilePath, true);
         if ($content === false) {
-            throw new \Exception('Failed to read file.');
+            throw new Exception('Failed to read file.');
         }
 
         $newContent = str_replace($from, $to, $content);
 
         if (!is_writable($realFilePath)) {
-            throw new \Exception('File is not writable.');
+            throw new Exception('File is not writable.');
         }
 
         $file = fopen($realFilePath, 'w+');
         if ($file === false) {
-            throw new \Exception('Failed to open file for writing.');
+            throw new Exception('Failed to open file for writing.');
         }
 
         fwrite($file, $newContent);
@@ -155,8 +366,8 @@ class Mktr extends \Module
         if (self::$update) {
             if (file_exists(MKTR_APP . 'mktr.php')) {
                 self::$update = false;
-                \Mktr\Route\refreshJS::resetConfig();
-                \Mktr\Route\refreshJS::loadJs();
+                Mktr\Route\refreshJS::resetConfig();
+                Mktr\Route\refreshJS::loadJs();
 
                 // Only the flag is rewritten, and only in this file - the
                 // admin controller has no such flag, so rewriting it was a
@@ -182,12 +393,17 @@ class Mktr extends \Module
         return 'mktr/' . explode('mktr/', $fn)[1];
     }
 
-    public function install()
+    /**
+     * The hooks this module needs, for the running PrestaShop version.
+     *
+     * Single source of truth: install() registers them and
+     * autoHealHooksIfNeeded() repairs them per shop, so the two can never
+     * drift apart.
+     *
+     * @return string[]
+     */
+    public static function getRequiredHooks()
     {
-        if (\Shop::isFeatureActive()) {
-            \Shop::setContext(\Shop::CONTEXT_ALL);
-        }
-
         if (_PS_VERSION_ >= 1.6) {
             $hook = [
                 /* Front */
@@ -227,13 +443,24 @@ class Mktr extends \Module
             $hook[] = 'displayFooter';
         }
 
-        if (!\Mktr\Helper\Setup::install()) {
+        return $hook;
+    }
+
+    public function install()
+    {
+        if (Shop::isFeatureActive()) {
+            Shop::setContext(Shop::CONTEXT_ALL);
+        }
+
+        $hook = self::getRequiredHooks();
+
+        if (!Mktr\Helper\Setup::install()) {
             return false;
         }
 
         if (_PS_VERSION_ >= 1.6) {
             foreach ($hook as $kk => $vv) {
-                if (!(\Hook::getIdByName($vv) > 0)) {
+                if (!(Hook::getIdByName($vv) > 0)) {
                     unset($hook[$kk]);
                     file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
                 }
@@ -259,63 +486,72 @@ class Mktr extends \Module
 
             if (parent::install() && $this->registerHook($hook)) {
                 return true;
-            } else {
-                $this->_errors[] = 'There was an error during registerHook procces.';
-
-                return false;
             }
-        } else {
-            if (!parent::install()) {
-                $this->_errors[] = 'There was an error during the Install procces.';
-                file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] parent::install() ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . "\n", FILE_APPEND);
+            $this->_errors[] = 'There was an error during registerHook procces.';
 
-                return false;
-            }
-
-            foreach ($hook as $kk => $vv) {
-                if (\Hook::getIdByName($vv) > 0) {
-                    if (!$this->registerHook($vv)) {
-                        $this->_errors[] = 'There was an error during registerHook procces. [' . $vv . ']';
-                    }
-                } else {
-                    file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
-                }
-            }
-
-            return true;
+            return false;
         }
+        if (!parent::install()) {
+            $this->_errors[] = 'There was an error during the Install procces.';
+            file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] parent::install() ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . "\n", FILE_APPEND);
+
+            return false;
+        }
+
+        foreach ($hook as $kk => $vv) {
+            if (Hook::getIdByName($vv) > 0) {
+                if (!$this->registerHook($vv)) {
+                    $this->_errors[] = 'There was an error during registerHook procces. [' . $vv . ']';
+                }
+            } else {
+                file_put_contents(MKTR_APP . 'Storage/install.log', date('Y-m-d H:i:s') . '[NOT_FOUND] ' . $this->gFile(__FILE__) . ' - Line ' . __LINE__ . ' [' . $vv . "]\n", FILE_APPEND);
+            }
+        }
+
+        return true;
     }
 
     public function uninstall()
     {
-        if (\Shop::isFeatureActive()) {
-            \Shop::setContext(\Shop::CONTEXT_ALL);
+        if (Shop::isFeatureActive()) {
+            Shop::setContext(Shop::CONTEXT_ALL);
         }
 
-        \Mktr\Helper\Setup::uninstall();
+        Mktr\Helper\Setup::uninstall();
 
         if (parent::uninstall()) {
             return true;
-        } else {
-            $this->_errors[] = 'There was an error during the Uninstall procces.';
-
-            return false;
         }
+        $this->_errors[] = 'There was an error during the Uninstall procces.';
+
+        return false;
     }
 
     public function getContent()
     {
-        $mboInstaller = new \Prestashop\ModuleLibMboInstaller\DependencyBuilder($this);
+        $mboInstaller = new Prestashop\ModuleLibMboInstaller\DependencyBuilder($this);
         if (!$mboInstaller->areDependenciesMet()) {
             $dependencies = $mboInstaller->handleDependencies();
             $this->smarty->assign('dependencies', $dependencies);
+
             return $this->display(__FILE__, 'views/templates/admin/dependency_builder.tpl');
         }
 
-        \Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
+        Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
 
         return null;
     }
+
+    /**
+     * Front controllers shipped in this package: lowercase controller name as it
+     * appears in a URL => the filename exactly as we ship it.
+     *
+     * @var string[]
+     */
+    private static $frontControllers = [
+        'api' => 'Api.php',
+        'cron' => 'cron.php',
+    ];
 
     private static function load($className, $ext = '.php')
     {
@@ -330,22 +566,80 @@ class Mktr extends \Module
                     self::$included[$className] = false;
                 }
             }
-        } elseif (strtolower($className) == 'mktrapimodulefrontcontroller') {
-            $className = 'MktrApiModuleFrontController';
+        } elseif (preg_match('/^mktr(.+)modulefrontcontroller$/', strtolower($className), $m)) {
+            // PrestaShop builds the include path from the raw `controller` value in
+            // the query string, not from the file it just found on disk
+            // (classes/Dispatcher.php, case FC_MODULE - same in 1.7, 8 and 9):
+            //
+            //   if (isset($controllers[strtolower($this->controller)])) {       // lowercased key
+            //       include_once ... "controllers/front/{$this->controller}.php"; // raw value
+            //
+            // On a case-sensitive filesystem any casing that does not match the
+            // file makes that include fail and the controller class is missing,
+            // which surfaces as "Class mktr<x>ModuleFrontController not found".
+            // Resolving it here keeps every casing working: controller=cron and
+            // controller=Cron both reach controllers/front/cron.php.
+            //
+            // Admin controllers are not affected - the FC_ADMIN branch includes
+            // the real filename from the map instead of the URL value.
+            $key = strtolower($className);
 
-            if (!array_key_exists($className, self::$included)) {
-                self::$included[$className] = true;
-                $file = MKTR_APP . 'controllers/front/Api.php';
+            if (!array_key_exists($key, self::$included)) {
+                self::$included[$key] = true;
 
-                if (!file_exists($file)) {
-                    $file = MKTR_APP . 'controllers/front/api.php';
-                }
+                $file = self::findFrontController($m[1], $ext);
 
-                if (file_exists($file)) {
+                if ($file !== null) {
                     require_once $file;
                 }
             }
         }
+    }
+
+    /**
+     * Resolves controllers/front/<name>.php regardless of the casing used in the
+     * request. Only regular files directly inside that directory are eligible,
+     * so a crafted controller name cannot reach anything else.
+     *
+     * @param string $name lowercase controller name taken from the class name
+     * @param string $ext
+     *
+     * @return string|null absolute path, or null when there is no such controller
+     */
+    private static function findFrontController($name, $ext = '.php')
+    {
+        // 'index' is PrestaShop's blank guard file, never a controller.
+        if ($name === 'index' || !preg_match('/^[a-z0-9_]+\z/', $name)) {
+            return null;
+        }
+
+        $dir = MKTR_APP . 'controllers/front/';
+
+        // The spelling this package ships always wins. An upgrade extracts over
+        // the old folder without deleting what disappeared from it, so a
+        // differently cased leftover of an earlier release can still sit next to
+        // ours - and loading that instead would silently run old code.
+        if (isset(self::$frontControllers[$name]) && is_file($dir . self::$frontControllers[$name])) {
+            return $dir . self::$frontControllers[$name];
+        }
+
+        if (is_file($dir . $name . $ext)) {
+            return $dir . $name . $ext;
+        }
+
+        $entries = @scandir($dir);
+
+        if ($entries === false) {
+            return null;
+        }
+
+        foreach ($entries as $entry) {
+            if (strtolower($entry) === $name . $ext && is_file($dir . $entry)) {
+                return $dir . $entry;
+            }
+        }
+
+        return null;
     }
 
     public static function getExpire()
@@ -370,10 +664,10 @@ class Mktr extends \Module
 
     public function initDispatcher()
     {
-        if (self::$displayLoad['dispatcher'] === true && \Mktr\Model\Config::showJS()) {
+        if (self::$displayLoad['dispatcher'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['dispatcher'] = false;
 
-            $cont = \Mktr\Helper\Valid::getParam('controller', null);
+            $cont = Mktr\Helper\Valid::getParam('controller', null);
 
             if (_PS_VERSION_ < 1.7 && $cont !== null && strpos($cont, 'Admin') !== false && strpos($cont, 'admin') !== false) {
                 return true;
@@ -385,14 +679,14 @@ class Mktr extends \Module
             $pAttr = null;
             $qty = null;
 
-            $email = \Mktr\Helper\Valid::getParam('email', null);
-            $phone = \Mktr\Helper\Valid::getParam('phone', null);
-            $phone1 = \Mktr\Helper\Valid::getParam('phone_mobile', null);
+            $email = Mktr\Helper\Valid::getParam('email', null);
+            $phone = Mktr\Helper\Valid::getParam('phone', null);
+            $phone1 = Mktr\Helper\Valid::getParam('phone_mobile', null);
 
             if ($email !== null) {
                 $remove = false;
 
-                if (in_array(\Mktr\Helper\Valid::getParam('controller', null), ['identity'])) {
+                if (in_array(Mktr\Helper\Valid::getParam('controller', null), ['identity'])) {
                     $remove = true;
                 }
 
@@ -402,59 +696,59 @@ class Mktr extends \Module
                     $toAdd[] = ($phone !== null ? $phone : $phone1);
                 }
 
-                \Mktr\Helper\Session::setEmail($toAdd);
-                \Mktr\Helper\Session::save();
+                Mktr\Helper\Session::setEmail($toAdd);
+                Mktr\Helper\Session::save();
             }
 
-            self::$checkList['update'] = in_array(\Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']) || in_array(\Mktr\Helper\Valid::getParam('controller', null), ['cart']);
-            self::$checkList['isAdd'] = self::$checkList['update'] && \Mktr\Helper\Valid::getParam('add', null) !== null;
-            self::$checkList['isDel'] = self::$checkList['update'] && \Mktr\Helper\Valid::getParam('delete', null) !== null;
+            self::$checkList['update'] = in_array(Mktr\Helper\Valid::getParam('action', null), ['update', 'cos', 'cart']) || in_array(Mktr\Helper\Valid::getParam('controller', null), ['cart']);
+            self::$checkList['isAdd'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('add', null) !== null;
+            self::$checkList['isDel'] = self::$checkList['update'] && Mktr\Helper\Valid::getParam('delete', null) !== null;
             $CheckIsAdd = self::$checkList['update'] && self::$checkList['isAdd'];
             $CheckIsDel = self::$checkList['update'] && self::$checkList['isDel'];
-            $action = \Mktr\Helper\Valid::getParam('action', null);
+            $action = Mktr\Helper\Valid::getParam('action', null);
 
             if (_PS_VERSION_ >= 1.7) {
                 if ($CheckIsAdd) {
-                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
-                    $pGrup = \Mktr\Helper\Valid::getParam('group', null);
+                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
+                    $pGrup = Mktr\Helper\Valid::getParam('group', null);
 
                     if ($pGrup !== null) {
-                        $pAttr = (int) \Product::getIdProductAttributeByIdAttributes($pId, $pGrup, true);
+                        $pAttr = (int) Product::getIdProductAttributeByIdAttributes($pId, $pGrup, true);
                     }
 
-                    $qty = \Mktr\Helper\Valid::getParam('qty', null);
+                    $qty = Mktr\Helper\Valid::getParam('qty', null);
                 }
 
                 if ($CheckIsDel) {
-                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
-                    $pAttr = \Mktr\Helper\Valid::getParam('id_product_attribute', null);
+                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
+                    $pAttr = Mktr\Helper\Valid::getParam('id_product_attribute', null);
                 }
             } else {
                 if ($CheckIsAdd) {
-                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
-                    $pAttr = \Mktr\Helper\Valid::getParam('ipa', null);
-                    $qty = \Mktr\Helper\Valid::getParam('qty', null);
+                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
+                    $pAttr = Mktr\Helper\Valid::getParam('ipa', null);
+                    $qty = Mktr\Helper\Valid::getParam('qty', null);
                 }
 
                 if ($CheckIsDel) {
-                    $pId = \Mktr\Helper\Valid::getParam('id_product', null);
-                    $pAttr = \Mktr\Helper\Valid::getParam('ipa', null);
+                    $pId = Mktr\Helper\Valid::getParam('id_product', null);
+                    $pAttr = Mktr\Helper\Valid::getParam('ipa', null);
                 }
             }
 
             if ($action == 'toggleProductWishlist') {
-                $p = \Mktr\Helper\Valid::getParam('id_product', null);
+                $p = Mktr\Helper\Valid::getParam('id_product', null);
 
                 if ($p !== null) {
-                    \Mktr\Helper\Session::Wishlist($p, 0);
-                    \Mktr\Helper\Session::save();
+                    Mktr\Helper\Session::Wishlist($p, 0);
+                    Mktr\Helper\Session::save();
                 }
             } elseif (self::$checkList['update'] && self::$checkList['isAdd']) {
-                \Mktr\Helper\Session::addToCart($pId, $pAttr, $qty);
-                \Mktr\Helper\Session::save();
+                Mktr\Helper\Session::addToCart($pId, $pAttr, $qty);
+                Mktr\Helper\Session::save();
             } elseif (self::$checkList['update'] && self::$checkList['isDel']) {
-                $cartId = \Mktr\Helper\Session::get('cartID', null);
-                $list = \Mktr\Model\Product::getQty($pId, $pAttr, $cartId);
+                $cartId = Mktr\Helper\Session::get('cartID', null);
+                $list = Mktr\Model\Product::getQty($pId, $pAttr, $cartId);
 
                 foreach ($list as $value) {
                     if ($value['id_product_attribute'] === $pAttr && $value['id_product'] === $pId) {
@@ -463,72 +757,72 @@ class Mktr extends \Module
                     }
                 }
 
-                \Mktr\Helper\Session::removeFromCart($pId, $pAttr, $qty);
-                \Mktr\Helper\Session::save();
+                Mktr\Helper\Session::removeFromCart($pId, $pAttr, $qty);
+                Mktr\Helper\Session::save();
             } elseif (_PS_VERSION_ >= 1.7 && $action !== null) {
                 if ($action === 'addProductToWishlist') {
-                    $p = \Mktr\Helper\Valid::getParam('params', null);
-                    \Mktr\Helper\Session::addToWishlist($p['id_product'], $p['id_product_attribute']);
-                    \Mktr\Helper\Session::save();
+                    $p = Mktr\Helper\Valid::getParam('params', null);
+                    Mktr\Helper\Session::addToWishlist($p['id_product'], $p['id_product_attribute']);
+                    Mktr\Helper\Session::save();
                 } elseif ($action === 'deleteProductFromWishlist') {
-                    $p = \Mktr\Helper\Valid::getParam('params', null);
-                    \Mktr\Helper\Session::removeFromWishlist($p['id_product'], $p['id_product_attribute']);
-                    \Mktr\Helper\Session::save();
+                    $p = Mktr\Helper\Valid::getParam('params', null);
+                    Mktr\Helper\Session::removeFromWishlist($p['id_product'], $p['id_product_attribute']);
+                    Mktr\Helper\Session::save();
                 } elseif (in_array($action, ['addFavoriteProduct', 'removeFavoriteProduct'])) {
-                    $id_product = \Mktr\Helper\Valid::getParam('id_product', null);
-                    $id_product_attribute = \Mktr\Helper\Valid::getParam('id_product_attribute', null);
+                    $id_product = Mktr\Helper\Valid::getParam('id_product', null);
+                    $id_product_attribute = Mktr\Helper\Valid::getParam('id_product_attribute', null);
 
                     if ($action === 'addFavoriteProduct') {
-                        \Mktr\Helper\Session::addToWishlist($id_product, $id_product_attribute);
-                        \Mktr\Helper\Session::save();
+                        Mktr\Helper\Session::addToWishlist($id_product, $id_product_attribute);
+                        Mktr\Helper\Session::save();
                     } else {
-                        \Mktr\Helper\Session::removeFromWishlist($id_product, $id_product_attribute);
-                        \Mktr\Helper\Session::save();
+                        Mktr\Helper\Session::removeFromWishlist($id_product, $id_product_attribute);
+                        Mktr\Helper\Session::save();
                     }
                 }
             } else {
-                if (\Mktr\Helper\Valid::getParam('process', null) === 'add') {
-                    $p = \Mktr\Helper\Valid::getParam('id_product', null);
+                if (Mktr\Helper\Valid::getParam('process', null) === 'add') {
+                    $p = Mktr\Helper\Valid::getParam('id_product', null);
 
                     if ($p !== null) {
-                        \Mktr\Helper\Session::addToWishlist($p, 0);
-                        \Mktr\Helper\Session::save();
+                        Mktr\Helper\Session::addToWishlist($p, 0);
+                        Mktr\Helper\Session::save();
                     }
-                } elseif (\Mktr\Helper\Valid::getParam('process', null) === 'remove') {
-                    $p = \Mktr\Helper\Valid::getParam('id_product', null);
+                } elseif (Mktr\Helper\Valid::getParam('process', null) === 'remove') {
+                    $p = Mktr\Helper\Valid::getParam('id_product', null);
 
                     if ($p !== null) {
-                        \Mktr\Helper\Session::removeFromWishlist($p, 0);
-                        \Mktr\Helper\Session::save();
+                        Mktr\Helper\Session::removeFromWishlist($p, 0);
+                        Mktr\Helper\Session::save();
                     }
                 }
             }
 
-            $cont = \Mktr\Helper\Valid::getParam('controller', null);
+            $cont = Mktr\Helper\Valid::getParam('controller', null);
 
             if (in_array($cont, ['order-confirmation', 'thank_you_page', 'orderconfirmation', 'confirmare-comanda'])) {
-                $svOrder = \Mktr\Helper\Session::get('save_order');
-                $id_order = \Mktr\Helper\Valid::getParam('id_order', null);
+                $svOrder = Mktr\Helper\Session::get('save_order');
+                $id_order = Mktr\Helper\Valid::getParam('id_order', null);
                 $expire = self::getExpire();
 
                 if ($id_order === null) {
-                    $cartId = \Mktr\Helper\Valid::getParam('id_cart', null);
+                    $cartId = Mktr\Helper\Valid::getParam('id_cart', null);
 
                     if ($cartId === null) {
-                        $cartId = \Mktr\Helper\Valid::getParam('orderId', null);
+                        $cartId = Mktr\Helper\Valid::getParam('orderId', null);
                         $cartId = explode('%', $cartId);
                         $cartId = $cartId[0];
                     }
 
                     if ($cartId !== null) {
                         $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
-                        \Mktr\Helper\Session::set('save_order', $svOrder);
-                        \Mktr\Helper\Session::save();
+                        Mktr\Helper\Session::set('save_order', $svOrder);
+                        Mktr\Helper\Session::save();
                     }
                 } else {
                     $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
-                    \Mktr\Helper\Session::set('save_order', $svOrder);
-                    \Mktr\Helper\Session::save();
+                    Mktr\Helper\Session::set('save_order', $svOrder);
+                    Mktr\Helper\Session::save();
                 }
             }
             /*
@@ -570,28 +864,28 @@ class Mktr extends \Module
             */
 
             if (isset($_COOKIE['EAX'])) {
-                if (\Mktr\Helper\Valid::getParam('orders') !== null) {
-                    $orders = explode(',', \Mktr\Helper\Valid::getParam('orders'));
+                if (Mktr\Helper\Valid::getParam('orders') !== null) {
+                    $orders = explode(',', Mktr\Helper\Valid::getParam('orders'));
                     $list = [];
 
                     foreach ($orders as $order) {
                         $list[] = ['id' => $order, 'is_order' => true];
                     }
 
-                    \Mktr\Helper\Session::set('save_order', $list);
-                    \Mktr\Helper\Session::save();
-                } elseif (\Mktr\Helper\Valid::getParam('update_orders') !== null) {
-                    $orders = explode(',', \Mktr\Helper\Valid::getParam('update_orders'));
+                    Mktr\Helper\Session::set('save_order', $list);
+                    Mktr\Helper\Session::save();
+                } elseif (Mktr\Helper\Valid::getParam('update_orders') !== null) {
+                    $orders = explode(',', Mktr\Helper\Valid::getParam('update_orders'));
                     $list = [];
 
                     foreach ($orders as $order) {
-                        $temp = \Mktr\Model\Orders::getByID($order);
+                        $temp = Mktr\Model\Orders::getByID($order);
                         $send = [
                             'order_number' => $temp->number,
                             'order_status' => $temp->order_status,
                         ];
 
-                        \Mktr\Helper\Api::send('update_order_status', $send, false);
+                        Mktr\Helper\Api::send('update_order_status', $send, false);
                     }
                 }
             }
@@ -613,16 +907,16 @@ class Mktr extends \Module
      */
     public function hookactionValidateOrder($params = null)
     {
-        if (empty($params['order']) || !\Mktr\Model\Config::rest()) {
+        if (empty($params['order']) || !Mktr\Model\Config::rest()) {
             return;
         }
 
         try {
-            \Mktr\Model\OrderSync::enroll((int) $params['order']->id);
-        } catch (\Exception $e) {
+            Mktr\Model\OrderSync::enroll((int) $params['order']->id);
+        } catch (Exception $e) {
             // Never let tracking break order creation - the sweeper retries.
             self::orderLog('VALIDATE_ORDER', $e->getMessage());
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             self::orderLog('VALIDATE_ORDER', $e->getMessage());
         }
     }
@@ -646,22 +940,22 @@ class Mktr extends \Module
      */
     public static function scheduleOrderSync()
     {
-        if (!\Mktr\Model\Config::rest()) {
+        if (!Mktr\Model\Config::rest()) {
             return;
         }
 
-        $cont = \Mktr\Helper\Valid::getParam('controller', null);
+        $cont = Mktr\Helper\Valid::getParam('controller', null);
 
         if (in_array(strtolower((string) $cont), ['api', 'cron'])) {
             return;
         }
 
         try {
-            if (!\Mktr\Route\SyncOrders::cronIsStale()) {
+            if (!Mktr\Route\SyncOrders::cronIsStale()) {
                 return;
             }
 
-            $data = \Mktr\Helper\Data::init();
+            $data = Mktr\Helper\Data::init();
 
             if ((int) $data->next_order_sync > time()) {
                 return;
@@ -669,8 +963,8 @@ class Mktr extends \Module
 
             // Reserved before the sweep runs, so parallel requests do not pile up.
             $data->next_order_sync = time() + 900;
-            \Mktr\Helper\Data::save();
-        } catch (\Exception $e) {
+            Mktr\Helper\Data::save();
+        } catch (Exception $e) {
             return;
         }
 
@@ -689,23 +983,23 @@ class Mktr extends \Module
         try {
             // Deliberately tiny. This is a stopgap for a missing cron, not a
             // second delivery system.
-            \Mktr\Route\SyncOrders::run(2, 8);
-        } catch (\Exception $e) {
+            Mktr\Route\SyncOrders::run(2, 8);
+        } catch (Exception $e) {
             self::orderLog('SYNC_ORDERS', $e->getMessage());
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             self::orderLog('SYNC_ORDERS', $e->getMessage());
         }
     }
 
     public function hookactionOrderStatusUpdate($newStatus = null)
     {
-        if ($newStatus !== null && \Mktr\Model\Config::rest()) {
+        if ($newStatus !== null && Mktr\Model\Config::rest()) {
             $send = [
                 'order_number' => $newStatus['id_order'],
                 'order_status' => $newStatus['newOrderStatus']->name,
             ];
 
-            \Mktr\Helper\Api::send('update_order_status', $send, false);
+            Mktr\Helper\Api::send('update_order_status', $send, false);
         }
     }
 
@@ -716,17 +1010,17 @@ class Mktr extends \Module
 
     public function hScript()
     {
-        if (self::$displayLoad['header'] === true && \Mktr\Model\Config::showJS()) {
+        if (self::$displayLoad['header'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['header'] = false;
-            $js = \Mktr\Model\Config::i()->js_file;
+            $js = Mktr\Model\Config::i()->js_file;
 
             if ($js !== '') {
-                if (\Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
-                    \Mktr\Helper\Session::set('cartID', $this->context->cart->id);
-                    \Mktr\Helper\Session::save();
+                if (Mktr\Helper\Session::get('cartID', null) !== $this->context->cart->id) {
+                    Mktr\Helper\Session::set('cartID', $this->context->cart->id);
+                    Mktr\Helper\Session::save();
                 }
 
-                $jsPrefix = \Mktr\Model\Config::getJsPrefix();
+                $jsPrefix = Mktr\Model\Config::getJsPrefix();
                 $this->context->controller->addJS($this->_path . $jsPrefix . $js . '.js');
             }
         }
@@ -764,16 +1058,16 @@ class Mktr extends \Module
 
     public function script()
     {
-        if (\Mktr\Model\Config::showJsOut()) {
+        if (Mktr\Model\Config::showJsOut()) {
             self::$displayLoad['footer'] = false;
         }
 
-        if (self::$displayLoad['footer'] === true && \Mktr\Model\Config::showJS()) {
+        if (self::$displayLoad['footer'] === true && Mktr\Model\Config::showJS()) {
             self::$displayLoad['footer'] = false;
 
             $data = null;
             $events = [];
-            $action = \Mktr\Helper\Valid::getParam('controller', null);
+            $action = Mktr\Helper\Valid::getParam('controller', null);
 
             // $listCheck = [];
             switch ($action) {
@@ -783,19 +1077,19 @@ class Mktr extends \Module
                     break;
                 case 'category':
                     $action = 'category';
-                    $data = \Mktr\Helper\Valid::toJson(['category' => \Mktr\Model\Category::getByID(\Mktr\Helper\Valid::getParam('id_category'))->hierarchy]);
+                    $data = Mktr\Helper\Valid::toJson(['category' => Mktr\Model\Category::getByID(Mktr\Helper\Valid::getParam('id_category'))->hierarchy]);
                     break;
                 case 'manufacturer':
                     $action = 'brand';
-                    $data = ['name' => \Mktr\Model\Brand::getByID(\Mktr\Helper\Valid::getParam('id_manufacturer'))->name];
+                    $data = ['name' => Mktr\Model\Brand::getByID(Mktr\Helper\Valid::getParam('id_manufacturer'))->name];
                     break;
                 case 'search':
                     $action = 'search';
-                    $data = ['search_term' => \Mktr\Helper\Valid::getParam(_PS_VERSION_ >= 1.7 ? 's' : 'search_query')];
+                    $data = ['search_term' => Mktr\Helper\Valid::getParam(_PS_VERSION_ >= 1.7 ? 's' : 'search_query')];
                     break;
                 case 'product':
                     $action = 'product';
-                    $data = ['product_id' => \Mktr\Helper\Valid::getParam('id_product')];
+                    $data = ['product_id' => Mktr\Helper\Valid::getParam('id_product')];
                     break;
                 case 'orderopc':
                     $action = 'checkout';
@@ -806,16 +1100,16 @@ class Mktr extends \Module
                     $data = 0;
                     $action = 'checkout';
 
-                    if ($this->context->controller instanceof \OrderController) {
+                    if ($this->context->controller instanceof OrderController) {
                         if (method_exists($this->context->controller, 'getCheckoutProcess')) {
                             $checkoutSteps = $this->context->controller->getCheckoutProcess()->getSteps();
                         } elseif (_PS_VERSION_ >= 1.7) {
-                            $reflectedObject = (new \ReflectionObject($this->context->controller))->getProperty('checkoutProcess');
+                            $reflectedObject = (new ReflectionObject($this->context->controller))->getProperty('checkoutProcess');
                             $reflectedObject->setAccessible(true);
                             $checkoutProcessClass = $reflectedObject->getValue($this->context->controller);
                             $checkoutSteps = $checkoutProcessClass->getSteps();
                         } else {
-                            $checkOUT = \Mktr\Helper\Valid::getParam('checkout');
+                            $checkOUT = Mktr\Helper\Valid::getParam('checkout');
 
                             if ($checkOUT !== null && $checkOUT == 1) {
                                 $checkoutSteps = [];
@@ -835,7 +1129,7 @@ class Mktr extends \Module
                             $data = 0;
 
                             foreach ($checkoutSteps as $stepObject) {
-                                if ($data === 0 && ($stepObject instanceof \CheckoutPersonalInformationStep || $stepObject instanceof \CheckoutAddressesStep)) {
+                                if ($data === 0 && ($stepObject instanceof CheckoutPersonalInformationStep || $stepObject instanceof CheckoutAddressesStep)) {
                                     $data = (int) $stepObject->isCurrent();
                                 }
                                 // $listCheck[] = $stepObject->getTitle();
@@ -843,7 +1137,7 @@ class Mktr extends \Module
                         }
 
                         if ($data == 0) {
-                            $checkOUT = \Mktr\Helper\Valid::getParam('checkout');
+                            $checkOUT = Mktr\Helper\Valid::getParam('checkout');
 
                             if ($checkOUT !== null && $checkOUT == 1) {
                                 $checkoutSteps = [];
@@ -870,7 +1164,7 @@ class Mktr extends \Module
             if ($data === null) {
                 $data = 'null';
             } elseif (is_array($data)) {
-                $data = \Mktr\Helper\Valid::toJson($data);
+                $data = Mktr\Helper\Valid::toJson($data);
             }
 
             $main = '';
@@ -915,7 +1209,7 @@ class Mktr extends \Module
                         //$linkPath = $linkPath . (substr($linkPath, -1) === '/' ? '' : '/');
             */
             foreach ($evList as $key => $value) {
-                if (!empty(\Mktr\Helper\Session::get($key)) && $add[$value] === false) {
+                if (!empty(Mktr\Helper\Session::get($key)) && $add[$value] === false) {
                     if (!in_array($value, $allowedPgValues, true)) {
                         continue;
                     }
@@ -971,28 +1265,29 @@ class Mktr extends \Module
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
             if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid method name.');
+                throw new Exception('Invalid method name.');
             }
+
             return null;
         }
 
         if (method_exists($this, $name)) {
             return call_user_func_array([$this, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Method {$name} does not exist.");
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new Exception("Method {$name} does not exist.");
+        }
+
+        return null;
     }
 
     public static function __callStatic($name, $arguments)
     {
         if (!preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $name)) {
             if (_PS_MODE_DEV_) {
-                throw new \Exception('Invalid static method name.');
+                throw new Exception('Invalid static method name.');
             }
+
             return null;
         }
 
@@ -1004,13 +1299,12 @@ class Mktr extends \Module
 
         if (method_exists(self::$i, $name)) {
             return call_user_func_array([self::$i, $name], $arguments);
-        } else {
-            if (_PS_MODE_DEV_) {
-                throw new \Exception("Static method {$name} does not exist.");
-            }
-
-            return null;
         }
+        if (_PS_MODE_DEV_) {
+            throw new Exception("Static method {$name} does not exist.");
+        }
+
+        return null;
     }
 
     public static function finLoad()
