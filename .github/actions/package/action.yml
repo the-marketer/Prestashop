@@ -1,0 +1,50 @@
+name: Package module
+description: Build dist/mktr.zip with `just package` and upload the module as a workflow artifact.
+
+inputs:
+  artifact-name:
+    description: Name for the uploaded artifact.
+    required: false
+    default: mktr
+  retention-days:
+    description: How long the artifact is kept.
+    required: false
+    default: "14"
+
+outputs:
+  version:
+    description: Module version read from config.xml.
+    value: ${{ steps.meta.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build package
+      shell: bash
+      run: just package
+
+    - name: Read package metadata
+      id: meta
+      shell: bash
+      run: echo "version=$(cat dist/VERSION)" >> "$GITHUB_OUTPUT"
+
+    # GitHub zips every artifact on download. Uploading the folder (not
+    # mktr.zip) is what makes that download a valid mktr.zip with mktr/ inside.
+    - name: Upload package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: dist/package/
+        include-hidden-files: true
+        retention-days: ${{ inputs.retention-days }}
+        if-no-files-found: error
+
+    - name: Summary
+      shell: bash
+      run: |
+        {
+          echo "## Module package"
+          echo "- Version: \`${{ steps.meta.outputs.version }}\`"
+          echo "- Files: $(unzip -Z1 dist/mktr.zip | grep -vc '/$')"
+          echo "- Artifact: \`${{ inputs.artifact-name }}\` (upload the downloaded zip to the validator as is)"
+        } >> "$GITHUB_STEP_SUMMARY"
