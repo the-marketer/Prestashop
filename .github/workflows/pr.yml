@@ -9,7 +9,7 @@ run-name: >-
 on:
   pull_request:
     branches:
-      - latest
+      - main
   workflow_dispatch:
 
 permissions:
