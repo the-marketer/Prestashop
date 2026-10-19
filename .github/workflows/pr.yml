@@ -1,0 +1,55 @@
+name: PR Pipeline
+run-name: >-
+  ${{
+    github.event_name == 'pull_request'
+      && format('[PR #{0}] {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('[Manual] {0}', github.ref_name)
+  }}
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Coding standard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup tooling
+        uses: ./.github/actions/setup
+
+      - name: Lint
+        run: just lint
+
+  package:
+    name: Package
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup tooling
+        uses: ./.github/actions/setup
+
+      - name: Build & upload package
+        uses: ./.github/actions/package
