@@ -1,0 +1,8 @@
+name: Setup tooling
+description: Install just. Docker is preinstalled on GitHub-hosted runners. Run after actions/checkout.
+
+runs:
+  using: composite
+  steps:
+    - name: Install just
+      uses: extractions/setup-just@v2

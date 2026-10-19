@@ -1,0 +1,78 @@
+name: Release
+run-name: >-
+  ${{
+    github.event_name == 'push'
+      && format('[Release] {0}', github.event.head_commit.message)
+      || format('[Release Manual] {0}', github.ref_name)
+  }}
+
+on:
+  push:
+    branches:
+      - latest
+    paths-ignore:
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Package & draft release
+    if: github.ref == 'refs/heads/latest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup tooling
+        uses: ./.github/actions/setup
+
+      - name: Lint
+        run: just lint
+
+      - name: Build & upload package
+        id: package
+        uses: ./.github/actions/package
+        with:
+          retention-days: "30"
+
+      # A version gets one draft release, refreshed on every push until someone
+      # publishes it; after that the version has to be bumped (`just bump`).
+      - name: Draft or refresh the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.package.outputs.version }}
+        run: |
+          set -euo pipefail
+          state=$(gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null || echo missing)
+
+          case "$state" in
+            missing)
+              gh release create "$TAG" dist/mktr.zip \
+                --draft \
+                --target "$GITHUB_SHA" \
+                --title "$TAG" \
+                --generate-notes
+              echo "Created draft release $TAG" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            true)
+              gh release upload "$TAG" dist/mktr.zip --clobber
+              gh release edit "$TAG" --target "$GITHUB_SHA"
+              echo "Refreshed draft release $TAG" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            false)
+              echo "::notice::$TAG is already published. Run \`just bump <version>\` to prepare the next release."
+              echo "$TAG is already published, nothing to release" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
