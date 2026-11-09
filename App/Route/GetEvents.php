@@ -57,6 +57,14 @@ class GetEvents
         $data = \Mktr\Helper\Session::data();
 
         foreach ($evList as $event => $value) {
+            if ($event === 'set_email') {
+                foreach (setEmail::drain() as $emailEvent) {
+                    $events[] = [$event, $emailEvent];
+                }
+
+                continue;
+            }
+
             $toClean = [];
             $list = \Mktr\Helper\Session::get($event);
             if (!empty($list)) {
@@ -106,79 +114,6 @@ class GetEvents
                             // would only re-emit the same tracking event.
                             $events[] = [$event, $temp->toEvent()];
                             $toClean[] = $key;
-                        }
-                    } elseif (in_array($event, ['set_email'])) {
-                        $v = null;
-                        $phone = null;
-                        $remove = false;
-
-                        if (is_array($value1)) {
-                            $remove = $value1[1];
-                            $value1 = $value1[0];
-                            if (isset($value1[2])) {
-                                $phone = $value1[2];
-                            }
-                        }
-
-                        if ($event === 'set_email') {
-                            $v = \Mktr\Model\Subscription::getByEmail($value1);
-                            $value1 = [
-                                'email_address' => $value1,
-                            ];
-
-                            if ($v !== null) {
-                                if ($v->firstname !== null) {
-                                    $value1['firstname'] = $v->firstname;
-                                }
-
-                                if ($v->lastname !== null) {
-                                    $value1['lastname'] = $v->lastname;
-                                }
-                            }
-                            if ($phone !== null && !empty($phone)) {
-                                $value1['phone'] = \Mktr\Helper\Valid::validateTelephone($phone);
-                            }
-                        }
-
-                        if (empty($value1['phone'])) {
-                            unset($value1['phone']);
-                        }
-
-                        $events[] = [$event, $value1];
-                        if ($event === 'set_email') {
-                            $info = [
-                                'email' => $v->email_address,
-                            ];
-                            if ($v->subscribed || $remove) {
-                                if ($v->subscribed) {
-                                    $name = [];
-
-                                    if ($v->firstname !== null) {
-                                        $name[] = $v->firstname;
-                                    }
-
-                                    if ($v->lastname !== null) {
-                                        $name[] = $v->lastname;
-                                    }
-
-                                    $info['name'] = implode(' ', $name);
-
-                                    if ($v->phone !== null) {
-                                        $info['phone'] = $v->phone;
-                                    } elseif ($phone !== null) {
-                                        $info['phone'] = $phone;
-                                    }
-                                    if (empty($info['phone'])) {
-                                        unset($info['phone']);
-                                    }
-
-                                    \Mktr\Helper\Api::send('add_subscriber', $info);
-                                } else {
-                                    \Mktr\Helper\Api::send('remove_subscriber', $info);
-                                }
-                            } else {
-                                $toClean[] = $key;
-                            }
                         }
                     } else {
                         $pId = $value1[0];
