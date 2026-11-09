@@ -10,7 +10,6 @@
     "prepend-autoloader": false
   },
   "require": {
-    "php": ">=7.1.0",
-    "prestashop/module-lib-mbo-installer": "^3.0"
+    "php": ">=7.1.0"
   }
 }

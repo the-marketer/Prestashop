@@ -6,5 +6,4 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Prestashop\\ModuleLibMboInstaller\\' => array($vendorDir . '/prestashop/module-lib-mbo-installer/src'),
 );

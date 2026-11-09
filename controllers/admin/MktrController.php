@@ -282,6 +282,15 @@ class MktrController extends AdminController
         return $list;
     }
 
+    private function canEdit()
+    {
+        if (method_exists($this, 'access')) {
+            return (bool) $this->access('edit');
+        }
+
+        return isset($this->tabAccess['edit']) && (int) $this->tabAccess['edit'] === 1;
+    }
+
     private function post()
     {
         $proccess = [];
@@ -388,7 +397,7 @@ class MktrController extends AdminController
 
         $js_status = Tools::getValue('js_status', null);
 
-        if ($js_status !== null) {
+        if ($js_status !== null && $this->canEdit()) {
             self::$config->update('js_status', $js_status);
             self::$config->save();
         }
@@ -569,7 +578,7 @@ class MktrController extends AdminController
 
         self::$page = Mktr\Helper\Valid::getParam('page', self::$page);
 
-        if (((bool) Tools::isSubmit('submitMktrModule')) == true) {
+        if (Tools::isSubmit('submitMktrModule') && $this->canEdit()) {
             $this->post();
         }
 
