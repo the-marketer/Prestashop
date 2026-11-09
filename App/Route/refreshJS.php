@@ -414,9 +414,8 @@ window.mktr.ready = true;
             self::write('firebase-config.js', self::FIREBASE_CONFIG, true);
             self::write('firebase-messaging-sw.js', self::FIREBASE_MESSAGING_SW, true);
         } else {
-            if (file_exists(MKTR_ROOT . '/firebase-config.js')) {
-                unlink(MKTR_ROOT . '/firebase-config.js');
-            }
+            self::write('firebase-config.js', '', true);
+
             if (file_exists(MKTR_ROOT . '/firebase-messaging-sw.js')) {
                 unlink(MKTR_ROOT . '/firebase-messaging-sw.js');
             }

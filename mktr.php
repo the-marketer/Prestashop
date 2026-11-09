@@ -51,6 +51,8 @@ class Mktr extends Module
 
     private static $included = [];
 
+    private static $pendingStatusUpdates = [];
+
     private static $displayLoad = [
         'header' => true,
         'footer' => true,
@@ -979,13 +981,35 @@ class Mktr extends Module
 
     public function hookactionOrderStatusUpdate($newStatus = null)
     {
-        if ($newStatus !== null && Mktr\Model\Config::rest()) {
-            $send = [
-                'order_number' => $newStatus['id_order'],
-                'order_status' => $newStatus['newOrderStatus']->name,
-            ];
+        if (empty($newStatus['id_order']) || empty($newStatus['newOrderStatus']) || !Mktr\Model\Config::rest()) {
+            return;
+        }
 
-            Mktr\Helper\Api::send('update_order_status', $send, false);
+        if (empty(self::$pendingStatusUpdates)) {
+            register_shutdown_function(['Mktr', 'sendStatusUpdates']);
+        }
+
+        self::$pendingStatusUpdates[(int) $newStatus['id_order']] = $newStatus['newOrderStatus']->name;
+    }
+
+    public static function sendStatusUpdates()
+    {
+        if (function_exists('fastcgi_finish_request')) {
+            @fastcgi_finish_request();
+        }
+
+        $pending = self::$pendingStatusUpdates;
+        self::$pendingStatusUpdates = [];
+
+        foreach ($pending as $idOrder => $status) {
+            try {
+                Mktr\Helper\Api::send('update_order_status', [
+                    'order_number' => $idOrder,
+                    'order_status' => $status,
+                ], false);
+            } catch (Throwable $e) {
+                self::orderLog('UPDATE_ORDER_STATUS', $e->getMessage());
+            }
         }
     }
 

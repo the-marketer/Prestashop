@@ -46,8 +46,6 @@ class Api
     }
 
     private static $mURL = 'https://t.themarketer.com/api/v1/';
-    // private static $mURL = "https://eaxdev.ga/mktr/EventsTrap/";
-    private static $bURL = 'https://eaxdev.ga/mktr/BugTrap/';
 
     private static $timeOut;
 
@@ -67,12 +65,6 @@ class Api
     }
 
     /** @noinspection PhpUnused */
-    public static function debug($data = [], $post = true)
-    {
-        return self::REST(self::$bURL, $data, $post);
-    }
-
-    /** @noinspection PhpUnused */
     public static function getParam()
     {
         return self::$params;
@@ -87,7 +79,7 @@ class Api
     /** @noinspection PhpUnused */
     public static function getStatus()
     {
-        return self::$info['http_code'];
+        return is_array(self::$info) && isset(self::$info['http_code']) ? (int) self::$info['http_code'] : 0;
     }
 
     /** @noinspection PhpUnused */
@@ -109,6 +101,9 @@ class Api
 
     public static function REST($url, $data = [], $post = true)
     {
+        self::$info = [];
+        self::$exec = null;
+
         try {
             if (!Config::rest()) {
                 return false;
@@ -143,15 +138,14 @@ class Api
             }
 
             \curl_setopt(self::$cURL, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt(self::$cURL, CURLOPT_SSL_VERIFYPEER, false);
+            \curl_setopt(self::$cURL, CURLOPT_SSL_VERIFYPEER, true);
+            \curl_setopt(self::$cURL, CURLOPT_SSL_VERIFYHOST, 2);
 
             self::$exec = \curl_exec(self::$cURL);
 
             self::$info = \curl_getinfo(self::$cURL);
 
             \curl_close(self::$cURL);
-
-            sleep(1);
         } catch (\Exception $e) {
         }
 
