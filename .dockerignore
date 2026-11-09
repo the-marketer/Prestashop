@@ -22,6 +22,7 @@ dist
 # Runtime data written by the module on a shop
 Storage/*
 !Storage/index.php
+!Storage/.htaccess
 
 # Internal notes; README.md and link.md ship with the module
 *.md

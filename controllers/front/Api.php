@@ -164,6 +164,11 @@ class MktrApiModuleFrontController extends FrontController
 
             $mime = Valid::getParam('mime-type', self::$page_mime[$name]);
 
+            if (!is_string($mime) || !array_key_exists($mime, Valid::mime)) {
+                $mime = self::$page_mime[$name];
+                Valid::setParam('mime-type', $mime);
+            }
+
             if (array_key_exists($name, self::$check)) {
                 Valid::check(self::$check[$name])->status();
             }

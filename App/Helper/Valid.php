@@ -156,8 +156,11 @@ class Valid
                                 }
                                 break;
                             case 'Key':
-                                if (self::getParam($k) !== null && self::getParam($k) !== Config::i()->rest_key) {
-                                    self::$error = 'Incorrect REST API Key ' . self::getParam($k);
+                                $key = self::getParam($k);
+                                $restKey = (string) Config::i()->rest_key;
+
+                                if ($key !== null && ($restKey === '' || !is_string($key) || !hash_equals($restKey, $key))) {
+                                    self::$error = 'Incorrect REST API Key';
                                 }
                                 break;
                             case 'RuleCheck':
@@ -171,7 +174,7 @@ class Valid
                                 }
                                 break;
                             case 'allow_export':
-                                if (Config::i()->allow_export === 0) {
+                                if (!Config::i()->allow_export) {
                                     self::$error = 'Export not Allow';
                                 }
                                 break;
