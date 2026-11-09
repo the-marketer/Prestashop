@@ -85,7 +85,6 @@ class saveOrder
             }
         }
 
-        return 'console.log(' . (int) $allGood . ',' . json_encode(\Mktr\Helper\Api::getInfo(), JSON_PRETTY_PRINT) . ');' . implode('
-', $events);
+        return implode(PHP_EOL, $events);
     }
 }

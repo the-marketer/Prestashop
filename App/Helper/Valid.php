@@ -302,6 +302,6 @@ class Valid
 
     public static function toJson($data = null)
     {
-        return json_encode($data === null ? [] : $data, JSON_UNESCAPED_SLASHES);
+        return json_encode($data === null ? [] : $data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     }
 }
