@@ -34,6 +34,8 @@ use Mktr\Model\Config;
 
 class Session
 {
+    const COOKIE = '__sm__uid';
+
     private static $init;
     private static $uid;
     private static $MKTR_TABLE;
@@ -61,22 +63,32 @@ class Session
 
     public function remove($key)
     {
-        if ($this->data[$key]) {
+        if (array_key_exists($key, $this->data)) {
             unset($this->data[$key]);
         }
 
         return $this;
     }
 
-    public static function getUid()
+    public static function isValidUid($uid)
+    {
+        return is_string($uid) && preg_match('/^[a-f0-9]{13,40}$/', $uid) === 1;
+    }
+
+    public static function getUid($create = false)
     {
         if (self::$uid === null) {
-            if (!isset($_COOKIE['__sm__uid']) || $_COOKIE['__sm__uid'] === false) {
-                self::$uid = uniqid();
-                setcookie('__sm__uid', self::$uid, strtotime('+365 days'), '/', '', !empty($_SERVER['HTTPS']), true);
-            } else {
-                self::$uid = $_COOKIE['__sm__uid'];
+            $cookie = isset($_COOKIE[self::COOKIE]) ? $_COOKIE[self::COOKIE] : null;
+
+            if (self::isValidUid($cookie)) {
+                self::$uid = $cookie;
             }
+        }
+
+        if (self::$uid === null && $create && !headers_sent()) {
+            self::$uid = bin2hex(random_bytes(16));
+            setcookie(self::COOKIE, self::$uid, strtotime('+365 days'), '/', '', !empty($_SERVER['HTTPS']), true);
+            $_COOKIE[self::COOKIE] = self::$uid;
         }
 
         return self::$uid;
@@ -85,9 +97,16 @@ class Session
     public function __construct()
     {
         $uid = self::getUid();
-        $data = Config::db()->executeS('SELECT `data` FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
 
-        $this->org = array_key_exists(0, $data) ? call_user_func('unserialize', $data[0]['data']) : [];
+        if ($uid !== null) {
+            $row = Config::db()->getValue('SELECT `data` FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '" . pSQL($uid) . "'", false);
+
+            if (is_string($row) && $row !== '') {
+                $decoded = json_decode($row, true);
+                $this->org = is_array($decoded) ? $decoded : [];
+            }
+        }
+
         $this->data = $this->org;
     }
 
@@ -113,77 +132,44 @@ class Session
 
     public static function save()
     {
-        if (self::init()->isDirty) {
-            $uid = self::getUid();
-            $table_name = self::$MKTR_TABLE;
-            $session = self::init();
+        $session = self::init();
 
-            if (!empty($session->data)) {
-                $data = [
-                    'data' => call_user_func('serialize', $session->data),
-                    'expire' => date('Y-m-d H:i:s', strtotime('+2 day')),
-                ];
-
-                /* @var Session $session */
-                $session = self::init();
-                if (isset($session->org) && count($session->org) > 0) {
-                    $sql = 'UPDATE `' . self::$MKTR_TABLE . '` SET ';
-                    $updates = [];
-
-                    foreach ($data as $key => $value) {
-                        if (!empty($value)) {
-                            $updates[] = "`$key` = '" . Config::db()->escape($value) . "'";
-                        } else {
-                            $updates[] = "`$key` = null";
-                        }
-                    }
-
-                    $sql .= implode(', ', $updates);
-                    $sql .= " WHERE `uid` = '" . $uid . "';";
-
-                    Config::db()->query($sql);
-                } else {
-                    $columns[] = '`uid`';
-                    $values[] = "'$uid'";
-                    foreach ($data as $key => $value) {
-                        $columns[] = "`$key`";
-                        if (!empty($value)) {
-                            $values[] = "'" . Config::db()->escape($value) . "'";
-                        } else {
-                            $values[] = 'null';
-                        }
-                    }
-
-                    $columns = implode(', ', $columns);
-                    $values = implode(',', $values);
-
-                    $data['uid'] = $uid;
-                    Config::db()->query('INSERT INTO `' . self::$MKTR_TABLE . '` (' . $columns . ') VALUES (' . $values . ')');
-                    $range_id = (int) Config::db()->Insert_ID();
-                }
-                $session->org = $session->data;
-            } else {
-                Config::db()->query('DELETE FROM `' . self::$MKTR_TABLE . "` WHERE `uid` = '$uid'");
-                /* @var Session $session */
-                $session = self::init();
-                $session->org = [];
-                $session->data = [];
-            }
-
-            self::clearIfExipire();
-
-            $session->isDirty = false;
-
-            return true;
+        if (!$session->isDirty) {
+            return false;
         }
 
-        return false;
+        if (empty($session->data)) {
+            $uid = self::getUid();
+
+            if ($uid !== null) {
+                Config::db()->delete('mktr', "`uid` = '" . pSQL($uid) . "'", 0, false);
+            }
+        } else {
+            $uid = self::getUid(true);
+
+            if ($uid === null) {
+                return false;
+            }
+
+            $row = [
+                'uid' => pSQL($uid),
+                'data' => pSQL(json_encode($session->data), true),
+                'expire' => date('Y-m-d H:i:s', strtotime('+2 day')),
+            ];
+
+            Config::db()->insert('mktr', $row, false, false, \Db::REPLACE);
+        }
+
+        $session->org = $session->data;
+        $session->isDirty = false;
+        self::clearIfExipire();
+
+        return true;
     }
 
     public static function clearIfExipire()
     {
-        $expire_at = date('Y-m-d H:i:s', time());
-        Config::db()->execute('DELETE FROM `' . self::$MKTR_TABLE . "` WHERE `expire` < '$expire_at'");
+        Config::db()->delete('mktr', "`expire` < '" . date('Y-m-d H:i:s') . "'", 0, false);
     }
 
     public static function clear()
@@ -201,29 +187,29 @@ class Session
 
     public static function addToWishlist($pId, $pAttr = 0)
     {
-        self::sessionSet('add_to_wish_list', [$pId, $pAttr]);
+        self::sessionSet('add_to_wish_list', [(int) $pId, (int) $pAttr]);
     }
 
     public static function removeFromWishlist($pId, $pAttr = 0)
     {
-        self::sessionSet('remove_from_wishlist', [$pId, $pAttr]);
+        self::sessionSet('remove_from_wishlist', [(int) $pId, (int) $pAttr]);
     }
 
     public static function Wishlist($pId, $pAttr = 0)
     {
-        self::sessionSet('wishlist', [$pId, $pAttr]);
+        self::sessionSet('wishlist', [(int) $pId, (int) $pAttr]);
     }
 
     public static function addToCart($pId, $pAttr, $qty)
     {
-        $qty = $qty <= 0 ? '1' : $qty;
-        self::sessionSet('add_to_cart', [$pId, $pAttr, $qty]);
+        $qty = (int) $qty <= 0 ? 1 : (int) $qty;
+        self::sessionSet('add_to_cart', [(int) $pId, (int) $pAttr, $qty]);
     }
 
     public static function removeFromCart($pId, $pAttr, $qty)
     {
-        $qty = $qty <= 0 ? '1' : $qty;
-        self::sessionSet('remove_from_cart', [$pId, $pAttr, $qty]);
+        $qty = (int) $qty <= 0 ? 1 : (int) $qty;
+        self::sessionSet('remove_from_cart', [(int) $pId, (int) $pAttr, $qty]);
     }
 
     public static function setEmail($email)
@@ -233,16 +219,10 @@ class Session
 
     public static function sessionSet($name, $data, $key = null)
     {
-        $add = self::get($name);
+        $add = self::get($name, []);
 
         if ($key === null) {
-            $n = '';
-
-            for ($i = 0; $i < 5; ++$i) {
-                $n .= \rand(0, 9);
-            }
-
-            $add[time() . $n] = $data;
+            $add[time() . random_int(10000, 99999)] = $data;
         } else {
             $add[$key] = $data;
         }

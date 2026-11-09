@@ -89,18 +89,8 @@ class Category extends DataBase
     {
         $i = self::i();
 
-        if ($limit === null) {
-            $limit = $i->limit;
-        }
-
-        if ($num === null) {
-            $num = 1;
-        }
-
-        $start = (($num - 1) * $limit);
-
         $sql = 'SELECT  c.`id_category`, c.`id_parent`, c.`active` FROM `' . _DB_PREFIX_ . 'category` c LEFT JOIN `' . _DB_PREFIX_ . 'category_shop` cs ON (c.`id_category` = cs.`id_category` AND cs.`id_shop` = ' . Config::shop() . ')' .
-        ' WHERE  c.`active` = 1 ORDER BY c.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        ' WHERE  c.`active` = 1' . self::pageClause($i, $num, $limit, 'c.');
 
         $i->list = Config::db()->executeS($sql);
 

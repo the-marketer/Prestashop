@@ -83,18 +83,8 @@ class Brand extends DataBase
     {
         $i = self::i();
 
-        if ($limit === null) {
-            $limit = $i->limit;
-        }
-
-        if ($num === null) {
-            $num = 1;
-        }
-
-        $start = (($num - 1) * $limit);
-
         $sql = 'SELECT  m.`id_manufacturer`, m.`active` FROM `' . _DB_PREFIX_ . 'manufacturer` m LEFT JOIN `' . _DB_PREFIX_ . 'manufacturer_shop` ms ON (m.`id_manufacturer` = ms.`id_manufacturer` AND ms.`id_shop` = ' . Config::shop() . ')' .
-        ' WHERE  m.`active` = 1 ORDER BY m.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        ' WHERE  m.`active` = 1' . self::pageClause($i, $num, $limit, 'm.');
 
         $i->list = Config::db()->executeS($sql);
 

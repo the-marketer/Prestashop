@@ -89,6 +89,16 @@ abstract class DataBase
         return null;
     }
 
+    protected static function pageClause($model, $num, $limit, $alias = '')
+    {
+        $limit = (int) $limit > 0 ? min((int) $limit, 1000) : (int) $model->limit;
+        $num = max(1, (int) $num);
+        $column = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $model->orderBy);
+        $direction = strtoupper((string) $model->direction) === 'DESC' ? 'DESC' : 'ASC';
+
+        return ' ORDER BY ' . $alias . '`' . $column . '` ' . $direction . ' LIMIT ' . (($num - 1) * $limit) . ', ' . $limit;
+    }
+
     public function toArray($if = null)
     {
         $list = [];
@@ -174,7 +184,7 @@ abstract class DataBase
                 return (bool) $value;
             case 'object':
             case 'array':
-                return call_user_func('unserialize', $value);
+                return is_string($value) ? unserialize($value, ['allowed_classes' => false]) : $value;
             case 'json':
                 return json_decode($value, true);
             case 'date':

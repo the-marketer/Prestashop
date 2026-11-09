@@ -169,16 +169,6 @@ class Orders extends DataBase
     {
         $i = self::i();
 
-        if ($limit === null) {
-            $limit = $i->limit;
-        }
-
-        if ($num === null) {
-            $num = 1;
-        }
-
-        $start = (($num - 1) * $limit);
-
         $sql = 'SELECT `id_order`' .
                 ' FROM `' . _DB_PREFIX_ . 'orders`';
 
@@ -199,7 +189,7 @@ class Orders extends DataBase
         if (!empty($wh)) {
             $sql .= ' WHERE' . implode(' AND', $wh);
         }
-        $sql .= ' ORDER BY `' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        $sql .= self::pageClause($i, $num, $limit);
 
         $i->list = Config::db()->executeS($sql);
 

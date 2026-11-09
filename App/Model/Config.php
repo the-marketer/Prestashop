@@ -364,7 +364,7 @@ class Config
     public static function db()
     {
         if (self::$db === null) {
-            self::$db = \Db::getInstance(_PS_USE_SQL_SLAVE_);
+            self::$db = \Db::getInstance();
         }
 
         return self::$db;
@@ -634,7 +634,7 @@ class Config
                 return (bool) $value;
             case 'object':
             case 'array':
-                return call_user_func('unserialize', $value);
+                return is_string($value) ? unserialize($value, ['allowed_classes' => false]) : $value;
             case 'json':
                 return json_decode($value, true);
             case 'date':

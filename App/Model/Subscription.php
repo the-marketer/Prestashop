@@ -104,7 +104,7 @@ class Subscription extends DataBase
                 } else {
                     $table = 'newsletter';
                 }
-                $sql = 'SELECT * FROM `' . _DB_PREFIX_ . $table . '` WHERE `id_shop` = ' . Config::shop() . ' AND `email` = "' . $email . '" LIMIT 1';
+                $sql = 'SELECT * FROM `' . _DB_PREFIX_ . $table . '` WHERE `id_shop` = ' . Config::shop() . ' AND `email` = \'' . pSQL($email) . '\' LIMIT 1';
 
                 $retrun = Config::db()->executeS($sql);
                 if (!empty($retrun)) {
