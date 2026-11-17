@@ -114,11 +114,7 @@ class CodeGenerator
         $coupon->quantity_per_user = 1;
         $coupon->reduction_tax = true;
         $coupon->active = true;
-        /*
-        if cumulated need to be 0,
-        if can't use multiple discount codes need to be 1
-        */
-        $coupon->cart_rule_restriction = false;
+        $coupon->cart_rule_restriction = !Config::i()->code_cumulative;
         $coupon->minimum_amount_currency = $c;
         $coupon->reduction_currency = $c;
         // save the coupon

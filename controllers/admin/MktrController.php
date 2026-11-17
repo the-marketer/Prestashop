@@ -127,6 +127,7 @@ class MktrController extends AdminController
                     ],
                 ],
                 'allow_export' => ['type' => 'switch', 'label' => 'Allow orders export'],
+                'code_cumulative' => ['type' => 'switch', 'label' => 'Allow several TheMarketer codes in the same cart', 'desc' => 'When disabled, a new TheMarketer code cannot be combined with another TheMarketer code, or with a voucher marked as non-combinable. It can still be used together with your regular vouchers.'],
                 'selectors' => ['type' => 'text', 'label' => 'Trigger Selectors'],
                 'brand' => ['type' => 'text', 'label' => 'Brand Attribute'],
                 'color' => ['type' => 'text', 'label' => 'Color Attribute'],
