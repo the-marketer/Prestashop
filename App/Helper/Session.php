@@ -34,7 +34,7 @@ use Mktr\Model\Config;
 
 class Session
 {
-    const COOKIE = '__sm__uid';
+    public const COOKIE = '__sm__uid';
 
     private static $init;
     private static $uid;

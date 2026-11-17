@@ -32,7 +32,7 @@ if (!defined('_PS_VERSION_')) {
 
 class setEmail
 {
-    const MAX_ATTEMPTS = 3;
+    public const MAX_ATTEMPTS = 3;
 
     public static function run()
     {
