@@ -354,8 +354,10 @@ class Config
 
     private static function getLegacyContext()
     {
-        if (self::$context === null) {
-            self::$context = \Context::getContext();
+        // The module constructor hands its context over through setContext();
+        // this only runs if a class is used before the module was loaded.
+        if (self::$context === null && \Mktr::i() !== null) {
+            self::$context = \Mktr::i()->getModuleContext();
         }
 
         return self::$context;
@@ -431,7 +433,7 @@ class Config
                 if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
                     $val = $v['default'];
                     if (in_array($v['type'], ['array', 'object'])) {
-                        $val = call_user_func('serialize', $val);
+                        $val = \Mktr\Helper\Codec::encode($val);
                     } elseif (in_array($v['type'], ['bool', 'boolean'])) {
                         $val = (int) $val;
                     }
@@ -634,7 +636,7 @@ class Config
                 return (bool) $value;
             case 'object':
             case 'array':
-                return is_string($value) ? unserialize($value, ['allowed_classes' => false]) : $value;
+                return \Mktr\Helper\Codec::decode($value);
             case 'json':
                 return json_decode($value, true);
             case 'date':
@@ -664,7 +666,7 @@ class Config
                 return (int) $value;
             case 'object':
             case 'array':
-                return call_user_func('serialize', $value);
+                return \Mktr\Helper\Codec::encode($value);
             case 'json':
                 return json_encode($value, JSON_PRETTY_PRINT);
             case 'date':
