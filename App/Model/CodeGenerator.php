@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -114,11 +114,7 @@ class CodeGenerator
         $coupon->quantity_per_user = 1;
         $coupon->reduction_tax = true;
         $coupon->active = true;
-        /*
-        if cumulated need to be 0,
-        if can't use multiple discount codes need to be 1
-        */
-        $coupon->cart_rule_restriction = false;
+        $coupon->cart_rule_restriction = !Config::i()->code_cumulative;
         $coupon->minimum_amount_currency = $c;
         $coupon->reduction_currency = $c;
         // save the coupon

@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -127,6 +127,7 @@ class MktrController extends AdminController
                     ],
                 ],
                 'allow_export' => ['type' => 'switch', 'label' => 'Allow orders export'],
+                'code_cumulative' => ['type' => 'switch', 'label' => 'Allow several TheMarketer codes in the same cart', 'desc' => 'When disabled, a new TheMarketer code cannot be combined with another TheMarketer code, or with a voucher marked as non-combinable. It can still be used together with your regular vouchers.'],
                 'selectors' => ['type' => 'text', 'label' => 'Trigger Selectors'],
                 'brand' => ['type' => 'text', 'label' => 'Brand Attribute'],
                 'color' => ['type' => 'text', 'label' => 'Color Attribute'],
