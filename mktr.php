@@ -86,8 +86,11 @@ class Mktr extends Module
 
         spl_autoload_register([$this, 'load'], true, true);
 
+        // Context first: setLang() already builds the Config instance, which
+        // needs the shop from the context.
+        Mktr\Model\Config::setContext($this->context);
         /* @phpstan-ignore-next-line */
-        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        Mktr\Model\Config::setLang($this->context->language->id);
 
         if (self::$update) {
             self::preConfig();
@@ -307,6 +310,17 @@ class Mktr extends Module
     public static function i()
     {
         return self::$i;
+    }
+
+    /**
+     * The module's context, for the classes under App/ that cannot reach the
+     * protected property.
+     *
+     * @return Context
+     */
+    public function getModuleContext()
+    {
+        return $this->context;
     }
 
     public static function correctUpdate($filePath, $from, $to)
@@ -842,7 +856,7 @@ class Mktr extends Module
 
     private static function isOwner($idCustomer, $secureKey)
     {
-        $context = Context::getContext();
+        $context = Mktr\Model\Config::getContext();
 
         if ($idCustomer > 0) {
             if ($context->customer !== null && Validate::isLoadedObject($context->customer) && (int) $context->customer->id === $idCustomer) {

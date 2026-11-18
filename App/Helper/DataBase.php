@@ -184,7 +184,7 @@ abstract class DataBase
                 return (bool) $value;
             case 'object':
             case 'array':
-                return is_string($value) ? unserialize($value, ['allowed_classes' => false]) : $value;
+                return Codec::decode($value);
             case 'json':
                 return json_decode($value, true);
             case 'date':
@@ -218,7 +218,7 @@ abstract class DataBase
                 return (int) $value;
             case 'object':
             case 'array':
-                return call_user_func('serialize', $value);
+                return Codec::encode($value);
             case 'json':
                 return json_encode($value, JSON_PRETTY_PRINT);
             case 'date':

@@ -151,7 +151,7 @@ class setEmail
 
     private static function isCurrentCustomer($email)
     {
-        $customer = \Context::getContext()->customer;
+        $customer = \Mktr\Model\Config::getContext()->customer;
 
         return $customer !== null
             && \Validate::isLoadedObject($customer)
