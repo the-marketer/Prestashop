@@ -183,7 +183,9 @@ class MktrApiModuleFrontController extends FrontController
                     $read = Valid::getParam('read');
                     $start_date = Valid::getParam('start_date');
                     if ($start_date !== null) {
-                        $script = '.' . base64_encode($start_date);
+                        // URL-safe base64 without padding: '=', '+' and '/' are not
+                        // allowed in Storage file names.
+                        $script = '.' . rtrim(strtr(base64_encode($start_date), '+/', '-_'), '=');
                     }
                     $fileName = $name . $script . '.' . $mime;
                 } else {

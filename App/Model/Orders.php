@@ -506,6 +506,31 @@ class Orders extends DataBase
         return implode(' ', $adr);
     }
 
+    /**
+     * Amount refunded on the order's products, tax included.
+     *
+     * Since 1.7.7 PrestaShop keeps it on the order lines whether or not a
+     * credit slip was generated; before that it only exists on credit slips.
+     * Called through $mapping ('refund_value'), so it looks unused.
+     *
+     * @return float
+     */
+    protected function getRefund()
+    {
+        $idOrder = (int) $this->data->id;
+
+        if (version_compare(_PS_VERSION_, '1.7.7.0', '>=')) {
+            $sql = 'SELECT SUM(`total_refunded_tax_incl`) FROM `' . _DB_PREFIX_ . 'order_detail`'
+                . ' WHERE `id_order` = ' . $idOrder;
+        } else {
+            $sql = 'SELECT SUM(osd.`amount_tax_incl`) FROM `' . _DB_PREFIX_ . 'order_slip_detail` osd'
+                . ' INNER JOIN `' . _DB_PREFIX_ . 'order_slip` os ON os.`id_order_slip` = osd.`id_order_slip`'
+                . ' WHERE os.`id_order` = ' . $idOrder;
+        }
+
+        return round((float) Config::db()->getValue($sql), 2);
+    }
+
     protected function getTax()
     {
         /* @phpstan-ignore-next-line */
