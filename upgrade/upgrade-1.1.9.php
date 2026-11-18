@@ -1,4 +1,5 @@
-{**
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -12,27 +13,36 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
+ *
  * @project     TheMarketer.com
+ *
  * @website     https://themarketer.com/
+ *
  * @docs        https://themarketer.com/resources/api
- **}
-<!-- Load cdc library -->
-<script src="https://assets.prestashop3.com/dst/mbo/v1/mbo-cdc-dependencies-resolver.umd.js"></script>
+ **/
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
-<!-- cdc container -->
-<div id="cdc-container"></div>
-
-<script defer>
-    const renderMboCdcDependencyResolver = window.mboCdcDependencyResolver.render
-    const context = {
-        ...{$dependencies|json_encode},
-        onDependenciesResolved: () => location.reload(),
-        onDependencyResolved: (dependencyData) => console.log('Dependency installed', dependencyData), // name, displayName, version
-        onDependencyFailed: (dependencyData) => console.log('Failed to install dependency', dependencyData),
-        onDependenciesFailed: () => console.log('There are some errors'),
+/**
+ * @param Mktr $module
+ *
+ * @return bool
+ */
+function upgrade_module_1_1_9($module)
+{
+    if (!Mktr\Model\Config::db()->execute('TRUNCATE TABLE `' . _DB_PREFIX_ . 'mktr`')) {
+        return false;
     }
-    renderMboCdcDependencyResolver(context, '#cdc-container')
-</script>
+
+    try {
+        Mktr\Route\refreshJS::loadJs();
+        Mktr\Route\refreshJS::updatePushStatus();
+    } catch (Exception $e) {
+    }
+
+    return true;
+}

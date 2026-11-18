@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -52,6 +52,7 @@ class Config
         'push_status' => ['key' => 'MKTR_TRACKER_TRACKER_PUSH_STATUS', 'default' => false, 'type' => 'bool'],
         'default_stock' => ['key' => 'MKTR_TRACKER_TRACKER_DEFAULT_STOCK', 'default' => 0, 'type' => 'int'],
         'allow_export' => ['key' => 'MKTR_TRACKER_TRACKER_ALLOW_EXPORT', 'default' => true, 'type' => 'bool'],
+        'code_cumulative' => ['key' => 'MKTR_TRACKER_TRACKER_CODE_CUMULATIVE', 'default' => false, 'type' => 'bool'],
         'selectors' => ['key' => 'MKTR_TRACKER_TRACKER_SELECTORS', 'default' => '', 'type' => 'string'],
         'brand' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_BRAND', 'default' => ['brand'], 'type' => 'array'],
         'color' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_COLOR', 'default' => ['color'], 'type' => 'array'],
@@ -75,6 +76,7 @@ class Config
         'push_status' => ['key' => 'MKTR_TRACKER_PUSH_STATUS', 'default' => 0, 'type' => 'int'],
         'default_stock' => ['key' => 'MKTR_TRACKER_DEFAULT_STOCK', 'default' => 0, 'type' => 'int'],
         'allow_export' => ['key' => 'MKTR_TRACKER_ALLOW_EXPORT', 'default' => 1, 'type' => 'int'],
+        'code_cumulative' => ['key' => 'MKTR_TRACKER_CODE_CUMULATIVE', 'default' => 0, 'type' => 'int'],
         'selectors' => ['key' => 'MKTR_TRACKER_SELECTORS', 'default' => '', 'type' => 'string'],
         'brand' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_BRAND', 'default' => ['brand'], 'type' => 'array'],
         'color' => ['key' => 'MKTR_TRACKER_ATTRIBUTE_COLOR', 'default' => ['color'], 'type' => 'array'],
@@ -111,6 +113,7 @@ class Config
         'push_status' => null,
         'default_stock' => null,
         'allow_export' => null,
+        'code_cumulative' => null,
         'selectors' => null,
         'brand' => null,
         'color' => null,
@@ -354,8 +357,10 @@ class Config
 
     private static function getLegacyContext()
     {
-        if (self::$context === null) {
-            self::$context = \Context::getContext();
+        // The module constructor hands its context over through setContext();
+        // this only runs if a class is used before the module was loaded.
+        if (self::$context === null && \Mktr::i() !== null) {
+            self::$context = \Mktr::i()->getModuleContext();
         }
 
         return self::$context;
@@ -364,7 +369,7 @@ class Config
     public static function db()
     {
         if (self::$db === null) {
-            self::$db = \Db::getInstance(_PS_USE_SQL_SLAVE_);
+            self::$db = \Db::getInstance();
         }
 
         return self::$db;
@@ -431,7 +436,7 @@ class Config
                 if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*$/', $key)) {
                     $val = $v['default'];
                     if (in_array($v['type'], ['array', 'object'])) {
-                        $val = call_user_func('serialize', $val);
+                        $val = \Mktr\Helper\Codec::encode($val);
                     } elseif (in_array($v['type'], ['bool', 'boolean'])) {
                         $val = (int) $val;
                     }
@@ -634,7 +639,7 @@ class Config
                 return (bool) $value;
             case 'object':
             case 'array':
-                return call_user_func('unserialize', $value);
+                return \Mktr\Helper\Codec::decode($value);
             case 'json':
                 return json_decode($value, true);
             case 'date':
@@ -664,7 +669,7 @@ class Config
                 return (int) $value;
             case 'object':
             case 'array':
-                return call_user_func('serialize', $value);
+                return \Mktr\Helper\Codec::encode($value);
             case 'json':
                 return json_encode($value, JSON_PRETTY_PRINT);
             case 'date':

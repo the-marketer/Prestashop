@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -163,6 +163,11 @@ class MktrApiModuleFrontController extends FrontController
             }
 
             $mime = Valid::getParam('mime-type', self::$page_mime[$name]);
+
+            if (!is_string($mime) || !array_key_exists($mime, Valid::mime)) {
+                $mime = self::$page_mime[$name];
+                Valid::setParam('mime-type', $mime);
+            }
 
             if (array_key_exists($name, self::$check)) {
                 Valid::check(self::$check[$name])->status();

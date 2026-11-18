@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -169,16 +169,6 @@ class Orders extends DataBase
     {
         $i = self::i();
 
-        if ($limit === null) {
-            $limit = $i->limit;
-        }
-
-        if ($num === null) {
-            $num = 1;
-        }
-
-        $start = (($num - 1) * $limit);
-
         $sql = 'SELECT `id_order`' .
                 ' FROM `' . _DB_PREFIX_ . 'orders`';
 
@@ -199,7 +189,7 @@ class Orders extends DataBase
         if (!empty($wh)) {
             $sql .= ' WHERE' . implode(' AND', $wh);
         }
-        $sql .= ' ORDER BY `' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        $sql .= self::pageClause($i, $num, $limit);
 
         $i->list = Config::db()->executeS($sql);
 

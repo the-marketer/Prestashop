@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -201,21 +201,12 @@ class Product extends DataBase
     {
         $i = self::i();
 
-        if ($limit === null) {
-            $limit = $i->limit;
-        }
-
-        if ($num === null) {
-            $num = 1;
-        }
-        $start = (($num - 1) * $limit);
-
         $sql = 'SELECT p.`id_product` AS id, product_shop.visibility, product_shop.active , pl.`id_lang` FROM ' .
         '`' . _DB_PREFIX_ . 'product` p ' . \Shop::addSqlAssociation('product', 'p') .
         ' LEFT JOIN ' . _DB_PREFIX_ . 'specific_price sp ON p.`id_product` = sp.`id_product`' .
         ' LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl ON (p.`id_product` = pl.`id_product` ' . \Shop::addSqlRestrictionOnLang('pl') . ')' .
         ' WHERE pl.`id_lang` = ' . Config::getLang() . ' AND product_shop.`visibility` IN ("both", "catalog", "search")' .
-        ' AND product_shop.`active` = 1 AND (p.price > 0 OR (sp.reduction IS NOT NULL AND sp.reduction > 0)) ORDER BY p.`' . $i->orderBy . '` ' . $i->direction . ' LIMIT ' . $start . ', ' . $limit;
+        ' AND product_shop.`active` = 1 AND (p.price > 0 OR (sp.reduction IS NOT NULL AND sp.reduction > 0))' . self::pageClause($i, $num, $limit, 'p.');
 
         $i->list = Config::db()->executeS($sql);
 

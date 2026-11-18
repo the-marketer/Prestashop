@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -414,9 +414,8 @@ window.mktr.ready = true;
             self::write('firebase-config.js', self::FIREBASE_CONFIG, true);
             self::write('firebase-messaging-sw.js', self::FIREBASE_MESSAGING_SW, true);
         } else {
-            if (file_exists(MKTR_ROOT . '/firebase-config.js')) {
-                unlink(MKTR_ROOT . '/firebase-config.js');
-            }
+            self::write('firebase-config.js', '', true);
+
             if (file_exists(MKTR_ROOT . '/firebase-messaging-sw.js')) {
                 unlink(MKTR_ROOT . '/firebase-messaging-sw.js');
             }
@@ -464,7 +463,7 @@ window.mktr.ready = true;
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  * 
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  * @project     TheMarketer.com

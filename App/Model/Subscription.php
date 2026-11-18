@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -104,7 +104,7 @@ class Subscription extends DataBase
                 } else {
                     $table = 'newsletter';
                 }
-                $sql = 'SELECT * FROM `' . _DB_PREFIX_ . $table . '` WHERE `id_shop` = ' . Config::shop() . ' AND `email` = "' . $email . '" LIMIT 1';
+                $sql = 'SELECT * FROM `' . _DB_PREFIX_ . $table . '` WHERE `id_shop` = ' . Config::shop() . ' AND `email` = \'' . pSQL($email) . '\' LIMIT 1';
 
                 $retrun = Config::db()->executeS($sql);
                 if (!empty($retrun)) {

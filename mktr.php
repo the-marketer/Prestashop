@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -51,6 +51,8 @@ class Mktr extends Module
 
     private static $included = [];
 
+    private static $pendingStatusUpdates = [];
+
     private static $displayLoad = [
         'header' => true,
         'footer' => true,
@@ -67,7 +69,7 @@ class Mktr extends Module
     {
         $this->name = 'mktr';
         $this->tab = 'advertising_marketing';
-        $this->version = '1.1.8';
+        $this->version = '1.1.10';
         $this->author = 'TheMarketer.com';
         $this->need_instance = 1;
         $this->bootstrap = true;
@@ -84,13 +86,14 @@ class Mktr extends Module
 
         spl_autoload_register([$this, 'load'], true, true);
 
+        // Context first: setLang() already builds the Config instance, which
+        // needs the shop from the context.
+        Mktr\Model\Config::setContext($this->context);
         /* @phpstan-ignore-next-line */
-        Mktr\Model\Config::setLang($this->context->language->id)->setContext($this->context);
+        Mktr\Model\Config::setLang($this->context->language->id);
 
         if (self::$update) {
             self::preConfig();
-        } else {
-            Mktr\Helper\Session::getUid();
         }
 
         $this->autoHealHooksIfNeeded();
@@ -307,6 +310,17 @@ class Mktr extends Module
     public static function i()
     {
         return self::$i;
+    }
+
+    /**
+     * The module's context, for the classes under App/ that cannot reach the
+     * protected property.
+     *
+     * @return Context
+     */
+    public function getModuleContext()
+    {
+        return $this->context;
     }
 
     public static function correctUpdate($filePath, $from, $to)
@@ -529,14 +543,6 @@ class Mktr extends Module
 
     public function getContent()
     {
-        $mboInstaller = new Prestashop\ModuleLibMboInstaller\DependencyBuilder($this);
-        if (!$mboInstaller->areDependenciesMet()) {
-            $dependencies = $mboInstaller->handleDependencies();
-            $this->smarty->assign('dependencies', $dependencies);
-
-            return $this->display(__FILE__, 'views/templates/admin/dependency_builder.tpl');
-        }
-
         Tools::redirectAdmin($this->context->link->getAdminLink('Mktr', true));
 
         return null;
@@ -679,24 +685,16 @@ class Mktr extends Module
             $pAttr = null;
             $qty = null;
 
-            $email = Mktr\Helper\Valid::getParam('email', null);
-            $phone = Mktr\Helper\Valid::getParam('phone', null);
-            $phone1 = Mktr\Helper\Valid::getParam('phone_mobile', null);
+            $email = self::postedString('email');
 
-            if ($email !== null) {
-                $remove = false;
+            if ($email !== null && Validate::isEmail($email)) {
+                $phone = self::postedString('phone');
 
-                if (in_array(Mktr\Helper\Valid::getParam('controller', null), ['identity'])) {
-                    $remove = true;
+                if ($phone === null) {
+                    $phone = self::postedString('phone_mobile');
                 }
 
-                $toAdd = [$email, $remove];
-
-                if ($phone !== null && !empty($phone) || $phone1 !== null && !empty($phone1)) {
-                    $toAdd[] = ($phone !== null ? $phone : $phone1);
-                }
-
-                Mktr\Helper\Session::setEmail($toAdd);
+                Mktr\Helper\Session::setEmail([$email, $cont === 'identity', $phone]);
                 Mktr\Helper\Session::save();
             }
 
@@ -801,97 +799,91 @@ class Mktr extends Module
             $cont = Mktr\Helper\Valid::getParam('controller', null);
 
             if (in_array($cont, ['order-confirmation', 'thank_you_page', 'orderconfirmation', 'confirmare-comanda'])) {
-                $svOrder = Mktr\Helper\Session::get('save_order');
-                $id_order = Mktr\Helper\Valid::getParam('id_order', null);
-                $expire = self::getExpire();
+                $id_order = (int) Mktr\Helper\Valid::getParam('id_order', 0);
 
-                if ($id_order === null) {
-                    $cartId = Mktr\Helper\Valid::getParam('id_cart', null);
+                if ($id_order > 0) {
+                    $order = new Order($id_order);
 
-                    if ($cartId === null) {
-                        $cartId = Mktr\Helper\Valid::getParam('orderId', null);
-                        $cartId = explode('%', $cartId);
-                        $cartId = $cartId[0];
-                    }
-
-                    if ($cartId !== null) {
-                        $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
-                        Mktr\Helper\Session::set('save_order', $svOrder);
-                        Mktr\Helper\Session::save();
+                    if (self::ownsOrder($order)) {
+                        self::queueOrder($id_order, true);
                     }
                 } else {
-                    $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
-                    Mktr\Helper\Session::set('save_order', $svOrder);
-                    Mktr\Helper\Session::save();
-                }
-            }
-            /*
-            $vivaController = _PS_MODULE_DIR_ . 'vivawallet/controllers/front/smartcheckout/success.php';
-            if (file_exists($vivaController)) {
-                require_once $vivaController;
-            }
+                    $cartId = (int) Mktr\Helper\Valid::getParam('id_cart', 0);
 
-            if (class_exists('VivaWalletSmartCheckoutSuccessModuleFrontController')) {
-                if (is_callable(['VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId'])) {
-                    $svOrder = \Mktr\Helper\Session::get('save_order');
-                    $vivaWallet = \Mktr\Helper\Valid::getParam('s', null);
-                    $expire = self::getExpire();
-                    $id_order = null;
-                    $cartId = null;
-
-                    if (method_exists('VivaWalletSmartCheckoutSuccessModuleFrontController', 'getOrderId')) {
-                        $id_order = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, false);
-
-                        if (empty($id_order)) {
-                            $cartId = (int) \VivaWalletSmartCheckoutSuccessModuleFrontController::getOrderId($vivaWallet, true);
-                            $id_order = null;
-                        }
+                    if ($cartId <= 0) {
+                        $orderId = Mktr\Helper\Valid::getParam('orderId', '');
+                        $cartId = is_string($orderId) ? (int) explode('%', $orderId)[0] : 0;
                     }
 
-                    if ($id_order === null) {
-                        if ($cartId !== null) {
-                            $svOrder[$cartId] = ['id' => $cartId, 'is_order' => false, 'expire' => $expire];
-                            \Mktr\Helper\Session::set('save_order', $svOrder);
-                            \Mktr\Helper\Session::save();
-                        }
-                    } else {
-                        $svOrder[$id_order] = ['id' => $id_order, 'is_order' => true, 'expire' => $expire];
-                        \Mktr\Helper\Session::set('save_order', $svOrder);
-                        \Mktr\Helper\Session::save();
-                    }
-                }
-            }
-            */
-
-            if (isset($_COOKIE['EAX'])) {
-                if (Mktr\Helper\Valid::getParam('orders') !== null) {
-                    $orders = explode(',', Mktr\Helper\Valid::getParam('orders'));
-                    $list = [];
-
-                    foreach ($orders as $order) {
-                        $list[] = ['id' => $order, 'is_order' => true];
-                    }
-
-                    Mktr\Helper\Session::set('save_order', $list);
-                    Mktr\Helper\Session::save();
-                } elseif (Mktr\Helper\Valid::getParam('update_orders') !== null) {
-                    $orders = explode(',', Mktr\Helper\Valid::getParam('update_orders'));
-                    $list = [];
-
-                    foreach ($orders as $order) {
-                        $temp = Mktr\Model\Orders::getByID($order);
-                        $send = [
-                            'order_number' => $temp->number,
-                            'order_status' => $temp->order_status,
-                        ];
-
-                        Mktr\Helper\Api::send('update_order_status', $send, false);
+                    if ($cartId > 0 && self::ownsCart(new Cart($cartId))) {
+                        self::queueOrder($cartId, false);
                     }
                 }
             }
 
             self::scheduleOrderSync();
         }
+    }
+
+    private static function postedString($name)
+    {
+        if (!isset($_POST[$name]) || !is_string($_POST[$name])) {
+            return null;
+        }
+
+        $value = trim($_POST[$name]);
+
+        return $value === '' ? null : $value;
+    }
+
+    private static function ownsOrder($order)
+    {
+        if (!Validate::isLoadedObject($order)) {
+            return false;
+        }
+
+        return self::isOwner((int) $order->id_customer, (string) $order->secure_key);
+    }
+
+    private static function ownsCart($cart)
+    {
+        if (!Validate::isLoadedObject($cart)) {
+            return false;
+        }
+
+        return self::isOwner((int) $cart->id_customer, (string) $cart->secure_key);
+    }
+
+    private static function isOwner($idCustomer, $secureKey)
+    {
+        $context = Mktr\Model\Config::getContext();
+
+        if ($idCustomer > 0) {
+            if ($context->customer !== null && Validate::isLoadedObject($context->customer) && (int) $context->customer->id === $idCustomer) {
+                return true;
+            }
+
+            if ($context->cookie !== null && isset($context->cookie->id_customer) && (int) $context->cookie->id_customer === $idCustomer) {
+                return true;
+            }
+        }
+
+        $key = Mktr\Helper\Valid::getParam('key', null);
+
+        return is_string($key) && $key !== '' && $secureKey !== '' && hash_equals($secureKey, $key);
+    }
+
+    private static function queueOrder($id, $isOrder)
+    {
+        $svOrder = Mktr\Helper\Session::get('save_order', []);
+
+        if (!is_array($svOrder)) {
+            $svOrder = [];
+        }
+
+        $svOrder[$id] = ['id' => $id, 'is_order' => $isOrder, 'expire' => self::getExpire()];
+        Mktr\Helper\Session::set('save_order', $svOrder);
+        Mktr\Helper\Session::save();
     }
 
     /**
@@ -993,13 +985,35 @@ class Mktr extends Module
 
     public function hookactionOrderStatusUpdate($newStatus = null)
     {
-        if ($newStatus !== null && Mktr\Model\Config::rest()) {
-            $send = [
-                'order_number' => $newStatus['id_order'],
-                'order_status' => $newStatus['newOrderStatus']->name,
-            ];
+        if (empty($newStatus['id_order']) || empty($newStatus['newOrderStatus']) || !Mktr\Model\Config::rest()) {
+            return;
+        }
 
-            Mktr\Helper\Api::send('update_order_status', $send, false);
+        if (empty(self::$pendingStatusUpdates)) {
+            register_shutdown_function(['Mktr', 'sendStatusUpdates']);
+        }
+
+        self::$pendingStatusUpdates[(int) $newStatus['id_order']] = $newStatus['newOrderStatus']->name;
+    }
+
+    public static function sendStatusUpdates()
+    {
+        if (function_exists('fastcgi_finish_request')) {
+            @fastcgi_finish_request();
+        }
+
+        $pending = self::$pendingStatusUpdates;
+        self::$pendingStatusUpdates = [];
+
+        foreach ($pending as $idOrder => $status) {
+            try {
+                Mktr\Helper\Api::send('update_order_status', [
+                    'order_number' => $idOrder,
+                    'order_status' => $status,
+                ], false);
+            } catch (Throwable $e) {
+                self::orderLog('UPDATE_ORDER_STATUS', $e->getMessage());
+            }
         }
     }
 
@@ -1077,11 +1091,11 @@ class Mktr extends Module
                     break;
                 case 'category':
                     $action = 'category';
-                    $data = Mktr\Helper\Valid::toJson(['category' => Mktr\Model\Category::getByID(Mktr\Helper\Valid::getParam('id_category'))->hierarchy]);
+                    $data = Mktr\Helper\Valid::toJson(['category' => Mktr\Model\Category::getByID((int) Mktr\Helper\Valid::getParam('id_category'))->hierarchy]);
                     break;
                 case 'manufacturer':
                     $action = 'brand';
-                    $data = ['name' => Mktr\Model\Brand::getByID(Mktr\Helper\Valid::getParam('id_manufacturer'))->name];
+                    $data = ['name' => Mktr\Model\Brand::getByID((int) Mktr\Helper\Valid::getParam('id_manufacturer'))->name];
                     break;
                 case 'search':
                     $action = 'search';
@@ -1089,7 +1103,7 @@ class Mktr extends Module
                     break;
                 case 'product':
                     $action = 'product';
-                    $data = ['product_id' => Mktr\Helper\Valid::getParam('id_product')];
+                    $data = ['product_id' => (int) Mktr\Helper\Valid::getParam('id_product')];
                     break;
                 case 'orderopc':
                     $action = 'checkout';

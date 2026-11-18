@@ -1,5 +1,6 @@
 Storage/*
 !index.php
+!Storage/.htaccess
 .DS_Store
 .idea
 dist/

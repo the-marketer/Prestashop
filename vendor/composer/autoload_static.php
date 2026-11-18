@@ -6,20 +6,6 @@ namespace Composer\Autoload;
 
 class ComposerStaticInitc9b79be8d8363a9a245db6454dca8187
 {
-    public static $prefixLengthsPsr4 = array (
-        'P' => 
-        array (
-            'Prestashop\\ModuleLibMboInstaller\\' => 33,
-        ),
-    );
-
-    public static $prefixDirsPsr4 = array (
-        'Prestashop\\ModuleLibMboInstaller\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/prestashop/module-lib-mbo-installer/src',
-        ),
-    );
-
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
     );
@@ -27,8 +13,6 @@ class ComposerStaticInitc9b79be8d8363a9a245db6454dca8187
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitc9b79be8d8363a9a245db6454dca8187::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitc9b79be8d8363a9a245db6454dca8187::$prefixDirsPsr4;
             $loader->classMap = ComposerStaticInitc9b79be8d8363a9a245db6454dca8187::$classMap;
 
         }, null, ClassLoader::class);

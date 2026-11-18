@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -87,6 +87,16 @@ abstract class DataBase
         }
 
         return null;
+    }
+
+    protected static function pageClause($model, $num, $limit, $alias = '')
+    {
+        $limit = (int) $limit > 0 ? min((int) $limit, 1000) : (int) $model->limit;
+        $num = max(1, (int) $num);
+        $column = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $model->orderBy);
+        $direction = strtoupper((string) $model->direction) === 'DESC' ? 'DESC' : 'ASC';
+
+        return ' ORDER BY ' . $alias . '`' . $column . '` ' . $direction . ' LIMIT ' . (($num - 1) * $limit) . ', ' . $limit;
     }
 
     public function toArray($if = null)
@@ -174,7 +184,7 @@ abstract class DataBase
                 return (bool) $value;
             case 'object':
             case 'array':
-                return call_user_func('unserialize', $value);
+                return Codec::decode($value);
             case 'json':
                 return json_decode($value, true);
             case 'date':
@@ -208,7 +218,7 @@ abstract class DataBase
                 return (int) $value;
             case 'object':
             case 'array':
-                return call_user_func('serialize', $value);
+                return Codec::encode($value);
             case 'json':
                 return json_encode($value, JSON_PRETTY_PRINT);
             case 'date':

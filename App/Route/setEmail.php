@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -32,103 +32,130 @@ if (!defined('_PS_VERSION_')) {
 
 class setEmail
 {
+    public const MAX_ATTEMPTS = 3;
+
     public static function run()
     {
-        $evList = [
-            'set_email' => '__sm__set_email',
-        ];
         $events = [];
-        $allGood = true;
-        $toClean = [];
-        foreach ($evList as $event => $value) {
-            $list = \Mktr\Helper\Session::get($event);
-            if (!empty($list)) {
-                foreach ($list as $ey => $value1) {
-                    $v = null;
-                    $phone = null;
-                    $remove = false;
 
-                    if (is_array($value1)) {
-                        $remove = $value1[1];
-                        $value1 = $value1[0];
-                        if (isset($value1[2])) {
-                            $phone = $value1[2];
-                        }
-                    }
-
-                    if ($event === 'set_email') {
-                        $v = \Mktr\Model\Subscription::getByEmail($value1);
-                        $value1 = [
-                            'email_address' => $value1,
-                        ];
-
-                        if ($v !== null) {
-                            if ($v->firstname !== null) {
-                                $value1['firstname'] = $v->firstname;
-                            }
-
-                            if ($v->lastname !== null) {
-                                $value1['lastname'] = $v->lastname;
-                            }
-                        }
-                        if ($phone !== null) {
-                            $value1['phone'] = \Mktr\Helper\Valid::validateTelephone($phone);
-                        }
-                    }
-
-                    $events[] = "window.mktr.buildEvent('" . $event . "', " . \Mktr\Helper\Valid::toJson($value1) . ');';
-                    if ($event === 'set_email') {
-                        $info = [
-                            'email' => $v->email_address,
-                        ];
-
-                        if ($v->subscribed) {
-                            $name = [];
-
-                            if ($v->firstname !== null) {
-                                $name[] = $v->firstname;
-                            }
-
-                            if ($v->lastname !== null) {
-                                $name[] = $v->lastname;
-                            }
-
-                            $info['name'] = implode(' ', $name);
-
-                            if ($v->phone !== null) {
-                                $info['phone'] = $v->phone;
-                            } elseif ($phone !== null) {
-                                $info['phone'] = $phone;
-                            }
-
-                            \Mktr\Helper\Api::send('add_subscriber', $info);
-                        } elseif ($remove) {
-                            \Mktr\Helper\Api::send('remove_subscriber', $info);
-                        }
-
-                        if (\Mktr\Helper\Api::getStatus() != 200) {
-                            $allGood = false;
-                        }
-                    }
-                    $toClean[$event][] = $ey;
-                }
-            }
-        }
-
-        if ($allGood) {
-            foreach ($toClean as $event => $value) {
-                $vv = \Mktr\Helper\Session::get($event);
-
-                foreach ($value as $vd) {
-                    unset($vv[$vd]);
-                }
-
-                \Mktr\Helper\Session::set($event, $vv);
-            }
-
-            \Mktr\Helper\Session::save();
+        foreach (self::drain() as $event) {
+            $events[] = "window.mktr.buildEvent('set_email', " . \Mktr\Helper\Valid::toJson($event) . ');';
         }
 
         return implode(PHP_EOL, $events);
+    }
+
+    public static function drain()
+    {
+        $list = \Mktr\Helper\Session::get('set_email');
+
+        if (empty($list) || !is_array($list)) {
+            return [];
+        }
+
+        $events = [];
+
+        foreach ($list as $key => $entry) {
+            $result = self::process($entry);
+
+            if ($result['event'] !== null) {
+                $events[] = $result['event'];
+            }
+
+            if ($result['entry'] === null) {
+                unset($list[$key]);
+            } else {
+                $list[$key] = $result['entry'];
+            }
+        }
+
+        \Mktr\Helper\Session::set('set_email', empty($list) ? null : $list);
+        \Mktr\Helper\Session::save();
+
+        return $events;
+    }
+
+    private static function process($entry)
+    {
+        $entry = is_array($entry) ? array_values($entry) : [$entry];
+        $email = isset($entry[0]) && is_string($entry[0]) ? trim($entry[0]) : '';
+        $remove = !empty($entry[1]);
+        $phone = isset($entry[2]) && is_string($entry[2]) && $entry[2] !== '' ? $entry[2] : null;
+        $attempts = isset($entry[3]) ? (int) $entry[3] : 0;
+
+        if ($email === '' || !\Validate::isEmail($email)) {
+            return ['event' => null, 'entry' => null];
+        }
+
+        $v = \Mktr\Model\Subscription::getByEmail($email);
+        $isOwner = self::isCurrentCustomer($email);
+        $event = null;
+
+        if ($attempts === 0) {
+            $event = ['email_address' => $email];
+
+            if ($isOwner) {
+                if ($v->firstname !== null) {
+                    $event['firstname'] = $v->firstname;
+                }
+
+                if ($v->lastname !== null) {
+                    $event['lastname'] = $v->lastname;
+                }
+            }
+
+            if ($phone !== null) {
+                $validPhone = \Mktr\Helper\Valid::validateTelephone($phone);
+
+                if (!empty($validPhone)) {
+                    $event['phone'] = $validPhone;
+                }
+            }
+        }
+
+        $action = null;
+        $info = ['email' => $email];
+
+        if ($v->subscribed) {
+            $action = 'add_subscriber';
+            $name = array_filter([$v->firstname, $v->lastname], function ($part) {
+                return $part !== null && $part !== '';
+            });
+            $info['name'] = implode(' ', $name);
+            $subscriberPhone = $v->phone !== null ? $v->phone : $phone;
+
+            if (!empty($subscriberPhone)) {
+                $info['phone'] = $subscriberPhone;
+            }
+        } elseif ($remove && $isOwner) {
+            $action = 'remove_subscriber';
+        }
+
+        if ($action === null || !\Mktr\Model\Config::rest()) {
+            return ['event' => $event, 'entry' => null];
+        }
+
+        \Mktr\Helper\Api::send($action, $info);
+
+        if (\Mktr\Helper\Api::getStatus() >= 200 && \Mktr\Helper\Api::getStatus() < 300) {
+            return ['event' => $event, 'entry' => null];
+        }
+
+        ++$attempts;
+
+        return [
+            'event' => $event,
+            'entry' => $attempts >= self::MAX_ATTEMPTS ? null : [$email, $remove, $phone, $attempts],
+        ];
+    }
+
+    private static function isCurrentCustomer($email)
+    {
+        $customer = \Mktr\Model\Config::getContext()->customer;
+
+        return $customer !== null
+            && \Validate::isLoadedObject($customer)
+            && $customer->isLogged(true)
+            && strcasecmp((string) $customer->email, $email) === 0;
     }
 }

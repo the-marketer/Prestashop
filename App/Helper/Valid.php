@@ -13,7 +13,7 @@
  * obtain it through the world-wide-web, please send an email
  * to license@prestashop.com so we can send you a copy immediately.
  *
- * @author      Alexandru Buzica (EAX LEX S.R.L.) <b.alex@eax.ro>
+ * @author      TheMarketer.com
  * @copyright   Copyright (c) 2023 TheMarketer.com
  * @license     https://opensource.org/licenses/osl-3.0.php - Open Software License (OSL 3.0)
  *
@@ -156,8 +156,11 @@ class Valid
                                 }
                                 break;
                             case 'Key':
-                                if (self::getParam($k) !== null && self::getParam($k) !== Config::i()->rest_key) {
-                                    self::$error = 'Incorrect REST API Key ' . self::getParam($k);
+                                $key = self::getParam($k);
+                                $restKey = (string) Config::i()->rest_key;
+
+                                if ($key !== null && ($restKey === '' || !is_string($key) || !hash_equals($restKey, $key))) {
+                                    self::$error = 'Incorrect REST API Key';
                                 }
                                 break;
                             case 'RuleCheck':
@@ -171,7 +174,7 @@ class Valid
                                 }
                                 break;
                             case 'allow_export':
-                                if (Config::i()->allow_export === 0) {
+                                if (!Config::i()->allow_export) {
                                     self::$error = 'Export not Allow';
                                 }
                                 break;
@@ -302,6 +305,6 @@ class Valid
 
     public static function toJson($data = null)
     {
-        return json_encode($data === null ? [] : $data, JSON_UNESCAPED_SLASHES);
+        return json_encode($data === null ? [] : $data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     }
 }
